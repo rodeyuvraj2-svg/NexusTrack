@@ -54,8 +54,9 @@ function MediaDetail() {
     enabled: !!mediaId && type === "tv",
   });
 
+  type UpsertPayload = { media_id: string; status?: WatchStatus; rating?: number | null; favorite?: boolean; hidden?: boolean; notes?: string | null };
   const mUpsert = useMutation({
-    mutationFn: (payload: Parameters<typeof upsertFn>[0]["data"]) => upsertFn({ data: payload }),
+    mutationFn: (payload: UpsertPayload) => upsertFn({ data: payload }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["library-entry", mediaId] }); qc.invalidateQueries({ queryKey: ["library"] }); qc.invalidateQueries({ queryKey: ["stats"] }); },
   });
   const mRemove = useMutation({
