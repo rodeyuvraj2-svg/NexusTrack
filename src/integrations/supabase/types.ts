@@ -14,16 +14,346 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      activity: {
+        Row: {
+          created_at: string
+          id: string
+          kind: Database["public"]["Enums"]["activity_kind"]
+          media_id: string | null
+          payload: Json | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: Database["public"]["Enums"]["activity_kind"]
+          media_id?: string | null
+          payload?: Json | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["activity_kind"]
+          media_id?: string | null
+          payload?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_media_id_fkey"
+            columns: ["media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      friendships: {
+        Row: {
+          addressee_id: string
+          created_at: string
+          id: string
+          requester_id: string
+          status: Database["public"]["Enums"]["friend_status"]
+          updated_at: string
+        }
+        Insert: {
+          addressee_id: string
+          created_at?: string
+          id?: string
+          requester_id: string
+          status?: Database["public"]["Enums"]["friend_status"]
+          updated_at?: string
+        }
+        Update: {
+          addressee_id?: string
+          created_at?: string
+          id?: string
+          requester_id?: string
+          status?: Database["public"]["Enums"]["friend_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      media: {
+        Row: {
+          backdrop_url: string | null
+          cached_at: string
+          external_id: string
+          genres: string[] | null
+          id: string
+          media_type: Database["public"]["Enums"]["media_type"]
+          original_title: string | null
+          overview: string | null
+          poster_url: string | null
+          raw: Json | null
+          release_year: number | null
+          runtime: number | null
+          season_count: number | null
+          source: string
+          status: string | null
+          title: string
+          vote_average: number | null
+        }
+        Insert: {
+          backdrop_url?: string | null
+          cached_at?: string
+          external_id: string
+          genres?: string[] | null
+          id?: string
+          media_type: Database["public"]["Enums"]["media_type"]
+          original_title?: string | null
+          overview?: string | null
+          poster_url?: string | null
+          raw?: Json | null
+          release_year?: number | null
+          runtime?: number | null
+          season_count?: number | null
+          source?: string
+          status?: string | null
+          title: string
+          vote_average?: number | null
+        }
+        Update: {
+          backdrop_url?: string | null
+          cached_at?: string
+          external_id?: string
+          genres?: string[] | null
+          id?: string
+          media_type?: Database["public"]["Enums"]["media_type"]
+          original_title?: string | null
+          overview?: string | null
+          poster_url?: string | null
+          raw?: Json | null
+          release_year?: number | null
+          runtime?: number | null
+          season_count?: number | null
+          source?: string
+          status?: string | null
+          title?: string
+          vote_average?: number | null
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          payload: Json | null
+          read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          payload?: Json | null
+          read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          payload?: Json | null
+          read_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          is_public: boolean
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+          is_public?: boolean
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          is_public?: boolean
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      seasons: {
+        Row: {
+          air_date: string | null
+          episode_count: number | null
+          id: string
+          media_id: string
+          name: string | null
+          overview: string | null
+          poster_url: string | null
+          season_number: number
+        }
+        Insert: {
+          air_date?: string | null
+          episode_count?: number | null
+          id?: string
+          media_id: string
+          name?: string | null
+          overview?: string | null
+          poster_url?: string | null
+          season_number: number
+        }
+        Update: {
+          air_date?: string | null
+          episode_count?: number | null
+          id?: string
+          media_id?: string
+          name?: string | null
+          overview?: string | null
+          poster_url?: string | null
+          season_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seasons_media_id_fkey"
+            columns: ["media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_media: {
+        Row: {
+          created_at: string
+          favorite: boolean
+          hidden: boolean
+          id: string
+          media_id: string
+          notes: string | null
+          progress: number
+          rating: number | null
+          status: Database["public"]["Enums"]["watch_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          favorite?: boolean
+          hidden?: boolean
+          id?: string
+          media_id: string
+          notes?: string | null
+          progress?: number
+          rating?: number | null
+          status?: Database["public"]["Enums"]["watch_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          favorite?: boolean
+          hidden?: boolean
+          id?: string
+          media_id?: string
+          notes?: string | null
+          progress?: number
+          rating?: number | null
+          status?: Database["public"]["Enums"]["watch_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_media_media_id_fkey"
+            columns: ["media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_seasons: {
+        Row: {
+          id: string
+          season_id: string
+          status: Database["public"]["Enums"]["watch_status"]
+          updated_at: string
+          user_id: string
+          user_media_id: string
+        }
+        Insert: {
+          id?: string
+          season_id: string
+          status?: Database["public"]["Enums"]["watch_status"]
+          updated_at?: string
+          user_id: string
+          user_media_id: string
+        }
+        Update: {
+          id?: string
+          season_id?: string
+          status?: Database["public"]["Enums"]["watch_status"]
+          updated_at?: string
+          user_id?: string
+          user_media_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_seasons_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "seasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_seasons_user_media_id_fkey"
+            columns: ["user_media_id"]
+            isOneToOne: false
+            referencedRelation: "user_media"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      are_friends: { Args: { a: string; b: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      activity_kind:
+        | "started"
+        | "completed"
+        | "added"
+        | "favorited"
+        | "rated"
+        | "friend_joined"
+      friend_status: "pending" | "accepted" | "blocked"
+      media_type: "movie" | "tv" | "anime"
+      watch_status:
+        | "watching"
+        | "completed"
+        | "planned"
+        | "paused"
+        | "dropped"
+        | "skipped"
+        | "rewatching"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +480,26 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      activity_kind: [
+        "started",
+        "completed",
+        "added",
+        "favorited",
+        "rated",
+        "friend_joined",
+      ],
+      friend_status: ["pending", "accepted", "blocked"],
+      media_type: ["movie", "tv", "anime"],
+      watch_status: [
+        "watching",
+        "completed",
+        "planned",
+        "paused",
+        "dropped",
+        "skipped",
+        "rewatching",
+      ],
+    },
   },
 } as const
