@@ -51,7 +51,13 @@ export const upsertLibraryItem = createServerFn({ method: "POST" })
       .eq("media_id", data.media_id)
       .maybeSingle();
     if (existing.data) {
-      const patch: Record<string, unknown> = {};
+      const patch: {
+        status?: typeof data.status;
+        rating?: typeof data.rating;
+        favorite?: boolean;
+        hidden?: boolean;
+        notes?: string | null;
+      } = {};
       if (data.status !== undefined) patch.status = data.status;
       if (data.rating !== undefined) patch.rating = data.rating;
       if (data.favorite !== undefined) patch.favorite = data.favorite;
