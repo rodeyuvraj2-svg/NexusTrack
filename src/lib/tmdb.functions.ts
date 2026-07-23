@@ -255,3 +255,94 @@ export const cacheMedia = createServerFn({ method: "POST" })
 
     return { id: mediaId };
   });
+
+// ----- Watch providers (streaming availability) -----
+
+export interface WatchProvider {
+  provider_id: number;
+  provider_name: string;
+  logo_path: string | null;
+  display_priority?: number;
+}
+
+export interface WatchProviderResult {
+  link: string | null;
+  flatrate: WatchProvider[];
+  rent: WatchProvider[];
+  buy: WatchProvider[];
+  ads: WatchProvider[];
+}
+
+export const getWatchProviders = createServerFn({ method: "GET" })
+  .inputValidator((input) => z.object({ type: z.enum(["movie", "tv"]), id: z.string() }).parse(input))
+  .handler(async ({ data }) => {
+    const res = await tmdb<{ results: Record<string, { link?: string; flatrate?: WatchProvider[]; rent?: WatchProvider[]; buy?: WatchProvider[]; ads?: WatchProvider[] }> }>(
+      `/${data.type}/${data.id}/watch/providers`,
+    );
+    const results = res.results ?? {};
+    // US as default region, plus a few major markets
+    const region = "US";
+    const entry = results[region] ?? results["GB"] ?? Object.values(results)[0] ?? {};
+    return {
+      link: entry.link ?? null,
+      flatrate: (entry.flatrate ?? []).map((p) => ({ ...p, logo_path: imgUrl(p.logo_path, "w92") })),
+      rent: (entry.rent ?? []).map((p) => ({ ...p, logo_path: imgUrl(p.logo_path, "w92") })),
+      buy: (entry.buy ?? []).map((p) => ({ ...p, logo_path: imgUrl(p.logo_path, "w92") })),
+      ads: (entry.ads ?? []).map((p) => ({ ...p, logo_path: imgUrl(p.logo_path, "w92") })),
+    } as WatchProviderResult;
+  });
+
+// ----- Recommendations -----
+
+export const getRecommendations = createServerFn({ method: "GET" })
+  .inputValidator((input) => z.object({ type: z.enum(["movie", "tv"]), id: z.string() }).parse(input))
+  .handler(async ({ data }) => {
+    const res = await tmdb<{ results: TmdbMovie[] }>(`/${data.type}/${data.id}/recommendations`);
+    return res.results.slice(0, 12).map((m) => toSummary(m, data.type));
+  });
+
+export const getSimilar = createServerFn({ method: "GET" })
+  .inputValidator((input) => z.object({ type: z.enum(["movie", "tv"]), id: z.string() }).parse(input))
+  .handler(async ({ data }) => {
+    const res = await tmdb<{ results: TmdbMovie[] }>(`/${data.type}/${data.id}/similar`);
+    return res.results.slice(0, 12).map((m) => toSummary(m, data.type));
+  });
+
+// ----- Cast & crew -----
+
+export interface CastMember {
+  id: number;
+  name: string;
+  character: string;
+  profile_path: string | null;
+  order: number;
+}
+
+export const getCast = createServerFn({ method: "GET" })
+  .inputValidator((input) => z.object({ type: z.enum(["movie", "tv"]), id: z.string() }).parse(input))
+  .handler(async ({ data }) => {
+    const res = await tmdb<{ cast: CastMember[]; crew: { id: number; name: string; job: string }[] }>(
+      `/${data.type}/${data.id}/credits`,
+    );
+    const topCast = (res.cast ?? []).slice(0, 15).map((c) => ({
+      ...c,
+      profile_path: imgUrl(c.profile_path, "w185"),
+    }));
+    const director = (res.crew ?? []).find((c) => c.job === "Director");
+    return { cast: topCast, director: director?.name ?? null };
+  });
+
+// ----- Export helpers -----
+
+export const getMediaByIds = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ ids: z.array(z.string().uuid()) }).parse(input))
+  .handler(async ({ data, context }) => {
+    if (data.ids.length === 0) return [];
+    const { data: rows, error } = await context.supabase
+      .from("media")
+      .select("id, media_type, source, external_id, title, poster_url, release_year, vote_average, genres")
+      .in("id", data.ids);
+    if (error) throw error;
+    return rows ?? [];
+  });

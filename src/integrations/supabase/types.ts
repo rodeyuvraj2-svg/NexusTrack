@@ -163,6 +163,73 @@ export type Database = {
         }
         Relationships: []
       }
+      reviews: {
+        Row: {
+          id: string
+          user_id: string
+          media_id: string
+          body: string
+          likes: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          media_id: string
+          body: string
+          likes?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          media_id?: string
+          body?: string
+          likes?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_media_id_fkey"
+            columns: ["media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_likes: {
+        Row: {
+          id: string
+          review_id: string
+          user_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          review_id: string
+          user_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          review_id?: string
+          user_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_likes_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

@@ -1,5 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Film, Compass, Users, Search, Sparkles, Heart } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -95,6 +101,48 @@ function Landing() {
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="mx-auto max-w-3xl px-6 py-20">
+        <h2 className="mb-10 text-center text-3xl md:text-4xl font-bold">Frequently asked questions</h2>
+        <Accordion type="single" collapsible className="space-y-3">
+          <AccordionItem value="q1" className="glass rounded-xl px-5 border-border/40">
+            <AccordionTrigger className="text-left text-base font-semibold hover:no-underline">Is NexusTrack really free?</AccordionTrigger>
+            <AccordionContent className="text-muted-foreground text-sm leading-relaxed">
+              Yes. Every feature is completely free — no subscriptions, no premium tiers, no ads, no limits. Ever.
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="q2" className="glass rounded-xl px-5 border-border/40">
+            <AccordionTrigger className="text-left text-base font-semibold hover:no-underline">What can I track?</AccordionTrigger>
+            <AccordionContent className="text-muted-foreground text-sm leading-relaxed">
+              Movies, TV shows, and anime — all from one unified library. Search across all three at once and add anything with a single click.
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="q3" className="glass rounded-xl px-5 border-border/40">
+            <AccordionTrigger className="text-left text-base font-semibold hover:no-underline">Do I have to mark every episode?</AccordionTrigger>
+            <AccordionContent className="text-muted-foreground text-sm leading-relaxed">
+              No. You track progress at the season level, not episode-by-episode. Mark a season as watching, completed, or skipped — the show's overall status updates automatically.
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="q4" className="glass rounded-xl px-5 border-border/40">
+            <AccordionTrigger className="text-left text-base font-semibold hover:no-underline">Can I see what my friends are watching?</AccordionTrigger>
+            <AccordionContent className="text-muted-foreground text-sm leading-relaxed">
+              Yes. Add friends, browse their libraries, and copy any title to your own list with one click. You can also see friend activity on your dashboard.
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="q5" className="glass rounded-xl px-5 border-border/40">
+            <AccordionTrigger className="text-left text-base font-semibold hover:no-underline">Can I export my data?</AccordionTrigger>
+            <AccordionContent className="text-muted-foreground text-sm leading-relaxed">
+              Absolutely. Export your entire library as JSON or CSV from Settings at any time. You can also import from a previously exported file.
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="q6" className="glass rounded-xl px-5 border-border/40">
+            <AccordionTrigger className="text-left text-base font-semibold hover:no-underline">Where does the data come from?</AccordionTrigger>
+            <AccordionContent className="text-muted-foreground text-sm leading-relaxed">
+              Movie and TV metadata comes from TMDB (The Movie Database). Anime metadata comes from the Jikan API (MyAnimeList). All data is cached for fast loading.
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </section>
 
       <section className="mx-auto max-w-4xl px-6 py-24 text-center">
