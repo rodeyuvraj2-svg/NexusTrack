@@ -78,8 +78,13 @@ function Friends() {
           const p = r.profile as unknown as { username: string; display_name: string; avatar_url: string | null } | undefined;
           return (
             <div key={r.id} className="glass rounded-xl p-3 flex items-center gap-3 mb-2">
-              <Avatar url={p?.avatar_url ?? null} name={p?.display_name || p?.username || "?"} />
-              <div className="flex-1"><div className="font-semibold text-sm">{p?.display_name || p?.username}</div><div className="text-xs text-muted-foreground">@{p?.username}</div></div>
+              <Link to="/user/$username" params={{ username: p?.username ?? "" }}>
+                <Avatar url={p?.avatar_url ?? null} name={p?.display_name || p?.username || "?"} />
+              </Link>
+              <Link to="/user/$username" params={{ username: p?.username ?? "" }} className="flex-1">
+                <div className="font-semibold text-sm">{p?.display_name || p?.username}</div>
+                <div className="text-xs text-muted-foreground">@{p?.username}</div>
+              </Link>
               <button onClick={() => mRm.mutate(r.id)} className="rounded-lg text-destructive hover:bg-destructive/10 p-2"><UserMinus className="h-4 w-4" /></button>
             </div>
           );

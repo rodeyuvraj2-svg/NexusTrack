@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { trending, discover } from "@/lib/tmdb.functions";
+import { trending, discover, getRecommendations } from "@/lib/tmdb.functions";
 import { seasonalAnime } from "@/lib/jikan.functions";
 import { listActivity } from "@/lib/activity.functions";
 import { getStats, listLibrary } from "@/lib/library.functions";
@@ -32,6 +32,7 @@ function Dashboard() {
   const statsFn = useServerFn(getStats);
   const libraryFn = useServerFn(listLibrary);
   const actFn = useServerFn(listActivity);
+  const recsFn = useServerFn(getRecommendations);
 
   const trendingQ = useQuery({ queryKey: ["trending"], queryFn: () => trendingFn({ data: { type: "all" } }) });
   const popularQ = useQuery({ queryKey: ["popular-movies"], queryFn: () => discoverFn({ data: { type: "movie", category: "popular" } }) });
@@ -39,6 +40,15 @@ function Dashboard() {
   const statsQ = useQuery({ queryKey: ["stats"], queryFn: () => statsFn() });
   const watchingQ = useQuery({ queryKey: ["library-watching"], queryFn: () => libraryFn({ data: { status: "watching" } }) });
   const actQ = useQuery({ queryKey: ["activity"], queryFn: () => actFn() });
+
+  // Get recommendations based on first completed item in library
+  const completedItem = watchingQ.data?.find((r) => r.status === "completed");
+  const firstMedia = completedItem?.media as unknown as { id: string; media_type: string; source: string; external_id: string } | undefined;
+  const recsQ = useQuery({
+    queryKey: ["recommendations", firstMedia?.media_type, firstMedia?.external_id],
+    queryFn: () => recsFn({ data: { type: firstMedia!.media_type as "movie" | "tv", id: firstMedia!.external_id } }),
+    enabled: !!firstMedia && firstMedia.source === "tmdb" && (firstMedia.media_type === "movie" || firstMedia.media_type === "tv"),
+  });
 
   return (
     <div>
@@ -88,6 +98,12 @@ function Dashboard() {
       <Section title="Popular movies">
         {popularQ.isLoading ? <SkeletonGrid /> : <MediaGrid items={(popularQ.data ?? []).slice(0, 12)} />}
       </Section>
+
+      {recsQ.data && recsQ.data.length > 0 ? (
+        <Section title="Because you watched">
+          <MediaGrid items={recsQ.data.slice(0, 6)} />
+        </Section>
+      ) : null}
 
       <Section title="Airing this season">
         {seasonalQ.isLoading ? <SkeletonGrid /> : <MediaGrid items={(seasonalQ.data ?? []).slice(0, 12)} />}

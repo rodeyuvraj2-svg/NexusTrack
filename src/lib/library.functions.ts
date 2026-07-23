@@ -185,12 +185,27 @@ export const setSeasonStatus = createServerFn({ method: "POST" })
 
 // Stats ---------------------------------------------------------------
 
+export interface ProfileStats {
+  total: number;
+  completed: number;
+  watching: number;
+  movies: number;
+  tv: number;
+  anime: number;
+  completionPct: number;
+  hoursWatched: number;
+  favoriteGenres: Array<{ genre: string; count: number }>;
+  topRatings: Array<{ title: string; rating: number; poster_url: string | null; media_id: string; media_type: string; source: string; external_id: string }>;
+  currentStreak: number;
+  longestStreak: number;
+}
+
 export const getStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { data: rows } = await context.supabase
       .from("user_media")
-      .select("status, media:media_id(media_type, runtime)")
+      .select("status, rating, media:media_id(id, media_type, runtime, title, poster_url, source, external_id, genres)")
       .eq("user_id", context.userId);
     const list = rows ?? [];
     const total = list.length;
@@ -199,5 +214,80 @@ export const getStats = createServerFn({ method: "GET" })
     const movies = list.filter((r) => (r.media as unknown as { media_type: string })?.media_type === "movie").length;
     const tv = list.filter((r) => (r.media as unknown as { media_type: string })?.media_type === "tv").length;
     const anime = list.filter((r) => (r.media as unknown as { media_type: string })?.media_type === "anime").length;
-    return { total, completed, watching, movies, tv, anime };
+    const completionPct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    // Hours watched: sum runtime for completed items (movies use runtime directly, TV/anime estimate runtime * season count fallback)
+    let hoursWatched = 0;
+    for (const r of list) {
+      if (r.status !== "completed") continue;
+      const m = r.media as unknown as { runtime: number | null };
+      if (m?.runtime && m.runtime > 0) hoursWatched += m.runtime / 60;
+    }
+    hoursWatched = Math.round(hoursWatched);
+
+    // Favorite genres: aggregate from media.genres arrays
+    const genreMap = new Map<string, number>();
+    for (const r of list) {
+      const m = r.media as unknown as { genres: string[] | null };
+      if (m?.genres) {
+        for (const g of m.genres) {
+          genreMap.set(g, (genreMap.get(g) ?? 0) + 1);
+        }
+      }
+    }
+    const favoriteGenres = Array.from(genreMap.entries())
+      .map(([genre, count]) => ({ genre, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
+
+    // Top rated items
+    const topRatings = list
+      .filter((r) => r.rating != null && r.rating > 0)
+      .map((r) => {
+        const m = r.media as unknown as { id: string; title: string; poster_url: string | null; media_type: string; source: string; external_id: string };
+        return { title: m?.title ?? "", rating: r.rating!, poster_url: m?.poster_url ?? null, media_id: m?.id ?? "", media_type: m?.media_type ?? "", source: m?.source ?? "", external_id: m?.external_id ?? "" };
+      })
+      .sort((a, b) => b.rating - a.rating)
+      .slice(0, 6);
+
+    // Streak: derive from activity table dates
+    const { data: activityRows } = await context.supabase
+      .from("activity")
+      .select("created_at")
+      .eq("user_id", context.userId)
+      .order("created_at", { ascending: false })
+      .limit(500);
+
+    const dates = new Set<string>();
+    for (const a of activityRows ?? []) {
+      dates.add((a as { created_at: string }).created_at.slice(0, 10));
+    }
+    const sortedDates = Array.from(dates).sort().reverse();
+    let currentStreak = 0;
+    let longestStreak = 0;
+    if (sortedDates.length > 0) {
+      const today = new Date().toISOString().slice(0, 10);
+      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      if (sortedDates.includes(today) || sortedDates.includes(yesterday)) {
+        let cursor = sortedDates.includes(today) ? today : yesterday;
+        for (const d of sortedDates) {
+          if (d === cursor) {
+            currentStreak++;
+            cursor = new Date(Date.parse(cursor) - 86400000).toISOString().slice(0, 10);
+          } else if (d < cursor) {
+            break;
+          }
+        }
+      }
+      // Longest streak
+      let run = 1;
+      for (let i = sortedDates.length - 1; i > 0; i--) {
+        const prev = new Date(Date.parse(sortedDates[i - 1]) - 86400000).toISOString().slice(0, 10);
+        if (sortedDates[i] === prev) { run++; longestStreak = Math.max(longestStreak, run); }
+        else { run = 1; }
+      }
+      longestStreak = Math.max(longestStreak, currentStreak, sortedDates.length > 0 ? 1 : 0);
+    }
+
+    return { total, completed, watching, movies, tv, anime, completionPct, hoursWatched, favoriteGenres, topRatings, currentStreak, longestStreak } as ProfileStats;
   });
