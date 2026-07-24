@@ -114,7 +114,10 @@ function FriendSection({ title, items, profileId, mCopy, copied }: {
   title: string;
   items: Array<{ id: string; status: WatchStatus; rating: number | null; favorite: boolean; media: { id: string; media_type: string; title: string; poster_url: string | null; release_year: number | null } }>;
   profileId: string;
-  mCopy: ReturnType<typeof useMutation>;
+  mCopy: {
+    mutate: (vars: { media_id: string; source_user_id: string }) => void;
+    isPending: boolean;
+  };
   copied: Set<string>;
 }) {
   return (

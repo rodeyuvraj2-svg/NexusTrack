@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { exportLibrary, importLibrary } from "@/lib/import-export.functions";
+import { deleteAccount } from "@/lib/auth.functions";
 import { toast } from "sonner";
 import { Download, Upload, Trash2, Shield, User as UserIcon, Globe } from "lucide-react";
 
@@ -16,6 +17,7 @@ function Settings() {
   const qc = useQueryClient();
   const exportFn = useServerFn(exportLibrary);
   const importFn = useServerFn(importLibrary);
+  const deleteFn = useServerFn(deleteAccount);
 
   const [profile, setProfile] = useState<{ id: string; username: string; display_name: string | null; bio: string | null; avatar_url: string | null; is_public: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -95,15 +97,15 @@ function Settings() {
     if (!confirm("This will permanently delete your account and all data. This cannot be undone. Are you sure?")) return;
     if (!profile) return;
     setBusy(true);
-    const { error } = await supabase.rpc("delete_user");
-    setBusy(false);
-    if (error) {
-      // Fallback: sign out and redirect
-      await supabase.auth.signOut();
-      toast.error("Please contact support to delete your account");
-    } else {
+    try {
+      await deleteFn();
       toast.success("Account deleted");
       window.location.href = "/";
+    } catch (error) {
+      await supabase.auth.signOut();
+      toast.error(error instanceof Error ? error.message : "Please contact support to delete your account");
+    } finally {
+      setBusy(false);
     }
   }
 
