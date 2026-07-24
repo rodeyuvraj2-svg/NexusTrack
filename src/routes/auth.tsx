@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
@@ -66,15 +67,24 @@ function AuthPage() {
   async function handleGoogle() {
     if (!isMounted) return;
     setBusy(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/dashboard` }
-    });
-    if (error) {
-      toast.error(error.message ?? "Google sign-in failed");
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) {
+        toast.error(result.error.message ?? "Google sign-in failed");
+        setBusy(false);
+        return;
+      }
+      if (result.redirected) return;
+      // Session set — go to dashboard
+      window.location.href = "/dashboard";
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Google sign-in failed");
       setBusy(false);
     }
   }
+
 
   return (
     <div className="min-h-screen grid place-items-center px-4 py-16">
