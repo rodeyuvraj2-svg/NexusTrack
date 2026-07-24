@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
@@ -21,25 +20,37 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) window.location.href = "/dashboard";
+      if (data.session && typeof window !== "undefined") {
+        window.location.href = "/dashboard";
+      }
     });
   }, []);
 
   async function handleEmail(e: React.FormEvent) {
     e.preventDefault();
+    if (!isMounted) return;
     setBusy(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email, password,
           options: { emailRedirectTo: `${window.location.origin}/dashboard` },
         });
         if (error) throw error;
-        toast.success("Account created — check your email if verification is required.");
-        window.location.href = "/dashboard";
+
+        if (data.session) {
+          // Email confirmation is disabled, user is signed in
+          toast.success("Account created successfully!");
+          window.location.href = "/dashboard";
+        } else {
+          // Email confirmation required
+          toast.success("Account created! Please check your email to confirm your account.");
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -53,14 +64,16 @@ function AuthPage() {
   }
 
   async function handleGoogle() {
+    if (!isMounted) return;
     setBusy(true);
-    const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-    if (result.error) {
-      toast.error(result.error.message ?? "Google sign-in failed");
-      setBusy(false); return;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/dashboard` }
+    });
+    if (error) {
+      toast.error(error.message ?? "Google sign-in failed");
+      setBusy(false);
     }
-    if (result.redirected) return;
-    window.location.href = "/dashboard";
   }
 
   return (
