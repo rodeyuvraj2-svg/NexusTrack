@@ -50,7 +50,7 @@ export const exportLibrary = createServerFn({ method: "GET" })
 
 export const importLibrary = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .validator((input) =>
     z.object({
       items: z.array(z.object({
         title: z.string(),

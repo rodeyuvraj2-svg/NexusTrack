@@ -4,12 +4,15 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { getPublicProfile, copyFromFriend } from "@/lib/friends.functions";
 import { STATUS_LABELS, STATUS_COLORS, type WatchStatus } from "@/lib/media-types";
-import { Star, Copy, Check, Film, Heart, Users as UsersIcon } from "lucide-react";
+import { Film, Heart, Check, BookmarkIcon, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+const STATUS_FILTERS = ["all", "watching", "completed", "planned", "favorites"] as const;
+const TYPE_FILTERS = ["all", "movie", "tv", "anime"] as const;
+
 export const Route = createFileRoute("/_authenticated/user/$username")({
-  head: () => ({ meta: [{ title: "Profile — NexusTrack" }, { name: "description", content: "View a friend's library and copy titles to your own." }] }),
+  head: () => ({ meta: [{ title: "Profile — NexusTrack" }, { name: "description", content: "View a friend's library." }] }),
   component: FriendProfile,
 });
 
@@ -18,25 +21,22 @@ function FriendProfile() {
   const qc = useQueryClient();
   const profileFn = useServerFn(getPublicProfile);
   const copyFn = useServerFn(copyFromFriend);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
 
   const q = useQuery({ queryKey: ["public-profile", username], queryFn: () => profileFn({ data: { username } }) });
 
-  const [copied, setCopied] = useState<Set<string>>(new Set());
-  const [copyStatus, setCopyStatus] = useState(true);
-  const [copyFav, setCopyFav] = useState(false);
-
   const mCopy = useMutation({
     mutationFn: (vars: { media_id: string; source_user_id: string }) =>
-      copyFn({ data: { media_id: vars.media_id, copy_status: copyStatus, copy_favorite: copyFav, source_user_id: vars.source_user_id } }),
-    onSuccess: (res, vars) => {
+      copyFn({ data: { media_id: vars.media_id, copy_status: false, copy_favorite: false, source_user_id: vars.source_user_id } }),
+    onSuccess: (res) => {
       if (res.duplicate) toast.info("Already in your library");
-      else { toast.success("Copied to your library"); setCopied((p) => new Set(p).add(vars.media_id)); }
-      qc.invalidateQueries({ queryKey: ["library"] });
+      else { toast.success("Added to your watchlist!"); qc.invalidateQueries({ queryKey: ["library"] }); }
     },
     onError: (e) => toast.error(e.message),
   });
 
-  if (q.isLoading) return <p className="text-muted-foreground">Loading…</p>;
+  if (q.isLoading) return <FriendProfileSkeleton />;
   if (!q.data) return (
     <div className="glass rounded-2xl p-12 text-center">
       <p className="text-muted-foreground">This profile is private or doesn't exist.</p>
@@ -44,10 +44,22 @@ function FriendProfile() {
     </div>
   );
 
-  const { profile, library } = q.data;
+  const { profile, library, isPrivate } = q.data;
   const watching = library.filter((l) => l.status === "watching" || l.status === "rewatching");
   const completed = library.filter((l) => l.status === "completed");
+  const planned = library.filter((l) => l.status === "planned");
   const favorites = library.filter((l) => l.favorite);
+
+  // Filter library items based on selected filters
+  const filtered = library.filter((item) => {
+    if (statusFilter === "favorites" && !item.favorite) return false;
+    if (statusFilter === "watching" && item.status !== "watching" && item.status !== "rewatching") return false;
+    if (statusFilter === "completed" && item.status !== "completed") return false;
+    if (statusFilter === "planned" && item.status !== "planned") return false;
+    const mediaType = (item.media as unknown as { media_type?: string })?.media_type;
+    if (typeFilter !== "all" && mediaType !== typeFilter) return false;
+    return true;
+  });
 
   return (
     <div>
@@ -64,13 +76,17 @@ function FriendProfile() {
           <h1 className="text-3xl md:text-4xl font-bold">{profile.display_name || profile.username}</h1>
           <p className="text-muted-foreground">@{profile.username}</p>
           {profile.bio ? <p className="mt-2 max-w-md text-sm text-muted-foreground">{profile.bio}</p> : null}
+          {isPrivate && (
+            <p className="mt-2 text-xs text-muted-foreground italic">This profile is private. Follow them to see their library.</p>
+          )}
         </div>
       </div>
 
       {/* Stats */}
-      <div className="mb-8 grid grid-cols-3 gap-3">
+      <div className="mb-8 grid grid-cols-4 gap-3">
         {[
           { label: "In library", value: library.length, Icon: Film },
+          { label: "Watching", value: watching.length, Icon: BookmarkIcon },
           { label: "Completed", value: completed.length, Icon: Check },
           { label: "Favorites", value: favorites.length, Icon: Heart },
         ].map((s) => (
@@ -82,55 +98,106 @@ function FriendProfile() {
         ))}
       </div>
 
-      {/* Copy options */}
-      <div className="glass-strong mb-8 flex flex-wrap items-center gap-4 rounded-2xl p-4">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground">Copy options:</span>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={copyStatus} onChange={(e) => setCopyStatus(e.target.checked)} className="h-4 w-4 rounded" />
-          Copy watch status
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={copyFav} onChange={(e) => setCopyFav(e.target.checked)} className="h-4 w-4 rounded" />
-          Copy favorite flag
-        </label>
+      {/* Status filter pills */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        {STATUS_FILTERS.map((s) => (
+          <button
+            key={s}
+            onClick={() => setStatusFilter(s)}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200 capitalize ${
+              statusFilter === s ? "bg-gradient-accent text-white shadow-md" : "glass hover:bg-muted/40"
+            }`}
+          >
+            {s}
+          </button>
+        ))}
       </div>
 
-      {/* Library sections */}
-      {watching.length > 0 ? (
-        <FriendSection title="Currently watching" items={watching} profileId={profile.id} mCopy={mCopy} copied={copied} />
-      ) : null}
-      {completed.length > 0 ? (
-        <FriendSection title="Completed" items={completed} profileId={profile.id} mCopy={mCopy} copied={copied} />
-      ) : null}
-      {favorites.length > 0 ? (
-        <FriendSection title="Favorites" items={favorites} profileId={profile.id} mCopy={mCopy} copied={copied} />
-      ) : null}
-      {library.length === 0 ? <p className="text-muted-foreground">This user hasn't added anything yet.</p> : null}
+      {/* Type filter pills */}
+      <div className="mb-8 flex flex-wrap gap-2">
+        {TYPE_FILTERS.map((t) => (
+          <button
+            key={t}
+            onClick={() => setTypeFilter(t)}
+            className={`rounded-full border px-3 py-1 text-xs uppercase tracking-wider transition-colors capitalize ${
+              typeFilter === t ? "border-primary/50 bg-primary/20 text-primary" : "border-border text-muted-foreground hover:bg-muted/40"
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {/* Filtered library grid */}
+      {filtered.length > 0 ? (
+        <FriendGrid items={filtered} profileId={profile.id} mCopy={mCopy} />
+      ) : (
+        <div className="glass rounded-2xl p-12 text-center">
+          <p className="text-muted-foreground">
+            {library.length === 0
+              ? "This user hasn't added anything yet."
+              : "No items match the selected filters."}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
 
-function FriendSection({ title, items, profileId, mCopy, copied }: {
-  title: string;
-  items: Array<{ id: string; status: WatchStatus; rating: number | null; favorite: boolean; media: { id: string; media_type: string; title: string; poster_url: string | null; release_year: number | null } }>;
+function FriendGrid({ items, profileId, mCopy }: {
+  items: Array<{ id: string; status: WatchStatus; rating: number | null; favorite: boolean; media: { id: string; media_type: string; source: string; external_id: string; title: string; poster_url: string | null; release_year: number | null } }>;
   profileId: string;
-  mCopy: {
-    mutate: (vars: { media_id: string; source_user_id: string }) => void;
-    isPending: boolean;
-  };
-  copied: Set<string>;
+  mCopy: { mutate: (vars: { media_id: string; source_user_id: string }) => void; isPending: boolean };
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+      {items.map((item) => {
+        const m = item.media as unknown as { id: string; media_type: string; source: string; external_id: string; title: string; poster_url: string | null; release_year: number | null };
+        if (!m) return null;
+        return (
+          <div key={item.id} className="group relative overflow-hidden rounded-xl glass">
+            <Link to="/media/$type/$source/$id" params={{ type: m.media_type, source: m.source ?? "tmdb", id: m.external_id ?? m.id }} className="block">
+              <div className="aspect-[2/3] bg-muted overflow-hidden">
+                {m.poster_url ? <img src={m.poster_url} alt={m.title} loading="lazy" className="h-full w-full object-cover transition-transform group-hover:scale-105" /> : null}
+              </div>
+              <div className="p-2.5">
+                <span className={cn("inline-block rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider", STATUS_COLORS[item.status])}>
+                  {STATUS_LABELS[item.status]}
+                </span>
+                <h3 className="mt-1 line-clamp-2 text-xs font-semibold">{m.title}</h3>
+              </div>
+            </Link>
+            <button
+              onClick={() => mCopy.mutate({ media_id: m.id, source_user_id: profileId })}
+              disabled={mCopy.isPending}
+              className="absolute right-2 top-2 rounded-lg bg-gradient-accent p-1.5 text-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
+              title="Add to my watchlist"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function FriendSection({ title, items, profileId, mCopy }: {
+  title: string;
+  items: Array<{ id: string; status: WatchStatus; rating: number | null; favorite: boolean; media: { id: string; media_type: string; source: string; external_id: string; title: string; poster_url: string | null; release_year: number | null } }>;
+  profileId: string;
+  mCopy: { mutate: (vars: { media_id: string; source_user_id: string }) => void; isPending: boolean };
 }) {
   return (
     <section className="mb-8">
       <h2 className="mb-3 text-lg font-bold">{title}</h2>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
         {items.map((item) => {
-          const m = item.media as unknown as { id: string; media_type: string; title: string; poster_url: string | null; release_year: number | null };
+          const m = item.media as unknown as { id: string; media_type: string; source: string; external_id: string; title: string; poster_url: string | null; release_year: number | null };
           if (!m) return null;
-          const isCopied = copied.has(m.id);
           return (
             <div key={item.id} className="group relative overflow-hidden rounded-xl glass">
-              <Link to="/media/$type/$source/$id" params={{ type: m.media_type, source: "tmdb", id: m.id }} className="block">
+              <Link to="/media/$type/$source/$id" params={{ type: m.media_type, source: m.source ?? "tmdb", id: m.external_id ?? m.id }} className="block">
                 <div className="aspect-[2/3] bg-muted overflow-hidden">
                   {m.poster_url ? <img src={m.poster_url} alt={m.title} loading="lazy" className="h-full w-full object-cover transition-transform group-hover:scale-105" /> : null}
                 </div>
@@ -143,19 +210,35 @@ function FriendSection({ title, items, profileId, mCopy, copied }: {
               </Link>
               <button
                 onClick={() => mCopy.mutate({ media_id: m.id, source_user_id: profileId })}
-                disabled={mCopy.isPending || isCopied}
-                className={cn(
-                  "absolute right-2 top-2 rounded-lg p-2 text-white shadow-lg transition-all",
-                  isCopied ? "bg-success" : "bg-gradient-accent hover:scale-110",
-                )}
-                title={isCopied ? "Copied!" : "Copy to my library"}
+                disabled={mCopy.isPending}
+                className="absolute right-2 top-2 rounded-lg bg-gradient-accent p-1.5 text-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
+                title="Add to my watchlist"
               >
-                {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                <Plus className="h-3.5 w-3.5" />
               </button>
             </div>
           );
         })}
       </div>
     </section>
+  );
+}
+
+function FriendProfileSkeleton() {
+  return (
+    <div className="animate-pulse space-y-8">
+      <div className="flex items-center gap-4">
+        <div className="h-24 w-24 rounded-full bg-muted" />
+        <div className="flex-1 space-y-2">
+          <div className="h-8 w-48 rounded bg-muted" />
+          <div className="h-4 w-32 rounded bg-muted" />
+        </div>
+      </div>
+      <div className="grid grid-cols-4 gap-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="glass rounded-xl p-4 h-24" />
+        ))}
+      </div>
+    </div>
   );
 }

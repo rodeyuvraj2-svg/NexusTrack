@@ -16,7 +16,7 @@ export const listNotifications = createServerFn({ method: "GET" })
 
 export const markNotificationRead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => {
+  .validator((input) => {
     const v = input as { id?: string; all?: boolean };
     if (!v.id && !v.all) throw new Error("id or all required");
     return v;

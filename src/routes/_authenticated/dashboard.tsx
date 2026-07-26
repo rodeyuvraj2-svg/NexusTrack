@@ -1,12 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { trending, discover, getRecommendations } from "@/lib/tmdb.functions";
-import { seasonalAnime } from "@/lib/jikan.functions";
+import { trending, discover } from "@/lib/tmdb.functions";
+import { seasonalAnime } from "@/lib/anilist.functions";
 import { listActivity } from "@/lib/activity.functions";
 import { getStats, listLibrary } from "@/lib/library.functions";
 import { MediaGrid } from "@/components/MediaCard";
-import { Link } from "@tanstack/react-router";
+import type { MediaSummary } from "@/lib/media-types";
+import { AlertCircle, Film, Tv, Sparkles, TrendingUp, Clock, CheckCircle2, BookmarkIcon, Heart, Flame } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — NexusTrack" }, { name: "description", content: "Your personalized entertainment dashboard." }] }),
@@ -32,23 +33,87 @@ function Dashboard() {
   const statsFn = useServerFn(getStats);
   const libraryFn = useServerFn(listLibrary);
   const actFn = useServerFn(listActivity);
-  const recsFn = useServerFn(getRecommendations);
 
-  const trendingQ = useQuery({ queryKey: ["trending"], queryFn: () => trendingFn({ data: { type: "all" } }) });
-  const popularQ = useQuery({ queryKey: ["popular-movies"], queryFn: () => discoverFn({ data: { type: "movie", category: "popular" } }) });
-  const seasonalQ = useQuery({ queryKey: ["seasonal-anime"], queryFn: () => seasonalFn() });
-  const statsQ = useQuery({ queryKey: ["stats"], queryFn: () => statsFn() });
-  const watchingQ = useQuery({ queryKey: ["library-watching"], queryFn: () => libraryFn({ data: { status: "watching" } }) });
-  const actQ = useQuery({ queryKey: ["activity"], queryFn: () => actFn() });
-
-  // Get recommendations based on first completed item in library
-  const completedItem = watchingQ.data?.find((r) => r.status === "completed");
-  const firstMedia = completedItem?.media as unknown as { id: string; media_type: string; source: string; external_id: string } | undefined;
-  const recsQ = useQuery({
-    queryKey: ["recommendations", firstMedia?.media_type, firstMedia?.external_id],
-    queryFn: () => recsFn({ data: { type: firstMedia!.media_type as "movie" | "tv", id: firstMedia!.external_id } }),
-    enabled: !!firstMedia && firstMedia.source === "tmdb" && (firstMedia.media_type === "movie" || firstMedia.media_type === "tv"),
+  // Trending — all types
+  const trendingQ = useQuery({
+    queryKey: ["trending"],
+    queryFn: () => trendingFn({ data: { type: "all" } }),
+    staleTime: 300_000,
+    retry: 2,
   });
+
+  // Popular movies
+  const popularQ = useQuery({
+    queryKey: ["popular-movies"],
+    queryFn: () => discoverFn({ data: { type: "movie", category: "popular" } }),
+    staleTime: 300_000,
+    retry: 2,
+  });
+
+  // Seasonal anime
+  const seasonalQ = useQuery({
+    queryKey: ["seasonal-anime"],
+    queryFn: () => seasonalFn(),
+    staleTime: 300_000,
+    retry: 2,
+  });
+
+  // Stats (for the stat cards)
+  const statsQ = useQuery({
+    queryKey: ["stats"],
+    queryFn: () => statsFn(),
+    staleTime: 60_000,
+    retry: 1,
+  });
+
+  // Continue watching (items marked as "watching" or "rewatching") — filter client-side
+  const watchingQ = useQuery({
+    queryKey: ["library", "all"],
+    queryFn: () => libraryFn(),
+    staleTime: 30_000,
+    retry: 1,
+  });
+
+  // Friend activity
+  const actQ = useQuery({
+    queryKey: ["activity"],
+    queryFn: () => actFn(),
+    staleTime: 60_000,
+    retry: 1,
+  });
+
+  // Compute stats display values
+  const stats = [
+    { label: "In library", value: statsQ.data?.total, icon: Film },
+    { label: "Completed", value: statsQ.data?.completed, icon: CheckCircle2 },
+    { label: "Watching", value: statsQ.data?.watching, icon: Tv },
+    { label: "Hours", value: statsQ.data?.hoursWatched, icon: Clock, suffix: "h" },
+  ];
+
+  const watchingItems: MediaSummary[] = (watchingQ.data ?? [])
+    .filter((r) => r.status === "watching" || r.status === "rewatching")
+    .slice(0, 6)
+    .map((r) => {
+      const m = r.media as unknown as { media_type: string; source: string; external_id: string; title: string; poster_url: string | null; release_year: number | null } | null;
+      return {
+        external_id: m?.external_id ?? "",
+        source: (m?.source ?? "tmdb") as "tmdb" | "anilist" | "jikan",
+        media_type: (m?.media_type ?? "movie") as "movie" | "tv" | "anime",
+        title: m?.title ?? "",
+        overview: null,
+        poster_url: m?.poster_url ?? null,
+        backdrop_url: null,
+        release_year: m?.release_year ?? null,
+        vote_average: null,
+        genres: [],
+        runtime: null,
+        season_count: null,
+        status: null,
+      };
+    });
+  const trendingItems = (trendingQ.data ?? []).slice(0, 12);
+  const popularItems = (popularQ.data ?? []).slice(0, 12);
+  const seasonalItems = (seasonalQ.data ?? []).slice(0, 12);
 
   return (
     <div>
@@ -57,59 +122,93 @@ function Dashboard() {
         <p className="text-muted-foreground mt-1">Pick up where you left off, or find something new.</p>
       </div>
 
-      {/* Stats */}
+      {/* Stats row */}
       <div className="mb-10 grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { label: "In library", value: statsQ.data?.total ?? "—" },
-          { label: "Completed", value: statsQ.data?.completed ?? "—" },
-          { label: "Watching", value: statsQ.data?.watching ?? "—" },
-          { label: "Anime", value: statsQ.data?.anime ?? "—" },
-        ].map((s) => (
-          <div key={s.label} className="glass rounded-xl p-4">
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">{s.label}</div>
-            <div className="mt-1 text-3xl font-bold text-gradient">{s.value}</div>
+        {statsQ.isError ? (
+          <div className="col-span-full text-center text-sm text-muted-foreground flex items-center justify-center gap-1">
+            <AlertCircle className="h-4 w-4" /> Stats temporarily unavailable — run the SQL grant to fix
           </div>
-        ))}
+        ) : (
+          stats.map((s) => (
+            <div key={s.label} className="glass rounded-xl p-3 text-center">
+              <s.icon className="mx-auto mb-1 h-4 w-4 text-muted-foreground" />
+              <div className="text-xl font-black text-gradient">{statsQ.isLoading ? "…" : s.value ?? "—"}{s.suffix ?? ""}</div>
+              <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{s.label}</div>
+            </div>
+          ))
+        )}
       </div>
 
-      {watchingQ.data && watchingQ.data.length > 0 ? (
+      {/* Continue watching */}
+      {watchingItems.length > 0 ? (
         <Section title="Continue watching" action={<Link to="/library" className="text-sm text-muted-foreground hover:text-foreground">View all →</Link>}>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            {watchingQ.data.slice(0, 6).map((r) => {
-              const m = r.media as unknown as { id: string; media_type: string; title: string; poster_url: string | null };
-              if (!m) return null;
-              return (
-                <div key={r.id} className="glass rounded-xl overflow-hidden">
-                  <div className="aspect-[2/3] bg-muted">
-                    {m.poster_url ? <img src={m.poster_url} alt={m.title} className="h-full w-full object-cover" /> : null}
-                  </div>
-                  <div className="p-2 text-xs font-medium line-clamp-1">{m.title}</div>
-                </div>
-              );
-            })}
+          <MediaGrid items={watchingItems} />
+        </Section>
+      ) : watchingQ.isLoading ? (
+        <Section title="Continue watching">
+          <SkeletonGrid count={3} />
+        </Section>
+      ) : (
+        <Section title="Your library">
+          <Link to="/search" className="glass rounded-xl p-8 text-center block hover:bg-muted/20 transition-colors">
+            <p className="text-lg font-semibold mb-1">Nothing in your library yet</p>
+            <p className="text-sm text-muted-foreground">Find something to watch and add it to your watchlist →</p>
+          </Link>
+        </Section>
+      )}
+
+      {/* Trending this week */}
+      <Section title="Trending this week" action={<Link to="/discover" className="text-sm text-muted-foreground hover:text-foreground">Discover all →</Link>}>
+        {trendingQ.isError ? (
+          <div className="glass rounded-2xl p-12 text-center">
+            <TrendingUp className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Trending content temporarily unavailable</p>
+          </div>
+        ) : trendingQ.isLoading ? (
+          <SkeletonGrid />
+        ) : (
+          <MediaGrid items={trendingItems} />
+        )}
+      </Section>
+
+      {/* Popular movies */}
+      <Section title="Popular movies" action={<Link to="/discover" className="text-sm text-muted-foreground hover:text-foreground">Discover all →</Link>}>
+        {popularQ.isError ? (
+          <div className="glass rounded-2xl p-12 text-center">
+            <Film className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Popular movies temporarily unavailable</p>
+          </div>
+        ) : popularQ.isLoading ? (
+          <SkeletonGrid />
+        ) : (
+          <MediaGrid items={popularItems} />
+        )}
+      </Section>
+
+      {/* Seasonal anime */}
+      <Section title="Airing this season" action={<Link to="/discover" className="text-sm text-muted-foreground hover:text-foreground">Discover all →</Link>}>
+        {seasonalQ.isError ? (
+          <div className="glass rounded-2xl p-12 text-center">
+            <Sparkles className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Seasonal anime temporarily unavailable</p>
+          </div>
+        ) : seasonalQ.isLoading ? (
+          <SkeletonGrid />
+        ) : (
+          <MediaGrid items={seasonalItems} />
+        )}
+      </Section>
+
+      {/* Friend activity */}
+      {actQ.isError ? null : actQ.isLoading ? (
+        <Section title="Friend activity">
+          <div className="space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="glass rounded-lg px-4 py-2.5 h-10 animate-pulse" />
+            ))}
           </div>
         </Section>
-      ) : null}
-
-      <Section title="Trending this week">
-        {trendingQ.isLoading ? <SkeletonGrid /> : <MediaGrid items={(trendingQ.data ?? []).slice(0, 12)} />}
-      </Section>
-
-      <Section title="Popular movies">
-        {popularQ.isLoading ? <SkeletonGrid /> : <MediaGrid items={(popularQ.data ?? []).slice(0, 12)} />}
-      </Section>
-
-      {recsQ.data && recsQ.data.length > 0 ? (
-        <Section title="Because you watched">
-          <MediaGrid items={recsQ.data.slice(0, 6)} />
-        </Section>
-      ) : null}
-
-      <Section title="Airing this season">
-        {seasonalQ.isLoading ? <SkeletonGrid /> : <MediaGrid items={(seasonalQ.data ?? []).slice(0, 12)} />}
-      </Section>
-
-      {actQ.data && actQ.data.length > 0 ? (
+      ) : actQ.data && actQ.data.length > 0 ? (
         <Section title="Friend activity">
           <div className="space-y-2">
             {actQ.data.slice(0, 8).map((a) => {
@@ -130,10 +229,10 @@ function Dashboard() {
   );
 }
 
-function SkeletonGrid() {
+function SkeletonGrid({ count = 6 }: { count?: number }) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-      {Array.from({ length: 6 }).map((_, i) => (
+      {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="aspect-[2/3] rounded-xl glass animate-pulse" />
       ))}
     </div>

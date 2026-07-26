@@ -1,0 +1,86 @@
+[
+  {
+    "file": "src/lib/jikan.functions.ts",
+    "line": 1,
+    "summary": "Entire file is dead code -- no function from jikan.functions.ts is imported anywhere in the active codebase (all callers import from anilist.functions.ts instead)",
+    "failure_scenario": "~250 lines of maintained, rate-limited API code that can never be reached, wasting bundle size and confusing future readers about which anime API is canonical"
+  },
+  {
+    "file": "src/routes/_authenticated/search.tsx",
+    "line": 40,
+    "summary": "Promise.allSettled delays showing any search results until the slowest API (TMDB or Anilist) responds, hiding fast API results",
+    "failure_scenario": "A user searching on a slow network sees an empty loading skeleton for the full duration of the slowest API call, even though results from the faster API were ready seconds earlier"
+  },
+  {
+    "file": "src/routes/_authenticated/search.tsx",
+    "line": 82,
+    "summary": "isFetching shows only a spinner icon with no partial results, giving no feedback about which result sections are loading",
+    "failure_scenario": "A user sees only a spinning loader for several seconds because Anilist is slow but TMDB results are immediately available, with no indication that some data has arrived"
+  },
+  {
+    "file": "src/lib/library.functions.ts",
+    "line": 173,
+    "summary": "listSeasonsWithProgress fetches ALL user_seasons rows for the entire user instead of filtering by the relevant season IDs",
+    "failure_scenario": "A user with 100+ season entries across their library pays O(n) bandwidth and processing cost on every media detail page load even though only 5-20 season IDs are relevant to the current page"
+  },
+  {
+    "file": "src/lib/tmdb.functions.ts",
+    "line": 116,
+    "summary": "Catch blocks in searchAll, trending, and discover check !process.env.TMDB_API_KEY to decide if the error is a config issue, but this is false when TMDB_READ_TOKEN is set without TMDB_API_KEY",
+    "failure_scenario": "A user who configured TMDB_READ_TOKEN but not TMDB_API_KEY sees 'TMDB_API_KEY is not configured' on a real network failure, misleading them into thinking their config is wrong when it is the network that failed"
+  },
+  {
+    "file": "src/lib/tmdb.functions.ts",
+    "line": 134,
+    "summary": "Same misleading check pattern in trending() catch block, repeated identically",
+    "failure_scenario": "Same as above; the misleading config-wrong message surfaces in discover and trending sections too"
+  },
+  {
+    "file": "src/routes/_authenticated/media.$type.$source.$id.tsx",
+    "line": 223,
+    "summary": "franchiseStatusesQ fires a Supabase query on every anime page load even when the current anime has no related franchise items (query is always enabled when isAnime and currentUserId are truthy via the enabled: !!id clause)",
+    "failure_scenario": "For anime with no relations (e.g., a standalone film), a pointless Supabase query hits the database every page load, adding ~50-200ms of latency for zero benefit"
+  },
+  {
+    "file": "src/integrations/supabase/auth-middleware.ts",
+    "line": 91,
+    "summary": "getUser(token) makes an HTTP request to Supabase Auth on every authenticated server function call, replacing the local JWT decode from the deprecated getClaims()",
+    "failure_scenario": "Every authenticated server function (library CRUD, friends, reviews, activity) pays an extra ~100-300ms HTTP round-trip to Supabase Auth, compounding latency on pages that issue multiple server functions"
+  },
+  {
+    "file": "src/integrations/supabase/auth-middleware.ts",
+    "line": 100,
+    "summary": "claims object is reduced to { sub: data.user.id }, silently discarding any other JWT claims (app_metadata, roles, custom claims) that downstream code might need",
+    "failure_scenario": "Future code that reads context.claims.role or context.claims.app_metadata for authorization checks will get undefined and silently misbehave, since only sub is preserved"
+  },
+  {
+    "file": "src/lib/library.functions.ts",
+    "line": 226,
+    "summary": "Auto-complete series logic in setSeasonStatus makes 2 extra queries (all seasons, all season progress) on every season status update and uses app-level conditions instead of a database trigger",
+    "failure_scenario": "Every click on a season status button triggers 2-3 additional database queries, and the auto-complete rule is easily bypassed by any future code path that updates season status outside setSeasonStatus"
+  },
+  {
+    "file": "src/lib/library.functions.ts",
+    "line": 130,
+    "summary": "removeLibraryItem deletes related user_seasons rows via app-level code in a silent try/catch block instead of using ON DELETE CASCADE at the schema level",
+    "failure_scenario": "If the separate season-cleanup DELETE silently fails (caught by empty catch), orphaned user_seasons rows accumulate over time. Also, .maybeSingle() mangles the response expectation for multi-row deletes"
+  },
+  {
+    "file": "src/routes/_authenticated/media.$type.$source.$id.tsx",
+    "line": 361,
+    "summary": "handleStatusChange contains hardcoded business logic redirecting 'planned' clicks to the first franchise item instead of the current media, coupling a UX policy to a React component",
+    "failure_scenario": "If the same 'planned redirect' rule is ever needed from a different entry point (e.g., batch import, API endpoint, library bulk actions), it must be duplicated or the component refactored, violating DRY"
+  },
+  {
+    "file": "src/routes/_authenticated/media.$type.$source.$id.tsx",
+    "line": 362,
+    "summary": "The franchise redirect depends on franchiseList[0] order (sorted by year then mal_id), which is an implicit fragile contract between a sorting memo and a click handler",
+    "failure_scenario": "A future developer adjusts the sort order in the franchiseList useMemo for display purposes, unintentionally changing which item gets the 'planned' click, breaking the intended UX without any type error"
+  },
+  {
+    "file": "vite.config.ts",
+    "line": 23,
+    "summary": "lovableOauthCompatibilityPlugin is a middleware shim that could be replaced by updating Supabase OAuth redirect URLs directly",
+    "failure_scenario": "New developers must understand this plugin exists and its purpose; if forgotten, OAuth callbacks from other environments (mobile, API clients) will hit dead routes instead of /auth"
+  }
+]

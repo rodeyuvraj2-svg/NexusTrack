@@ -46,7 +46,7 @@ function Profile() {
     else { toast.success("Profile updated"); setEditing(false); setProfile({ ...profile, display_name: displayName, bio }); qc.invalidateQueries({ queryKey: ["public-profile"] }); }
   }
 
-  if (!profile) return <p className="text-muted-foreground">Loading…</p>;
+  if (!profile) return <ProfileSkeleton />;
   const s = statsQ.data;
   const favorites = (libQ.data ?? []).filter((r) => r.favorite).slice(0, 6);
   const recentlyAdded = [...(libQ.data ?? [])].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 6);
@@ -121,35 +121,21 @@ function Profile() {
               </div>
             </div>
             <div className="flex-1 space-y-2">
-              <BreakdownRow label="Movies" value={s?.movies ?? 0} total={s?.total ?? 1} color="bg-primary" />
-              <BreakdownRow label="TV Shows" value={s?.tv ?? 0} total={s?.total ?? 1} color="bg-accent" />
-              <BreakdownRow label="Anime" value={s?.anime ?? 0} total={s?.total ?? 1} color="bg-success" />
+              <BreakdownRow label="Movies" value={s?.completedMovies ?? 0} total={s?.completed ?? 1} color="bg-primary" />
+              <BreakdownRow label="TV Shows" value={s?.completedTv ?? 0} total={s?.completed ?? 1} color="bg-accent" />
+              <BreakdownRow label="Anime" value={s?.completedAnime ?? 0} total={s?.completed ?? 1} color="bg-success" />
             </div>
           </div>
         </div>
 
-        {/* Favorite genres */}
+        {/* Levels / Achievements */}
         <div className="glass-strong rounded-2xl p-6">
-          <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-muted-foreground">Favorite Genres</h3>
-          {s?.favoriteGenres && s.favoriteGenres.length > 0 ? (
-            <div className="space-y-2">
-              {s.favoriteGenres.map((g) => {
-                const max = s.favoriteGenres[0].count;
-                const pct = Math.round((g.count / max) * 100);
-                return (
-                  <div key={g.genre} className="flex items-center gap-3">
-                    <span className="w-24 truncate text-sm">{g.genre}</span>
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted/30">
-                      <div className="h-full rounded-full bg-gradient-accent" style={{ width: `${pct}%` }} />
-                    </div>
-                    <span className="w-6 text-right text-xs text-muted-foreground">{g.count}</span>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Add more titles to see your favorite genres.</p>
-          )}
+          <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-muted-foreground">Levels</h3>
+          <div className="space-y-3">
+            <LevelRow label="Movies" completed={s?.completedMovies ?? 0} icon="🎬" />
+            <LevelRow label="TV Shows" completed={s?.completedTv ?? 0} icon="📺" />
+            <LevelRow label="Anime" completed={s?.completedAnime ?? 0} icon="🌟" />
+          </div>
         </div>
       </div>
 
@@ -251,6 +237,58 @@ function BreakdownRow({ label, value, total, color }: { label: string; value: nu
         <div className={cn("h-full rounded-full", color)} style={{ width: `${pct}%` }} />
       </div>
       <span className="w-6 text-right text-xs font-semibold">{value}</span>
+    </div>
+  );
+}
+
+function getLevel(completed: number): { title: string; emoji: string; color: string; next: number } {
+  if (completed >= 50) return { title: "Diamond", emoji: "👑", color: "text-sky-400", next: -1 };
+  if (completed >= 30) return { title: "Platinum", emoji: "💎", color: "text-cyan-400", next: 50 };
+  if (completed >= 15) return { title: "Gold", emoji: "🥇", color: "text-yellow-500", next: 30 };
+  if (completed >= 5) return { title: "Silver", emoji: "🥈", color: "text-gray-400", next: 15 };
+  if (completed >= 1) return { title: "Bronze", emoji: "🥉", color: "text-amber-700", next: 5 };
+  return { title: "Beginner", emoji: "🌱", color: "text-muted-foreground", next: 1 };
+}
+
+function LevelRow({ label, completed, icon }: { label: string; completed: number; icon: string }) {
+  const level = getLevel(completed);
+  const progress = level.next > 0 ? Math.round((completed / level.next) * 100) : 100;
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-lg">{icon}</span>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">{label}</span>
+          <span className={cn("text-xs font-bold", level.color)}>
+            {level.emoji} {level.title}
+          </span>
+        </div>
+        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted/30">
+          <div className="h-full rounded-full bg-gradient-accent transition-all" style={{ width: `${progress}%` }} />
+        </div>
+        <p className="mt-0.5 text-[10px] text-muted-foreground">
+          {level.next > 0 ? `${completed} / ${level.next} for ${level.emoji} ${getLevel(level.next).title}` : `${completed} completed — max level!`}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ProfileSkeleton() {
+  return (
+    <div className="animate-pulse space-y-8">
+      <div className="flex items-center gap-4">
+        <div className="h-24 w-24 rounded-full bg-muted" />
+        <div className="flex-1 space-y-2">
+          <div className="h-8 w-48 rounded bg-muted" />
+          <div className="h-4 w-32 rounded bg-muted" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="glass rounded-xl p-4 h-24" />
+        ))}
+      </div>
     </div>
   );
 }

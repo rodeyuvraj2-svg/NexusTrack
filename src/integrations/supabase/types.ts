@@ -402,6 +402,31 @@ export type Database = {
     }
     Functions: {
       are_friends: { Args: { a: string; b: string }; Returns: boolean }
+      upsert_media: {
+        Args: {
+          p_media_type: string
+          p_source: string
+          p_external_id: string
+          p_title: string
+          p_overview?: string | null
+          p_poster_url?: string | null
+          p_backdrop_url?: string | null
+          p_release_year?: number | null
+          p_vote_average?: number | null
+          p_genres?: string[] | null
+          p_runtime?: number | null
+          p_season_count?: number | null
+          p_status?: string | null
+        }
+        Returns: string
+      }
+      upsert_seasons: {
+        Args: {
+          p_media_id: string
+          p_seasons: string
+        }
+        Returns: void
+      }
     }
     Enums: {
       activity_kind:

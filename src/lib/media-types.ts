@@ -10,7 +10,7 @@ export type WatchStatus =
 
 export interface MediaSummary {
   external_id: string;
-  source: "tmdb" | "jikan";
+  source: "tmdb" | "jikan" | "anilist";
   media_type: MediaType;
   title: string;
   overview?: string | null;
@@ -27,7 +27,7 @@ export interface MediaSummary {
 export const STATUS_LABELS: Record<WatchStatus, string> = {
   watching: "Watching",
   completed: "Completed",
-  planned: "Planned",
+  planned: "Watchlist",
   paused: "Paused",
   dropped: "Dropped",
   skipped: "Skipped",
