@@ -1,17 +1,6 @@
 {
   "buildCommand": "npm run build",
-  "outputDirectory": ".output/public",
+  "outputDirectory": "dist",
   "installCommand": "npm install",
-  "framework": "vite",
-  "env": {
-    "SUPABASE_PROJECT_ID": "@supabase_project_id",
-    "SUPABASE_PUBLISHABLE_KEY": "@supabase_publishable_key",
-    "SUPABASE_URL": "@supabase_url",
-    "SUPABASE_SERVICE_ROLE_KEY": "@supabase_service_role_key",
-    "VITE_SUPABASE_PROJECT_ID": "@supabase_project_id",
-    "VITE_SUPABASE_PUBLISHABLE_KEY": "@supabase_publishable_key",
-    "VITE_SUPABASE_URL": "@supabase_url",
-    "TMDB_API_KEY": "@tmdb_api_key",
-    "TMDB_READ_TOKEN": "@tmdb_read_token"
-  }
+  "framework": "vite"
 }
