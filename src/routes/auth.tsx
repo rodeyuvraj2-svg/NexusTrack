@@ -80,7 +80,7 @@ function AuthPage() {
     try {
       if (mode === "signup") {
         // Check if email already exists using database function
-        const { data: emailCheckData, error: emailCheckError } = await supabase.rpc("check_email_exists", {
+        const { data: emailCheckData } = await supabase.rpc("check_email_exists" as any, {
           p_email: email.toLowerCase(),
         });
 
