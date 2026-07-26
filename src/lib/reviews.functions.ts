@@ -4,7 +4,7 @@ import { z } from "zod";
 
 export const listReviews = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ media_id: z.string().uuid() }).parse(input))
+  .validator((input) => z.object({ media_id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("reviews")
@@ -41,7 +41,7 @@ export const listReviews = createServerFn({ method: "GET" })
 
 export const upsertReview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .validator((input) =>
     z.object({ media_id: z.string().uuid(), body: z.string().min(1).max(1000) }).parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -59,7 +59,7 @@ export const upsertReview = createServerFn({ method: "POST" })
 
 export const deleteReview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .validator((input) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("reviews")
@@ -72,7 +72,7 @@ export const deleteReview = createServerFn({ method: "POST" })
 
 export const toggleReviewLike = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ review_id: z.string().uuid() }).parse(input))
+  .validator((input) => z.object({ review_id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const existing = await context.supabase
       .from("review_likes")

@@ -153,9 +153,6 @@ function Landing() {
         </Link>
       </section>
 
-      <footer className="border-t border-border/50 py-8 text-center text-xs text-muted-foreground">
-        Built with ❤ · Data from TMDB & MyAnimeList (Jikan)
-      </footer>
     </div>
   );
 }

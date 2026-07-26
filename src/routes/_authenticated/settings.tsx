@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { exportLibrary, importLibrary } from "@/lib/import-export.functions";
 import { deleteAccount } from "@/lib/auth.functions";
 import { toast } from "sonner";
-import { Download, Upload, Trash2, Shield, User as UserIcon, Globe } from "lucide-react";
+import { Download, Upload, Trash2, User as UserIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({ meta: [{ title: "Settings — NexusTrack" }, { name: "description", content: "Manage your account, privacy, and data." }] }),
@@ -93,7 +93,7 @@ function Settings() {
     if (fileRef.current) fileRef.current.value = "";
   }
 
-  async function deleteAccount() {
+  async function handleDeleteAccount() {
     if (!confirm("This will permanently delete your account and all data. This cannot be undone. Are you sure?")) return;
     if (!profile) return;
     setBusy(true);
@@ -109,7 +109,7 @@ function Settings() {
     }
   }
 
-  if (!profile) return <p>Loading…</p>;
+  if (!profile) return <SettingsSkeleton />;
 
   return (
     <div className="max-w-2xl">
@@ -144,33 +144,13 @@ function Settings() {
         </div>
       </section>
 
-      {/* Privacy section */}
-      <section className="glass-strong mb-6 rounded-2xl p-6">
-        <div className="mb-4 flex items-center gap-2">
-          <Shield className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-bold">Privacy</h2>
-        </div>
-        <label className="flex items-center gap-3 text-sm">
-          <input type="checkbox" checked={profile.is_public} onChange={(e) => setProfile({ ...profile, is_public: e.target.checked })}
-            className="h-5 w-5 rounded" />
-          <div>
-            <div className="font-medium flex items-center gap-1.5"><Globe className="h-4 w-4" /> Public profile</div>
-            <div className="text-xs text-muted-foreground">Anyone can view your library (except hidden titles)</div>
-          </div>
-        </label>
-        <button onClick={saveProfile} disabled={busy}
-          className="mt-4 rounded-lg glass px-5 py-2 text-sm font-medium hover:bg-muted/40 disabled:opacity-60">
-          Apply privacy settings
-        </button>
-      </section>
-
       {/* Data section */}
       <section className="glass-strong mb-6 rounded-2xl p-6">
         <div className="mb-4 flex items-center gap-2">
           <Download className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-bold">Your data</h2>
         </div>
-        <p className="mb-4 text-sm text-muted-foreground">Export your library to back it up or move it elsewhere. Import from a previously exported JSON file.</p>
+        <p className="mb-4 text-sm text-muted-foreground">Export your library as backup. Import a previously exported JSON file to restore it.</p>
         <div className="flex flex-wrap gap-3">
           <button onClick={() => handleExport("json")} className="flex items-center gap-2 rounded-lg glass px-4 py-2 text-sm font-medium hover:bg-muted/40">
             <Download className="h-4 w-4" /> Export JSON
@@ -179,11 +159,12 @@ function Settings() {
             <Download className="h-4 w-4" /> Export CSV
           </button>
           <button onClick={() => fileRef.current?.click()} disabled={mImport.isPending}
-            className="flex items-center gap-2 rounded-lg glass px-4 py-2 text-sm font-medium hover:bg-muted/40 disabled:opacity-60">
-            <Upload className="h-4 w-4" /> {mImport.isPending ? "Importing…" : "Import JSON"}
+            className="flex items-center gap-2 rounded-lg bg-gradient-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
+            <Upload className="h-4 w-4" /> {mImport.isPending ? "Importing…" : "Upload & Import"}
           </button>
-          <input ref={fileRef} type="file" accept=".json" onChange={handleImportFile} className="hidden" />
+          <input ref={fileRef} type="file" accept=".json,.csv" onChange={handleImportFile} className="hidden" />
         </div>
+        {mImport.isPending ? <p className="mt-3 text-xs text-muted-foreground">Importing items…</p> : null}
       </section>
 
       {/* Danger zone */}
@@ -193,11 +174,22 @@ function Settings() {
           <h2 className="text-lg font-bold text-destructive">Danger zone</h2>
         </div>
         <p className="mb-4 text-sm text-muted-foreground">Permanently delete your account and all associated data. This action cannot be undone.</p>
-        <button onClick={deleteAccount} disabled={busy}
+        <button onClick={handleDeleteAccount} disabled={busy}
           className="rounded-lg bg-destructive px-5 py-2 text-sm font-semibold text-destructive-foreground hover:bg-destructive/90 disabled:opacity-60">
           Delete my account
         </button>
       </section>
+    </div>
+  );
+}
+
+function SettingsSkeleton() {
+  return (
+    <div className="animate-pulse space-y-6 max-w-2xl">
+      <div className="h-9 w-48 rounded bg-muted" />
+      {Array.from({ length: 2 }).map((_, i) => (
+        <div key={i} className="glass-strong rounded-2xl p-6 h-48" />
+      ))}
     </div>
   );
 }

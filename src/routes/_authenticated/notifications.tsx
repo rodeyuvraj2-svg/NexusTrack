@@ -69,7 +69,11 @@ function Notifications() {
       </div>
 
       {q.isLoading ? (
-        <p className="text-muted-foreground">Loading…</p>
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="glass rounded-xl p-4 h-16 animate-pulse" />
+          ))}
+        </div>
       ) : (q.data?.length ?? 0) === 0 ? (
         <div className="glass rounded-2xl p-12 text-center">
           <Bell className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />

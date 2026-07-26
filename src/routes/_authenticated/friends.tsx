@@ -11,6 +11,9 @@ export const Route = createFileRoute("/_authenticated/friends")({
   component: Friends,
 });
 
+const TYPE_FILTERS = ["all", "movies", "tv", "anime"] as const;
+type MediaTypeFilter = (typeof TYPE_FILTERS)[number];
+
 function Friends() {
   const qc = useQueryClient();
   const listFn = useServerFn(listFriends);
@@ -20,7 +23,8 @@ function Friends() {
   const rmFn = useServerFn(removeFriend);
 
   const [q, setQ] = useState("");
-  const friends = useQuery({ queryKey: ["friends"], queryFn: () => listFn() });
+  const [typeFilter, setTypeFilter] = useState<MediaTypeFilter>("all");
+  const friends = useQuery({ queryKey: ["friends"], queryFn: () => listFn(), staleTime: 30_000 });
   const search = useQuery({ queryKey: ["user-search", q], queryFn: () => searchFn({ data: { q } }), enabled: q.length > 1 });
 
   const invalidate = () => { qc.invalidateQueries({ queryKey: ["friends"] }); qc.invalidateQueries({ queryKey: ["user-search"] }); };
@@ -72,20 +76,39 @@ function Friends() {
         </Section>
       ) : null}
 
+      {friends.isLoading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="glass rounded-xl p-3 h-14 animate-pulse" />
+          ))}
+        </div>
+      ) : (
+        <>
       <Section title="Your friends">
         {(friends.data?.accepted ?? []).length === 0 ? <p className="text-muted-foreground">No friends yet — search above.</p> : null}
         {friends.data?.accepted.map((r) => {
           const p = r.profile as unknown as { username: string; display_name: string; avatar_url: string | null } | undefined;
+          const lib = r.library as unknown as { watching: number; completed: number; planned: number; favorites: number } | undefined;
           return (
             <div key={r.id} className="glass rounded-xl p-3 flex items-center gap-3 mb-2">
               <Link to="/user/$username" params={{ username: p?.username ?? "" }}>
                 <Avatar url={p?.avatar_url ?? null} name={p?.display_name || p?.username || "?"} />
               </Link>
-              <Link to="/user/$username" params={{ username: p?.username ?? "" }} className="flex-1">
+              <Link to="/user/$username" params={{ username: p?.username ?? "" }} className="flex-1 min-w-0">
                 <div className="font-semibold text-sm">{p?.display_name || p?.username}</div>
                 <div className="text-xs text-muted-foreground">@{p?.username}</div>
+                {lib ? (
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+                    {lib.planned > 0 ? <span className="text-warning font-medium">{lib.planned} planned</span> : null}
+                    {lib.watching > 0 ? <span className="text-primary font-medium">{lib.watching} watching</span> : null}
+                    {lib.completed > 0 ? <span className="text-success font-medium">{lib.completed} completed</span> : null}
+                    {lib.planned === 0 && lib.watching === 0 && lib.completed === 0 ? (
+                      <span className="italic">empty library</span>
+                    ) : null}
+                  </div>
+                ) : null}
               </Link>
-              <button onClick={() => mRm.mutate(r.id)} className="rounded-lg text-destructive hover:bg-destructive/10 p-2"><UserMinus className="h-4 w-4" /></button>
+              <button onClick={() => mRm.mutate(r.id)} className="rounded-lg text-destructive hover:bg-destructive/10 p-2 shrink-0"><UserMinus className="h-4 w-4" /></button>
             </div>
           );
         })}
@@ -99,6 +122,8 @@ function Friends() {
           })}
         </Section>
       ) : null}
+      </>
+      )}
     </div>
   );
 }

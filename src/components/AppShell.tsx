@@ -64,22 +64,22 @@ export function AppShell() {
       </aside>
 
       {/* Mobile top bar */}
-      <div className="md:hidden fixed top-0 inset-x-0 z-40 glass-strong border-b border-border/60 flex items-center justify-between px-4 py-3">
+      <div className="md:hidden fixed top-0 inset-x-0 z-40 bg-background/95 backdrop-blur-lg border-b border-border/60 flex items-center justify-between px-4 py-3 shadow-sm">
         <Brand compact />
         <div className="flex items-center gap-2">
           <Link to="/notifications" className="relative rounded-lg p-2 hover:bg-muted/40">
-            <Bell className="h-5 w-5" />
+            <Bell className="h-5 w-5 text-foreground" />
             {unreadQ.data ? <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-accent" /> : null}
           </Link>
-          <button onClick={() => setOpen(!open)} className="rounded-lg p-2 hover:bg-muted/40" aria-label="Menu">
-            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          <button onClick={() => setOpen(!open)} className="rounded-lg p-2 hover:bg-muted/40 transition-colors" aria-label="Menu">
+            {open ? <X className="h-5 w-5 text-foreground" /> : <Menu className="h-5 w-5 text-foreground" />}
           </button>
         </div>
       </div>
       {open ? (
-        <div className="md:hidden fixed inset-x-0 top-14 z-30 glass-strong border-b border-border/60 p-4">
+        <div className="md:hidden fixed inset-x-0 top-14 z-30 bg-background/95 backdrop-blur-lg border-b border-border/60 p-4 shadow-lg">
           <NavList pathname={pathname} unreadCount={unreadQ.data ?? 0} />
-          <button onClick={signOut} className="mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50">
+          <button onClick={signOut} className="mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 transition-colors">
             <LogOut className="h-4 w-4" /> Sign out
           </button>
         </div>
