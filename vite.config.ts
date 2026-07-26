@@ -1,6 +1,7 @@
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import { nitro } from "nitro/vite";
 import tailwindcss from "@tailwindcss/vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 import react from "@vitejs/plugin-react";
@@ -45,6 +46,8 @@ export default defineConfig({
         },
       },
     }),
+    // Generate Vercel Functions for production instead of a Cloudflare Worker.
+    nitro({ preset: "vercel" }),
     tailwindcss(),
     tsConfigPaths({ projects: ["./tsconfig.json"] }),
     react(),
