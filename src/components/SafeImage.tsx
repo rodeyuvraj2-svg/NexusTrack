@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
 interface SafeImageProps {
@@ -12,11 +12,16 @@ interface SafeImageProps {
 export function SafeImage({ src, alt, className, wrapperClassName, loading = "lazy" }: SafeImageProps) {
   const [error, setError] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const imageRef = useRef<HTMLImageElement | null>(null);
 
-  // Reset states when src changes
+  // Reset states when src changes and recover cached images
   useEffect(() => {
     setError(false);
     setLoaded(false);
+
+    if (imageRef.current?.complete && imageRef.current.naturalWidth > 0) {
+      setLoaded(true);
+    }
   }, [src]);
 
   if (!src || error) {
@@ -38,6 +43,7 @@ export function SafeImage({ src, alt, className, wrapperClassName, loading = "la
         <div className="absolute inset-0 animate-pulse bg-muted/50" />
       )}
       <img
+        ref={imageRef}
         src={src}
         alt={alt}
         loading={loading}
