@@ -18,6 +18,8 @@ import { getLibraryItem, upsertLibraryItem, removeLibraryItem } from "@/lib/libr
 import { cn } from "@/lib/utils";
 import { useState, useCallback, useRef, createContext, useContext, useMemo, memo } from "react";
 import { toast } from "sonner";
+import { useGuest } from "@/lib/guest";
+import type { RestrictedAction } from "@/lib/guest";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -68,6 +70,7 @@ function useMediaLibraryEntry(item: MediaSummary) {
           source: item.source,
         },
       }),
+    placeholderData: (prev) => prev,
     staleTime: Infinity,
   }) as UseQueryResult<{ id: string | null }, unknown>;
 
@@ -82,6 +85,7 @@ function useMediaLibraryEntry(item: MediaSummary) {
     queryKey: ["library-entry", mediaId],
     queryFn: () => getLibFn({ data: { media_id: mediaId! } }),
     enabled: !!mediaId,
+    placeholderData: (prev) => prev,
     staleTime: 30_000,
   });
 
@@ -193,6 +197,7 @@ function MediaEntryProvider({
  */
 function MediaActionPanel() {
   const { entry, isLoading, isPending, upsert, remove } = useMediaEntryContext();
+  const { requireAuth } = useGuest();
 
   const status = entry?.status ?? null;
   const isFavorite = entry?.favorite ?? false;
@@ -200,6 +205,7 @@ function MediaActionPanel() {
   const disabled = isPending || isLoading;
 
   async function toggleFavorite() {
+    if (!requireAuth("addFavorite")) return;
     try {
       await upsert({ favorite: !isFavorite });
       toast.success(isFavorite ? "Removed from Favorites" : "Added to Favorites");
@@ -207,6 +213,7 @@ function MediaActionPanel() {
   }
 
   async function toggleWatchlist() {
+    if (!requireAuth("addToWatchlist")) return;
     try {
       if (status === "planned") {
         await remove();
@@ -219,6 +226,7 @@ function MediaActionPanel() {
   }
 
   async function toggleWatching() {
+    if (!requireAuth("markWatching")) return;
     try {
       await upsert({ status: status === "watching" ? "planned" : "watching" });
       toast.success(status === "watching" ? "Moved to Watchlist" : "Marked as Watching");
@@ -226,6 +234,7 @@ function MediaActionPanel() {
   }
 
   async function toggleCompleted() {
+    if (!requireAuth("markCompleted")) return;
     try {
       await upsert({ status: status === "completed" ? "planned" : "completed" });
       toast.success(status === "completed" ? "Moved to Watchlist" : "Marked as Completed");
@@ -412,9 +421,9 @@ const MediaCardInner = memo(function MediaCardInner({ item }: { item: MediaSumma
           className="block"
         >
           <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-            <span className="text-gradient font-semibold">{item.media_type}</span>
+            <span className="text-accent font-semibold">{item.media_type}</span>
             {item.release_year ? <span>· {item.release_year}</span> : null}
-            {item.vote_average ? (
+            {item.vote_average != null ? (
               <span className="ml-auto flex items-center gap-1 text-warning">
                 <Star className="h-3 w-3 fill-current" /> {item.vote_average.toFixed(1)}
               </span>

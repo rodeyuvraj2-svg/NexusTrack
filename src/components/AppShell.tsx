@@ -1,12 +1,13 @@
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Compass, Film, Hop as Home, LogOut, Search, Users, User as UserIcon, Menu, X, Bell, Settings, Command } from "lucide-react";
+import { Compass, Film, Hop as Home, LogOut, Search, Users, User as UserIcon, Menu, X, Bell, Settings, Command, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "@/components/CommandPalette";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { getUnreadCount } from "@/lib/notifications.functions";
+import { useGuest } from "@/lib/guest";
 
 const nav = [
   { to: "/dashboard", label: "Home", Icon: Home },
@@ -24,9 +25,15 @@ export function AppShell() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
+  const { isGuest, disableGuest } = useGuest();
 
   const countFn = useServerFn(getUnreadCount);
-  const unreadQ = useQuery({ queryKey: ["unread-count"], queryFn: () => countFn(), refetchInterval: 30000 });
+  const unreadQ = useQuery({
+    queryKey: ["unread-count"],
+    queryFn: () => countFn(),
+    refetchInterval: 30000,
+    enabled: !isGuest,
+  });
 
   useEffect(() => { setOpen(false); }, [pathname]);
 
@@ -43,6 +50,11 @@ export function AppShell() {
 
   async function signOut() {
     await supabase.auth.signOut();
+    disableGuest();
+    navigate({ to: "/auth", replace: true });
+  }
+
+  function signIn() {
     navigate({ to: "/auth", replace: true });
   }
 
@@ -53,14 +65,20 @@ export function AppShell() {
       {/* Sidebar (desktop) */}
       <aside className="sticky top-0 hidden h-screen w-60 flex-shrink-0 flex-col border-r border-border/60 glass px-4 py-6 md:flex">
         <Brand />
-        <NavList pathname={pathname} unreadCount={unreadQ.data ?? 0} />
+        <NavList pathname={pathname} unreadCount={unreadQ.data ?? 0} isGuest={isGuest} />
         <button onClick={() => setCmdOpen(true)} className="mt-2 flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors">
           <Command className="h-4 w-4" /> Quick search
           <kbd className="ml-auto rounded border border-border/60 px-1.5 text-[10px]">⌘K</kbd>
         </button>
-        <button onClick={signOut} className="mt-auto flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors">
-          <LogOut className="h-4 w-4" /> Sign out
-        </button>
+        {isGuest ? (
+          <button onClick={signIn} className="mt-auto flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors">
+            <LogIn className="h-4 w-4" /> Sign in
+          </button>
+        ) : (
+          <button onClick={signOut} className="mt-auto flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors">
+            <LogOut className="h-4 w-4" /> Sign out
+          </button>
+        )}
       </aside>
 
       {/* Mobile top bar */}
@@ -78,10 +96,16 @@ export function AppShell() {
       </div>
       {open ? (
         <div className="md:hidden fixed inset-x-0 top-14 z-30 bg-background/95 backdrop-blur-lg border-b border-border/60 p-4 shadow-lg">
-          <NavList pathname={pathname} unreadCount={unreadQ.data ?? 0} />
-          <button onClick={signOut} className="mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 transition-colors">
-            <LogOut className="h-4 w-4" /> Sign out
-          </button>
+          <NavList pathname={pathname} unreadCount={unreadQ.data ?? 0} isGuest={isGuest} />
+          {isGuest ? (
+            <button onClick={signIn} className="mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 transition-colors">
+              <LogIn className="h-4 w-4" /> Sign in
+            </button>
+          ) : (
+            <button onClick={signOut} className="mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 transition-colors">
+              <LogOut className="h-4 w-4" /> Sign out
+            </button>
+          )}
         </div>
       ) : null}
 
@@ -101,17 +125,20 @@ function Brand({ compact = false }: { compact?: boolean }) {
         <span className="text-sm font-black text-white">N</span>
       </div>
       <div className="leading-none">
-        <div className="text-lg font-bold tracking-tight">Nexus<span className="text-gradient">Track</span></div>
+        <div className="text-lg font-bold tracking-tight">Nexus<span className="text-accent">Track</span></div>
         <div className="text-[10px] text-muted-foreground uppercase tracking-widest">one list, every screen</div>
       </div>
     </Link>
   );
 }
 
-function NavList({ pathname, unreadCount }: { pathname: string; unreadCount: number }) {
+const GUEST_VISIBLE = new Set(["/dashboard", "/search", "/discover", "/notifications", "/profile"]);
+
+function NavList({ pathname, unreadCount, isGuest }: { pathname: string; unreadCount: number; isGuest?: boolean }) {
+  const items = isGuest ? nav.filter((n) => GUEST_VISIBLE.has(n.to)) : nav;
   return (
     <nav className="flex flex-col gap-1">
-      {nav.map(({ to, label, Icon }) => {
+      {items.map(({ to, label, Icon }) => {
         const active = pathname === to || pathname.startsWith(to + "/");
         return (
           <Link

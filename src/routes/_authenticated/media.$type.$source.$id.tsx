@@ -1,17 +1,20 @@
 import { createFileRoute, useParams, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient, useMutation, type UseQueryResult } from "@tanstack/react-query";
-import { getDetails, cacheMedia, getRecommendations, getCast, reclassifyMedia } from "@/lib/tmdb.functions";
+import { getDetails, cacheMedia, getRecommendations, getCast, reclassifyMedia, getWatchProviders } from "@/lib/tmdb.functions";
+import type { WatchProviderResult } from "@/lib/tmdb.functions";
 import { getAnimeDetails, getMultipleAnimeDetails } from "@/lib/anilist.functions";
 import { getLibraryItem, upsertLibraryItem, removeLibraryItem, listSeasonsWithProgress, setSeasonStatus } from "@/lib/library.functions";
 import { listReviews, upsertReview, deleteReview, toggleReviewLike } from "@/lib/reviews.functions";
 import { STATUS_LABELS, STATUS_COLORS, type WatchStatus, type MediaSummary } from "@/lib/media-types";
 import { MediaGrid } from "@/components/MediaCard";
-import { Star, Heart, Trash2, Check, ThumbsUp, MessageSquare, List, Play, SkipForward, CircleCheck, ArrowLeft, ExternalLink } from "lucide-react";
+import { Star, Heart, Trash2, Check, ThumbsUp, MessageSquare, List, Play, SkipForward, CircleCheck, ArrowLeft, ExternalLink, Globe } from "lucide-react";
 import { toast } from "sonner";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { useGuest } from "@/lib/guest";
+import type { RestrictedAction } from "@/lib/guest";
 
 export const Route = createFileRoute("/_authenticated/media/$type/$source/$id")({
   head: () => ({ meta: [{ title: "Details — NexusTrack" }, { name: "description", content: "Track this title in your library, mark seasons, and see friends' progress." }] }),
@@ -149,6 +152,27 @@ function MediaDetail() {
 
   // Unified summary
   const summary: MediaSummary | undefined = detailsData.summary;
+
+  // ---- Clipboard Helper ----
+  const copyTitle = useCallback(async (label: string) => {
+    if (!summary?.title) return;
+    try {
+      await navigator.clipboard.writeText(label);
+      toast.success(`Copied "${label}" to clipboard.`);
+    } catch {
+      // Clipboard permission denied — continue silently
+    }
+  }, [summary?.title]);
+
+  // ---- TMDB Watch Providers ----
+  const providersFn = useServerFn(getWatchProviders);
+  const watchProvidersQ = useQuery({
+    queryKey: ["watch-providers", type, id],
+    queryFn: () => providersFn({ data: { type: type as "movie" | "tv", id } }),
+    enabled: !isAnime && !!summary?.title,
+    staleTime: 300_000,
+  });
+  const watchProvidersResult = watchProvidersQ.data;
 
   // Anime relations (Jikan API)
   const relations = isAnime ? (animeDetailsQ.data?.extra?.relations ?? []) : [];
@@ -396,6 +420,8 @@ function MediaDetail() {
   });
 
   const handleStatusChange = (opt: WatchStatus) => {
+    const action = opt === "watching" ? "markWatching" : opt === "completed" ? "markCompleted" : "addToWatchlist";
+    if (!requireAuth(action)) return;
     if (opt === "planned" && isAnime && franchiseList.length > 0) {
       const mainAnime = franchiseList[0];
       if (mainAnime && mainAnime.mal_id !== Number(id)) {
@@ -424,6 +450,21 @@ function MediaDetail() {
   const entry = libraryEntry.data;
   const seasonList = (seasons.data ?? []) as SeasonWithStatus[];
   const entryFavorited = entry?.favorite ?? false;
+  const { requireAuth } = useGuest();
+
+  const handleFavorite = () => {
+    if (!requireAuth("addFavorite")) return;
+    mUpsert.mutate({ media_id: mediaId!, favorite: !entryFavorited });
+  };
+
+  const handleRemove = () => {
+    mRemove.mutate();
+  };
+
+  const handleRating = (n: number) => {
+    if (!requireAuth("rateMedia")) return;
+    mUpsert.mutate({ media_id: mediaId!, rating: entry?.rating === n ? null : n });
+  };
 
   return (
     <div>
@@ -447,7 +488,7 @@ function MediaDetail() {
       <div className="grid gap-8 md:grid-cols-[220px_1fr]">
         {/* Poster */}
         <div className="glass rounded-xl overflow-hidden aspect-[2/3] -mt-32 md:-mt-40 shadow-2xl relative z-10">
-          {summary.poster_url ? <img src={summary.poster_url} alt={summary.title} className="h-full w-full object-cover" /> : null}
+          {summary.poster_url ? <img src={summary.poster_url} alt={summary.title} loading="lazy" className="h-full w-full object-cover" /> : null}
         </div>
 
         {/* Info */}
@@ -457,14 +498,14 @@ function MediaDetail() {
               <select
                 value={type}
                 onChange={(e) => mReclassify.mutate(e.target.value as "movie" | "tv" | "anime")}
-                className="rounded-md border border-border/60 bg-background/40 px-2 py-0.5 text-xs font-semibold text-gradient focus:outline-none focus:ring-1 focus:ring-primary/50 cursor-pointer"
+                className="rounded-md border border-border/60 bg-background/40 px-2 py-0.5 text-xs font-semibold text-accent focus:outline-none focus:ring-1 focus:ring-primary/50 cursor-pointer"
               >
                 <option value="movie">MOVIE</option>
                 <option value="tv">TV</option>
                 <option value="anime">ANIME</option>
               </select>
             ) : (
-              <span className="text-gradient font-semibold">{type}</span>
+              <span className="text-accent font-semibold">{type}</span>
             )}
             {summary.release_year ? <span>· {summary.release_year}</span> : null}
             {summary.runtime ? <span>· {summary.runtime}m</span> : null}
@@ -513,13 +554,13 @@ function MediaDetail() {
             })}
             <button
               disabled={mUpsert.isPending || !mediaId}
-              onClick={() => mUpsert.mutate({ media_id: mediaId!, favorite: !entryFavorited })}
+              onClick={handleFavorite}
               className={cn("rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-40", entryFavorited ? "bg-accent/25 text-accent" : "glass hover:bg-muted/40")}
             >
               <Heart className={cn("inline h-4 w-4 mr-1", entryFavorited && "fill-current")} /> {entryFavorited ? "Favorited" : "Favorite"}
             </button>
             {entry ? (
-              <button onClick={() => mRemove.mutate()} disabled={mRemove.isPending} className="rounded-lg px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/10">
+              <button onClick={handleRemove} disabled={mRemove.isPending} className="rounded-lg px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/10">
                 <Trash2 className="inline h-4 w-4 mr-1" /> Remove
               </button>
             ) : null}
@@ -537,7 +578,7 @@ function MediaDetail() {
               <div className="mt-1 flex gap-1">
                 {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
                   <button key={n}
-                    onClick={() => mUpsert.mutate({ media_id: mediaId!, rating: entry.rating === n ? null : n })}
+                    onClick={() => handleRating(n)}
                     className={cn("h-8 w-8 rounded-md text-xs font-semibold transition-colors", entry.rating && entry.rating >= n ? "bg-warning text-background" : "glass hover:bg-muted/40")}
                   >{n}</button>
                 ))}
@@ -561,56 +602,65 @@ function MediaDetail() {
         </div>
       </div>
 
-      {/* ---- Watch on (free anime sites) ---- */}
-      {isAnime && summary?.title ? (
+      {/* ---- Where to Watch (TMDB Providers) ---- */}
+      {!isAnime && watchProvidersResult?.flatrate && watchProvidersResult.flatrate.length > 0 ? (
         <section className="mt-12">
           <h2 className="mb-4 text-2xl font-bold flex items-center gap-2">
-            <ExternalLink className="h-5 w-5 text-primary" /> Watch online
+            <Play className="h-5 w-5 text-primary" /> Where to Watch
           </h2>
           <div className="flex flex-wrap gap-3">
-            {[
-              { name: "AnimeX", url: "https://animex.one" },
-              { name: "AnimePahe", url: "https://animepahe.pw" },
-              { name: "Anikoto", url: "https://anikoto.cz" },
-            ].map((site) => (
-              <a
-                key={site.name}
-                href={site.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg glass px-4 py-2.5 text-sm font-medium hover:bg-muted/40 hover:scale-[1.02] transition-all cursor-pointer no-underline"
+            {watchProvidersResult.flatrate.map((p) => (
+              <button
+                key={p.provider_id}
+                onClick={async () => {
+                  await copyTitle(summary?.title ?? "");
+                  if (watchProvidersResult.link) window.open(watchProvidersResult.link, "_blank", "noopener,noreferrer");
+                }}
+                className="inline-flex items-center gap-2 rounded-lg glass px-4 py-2.5 text-sm font-medium hover:bg-muted/40 hover:scale-[1.02] transition-all cursor-pointer"
               >
-                <Play className="h-4 w-4 text-primary" />
-                {site.name}
-              </a>
+                {p.logo_path ? (
+                  <img src={`https://image.tmdb.org/t/p/w92${p.logo_path}`} alt={p.provider_name} loading="lazy" className="h-5 w-5 rounded object-contain" />
+                ) : (
+                  <Globe className="h-4 w-4 text-primary" />
+                )}
+                {p.provider_name}
+              </button>
             ))}
           </div>
         </section>
       ) : null}
 
-      {/* ---- Watch on (free movie/TV sites) ---- */}
-      {!isAnime && summary?.title ? (
+      {/* ---- Watch on (free streaming sites) ---- */}
+      {summary?.title ? (
         <section className="mt-12">
           <h2 className="mb-4 text-2xl font-bold flex items-center gap-2">
             <ExternalLink className="h-5 w-5 text-primary" /> Watch online
           </h2>
           <div className="flex flex-wrap gap-3">
-            {[
-              { name: "MoviesJoy", url: "https://moviesjoy.bz" },
-              { name: "Cinevaro", url: "https://cinevaro.app" },
-              { name: "Attacker", url: "https://attacker.bz" },
-              { name: "NightFlix", url: "https://www.nightflix.to" },
-            ].map((site) => (
-              <a
+            {(isAnime
+              ? [
+                  { name: "AnimeX", url: "https://animex.one" },
+                  { name: "AnimePahe", url: "https://animepahe.pw" },
+                  { name: "Anikoto", url: "https://anikoto.cz" },
+                ]
+              : [
+                  { name: "MoviesJoy", url: "https://moviesjoy.bz" },
+                  { name: "Cinevaro", url: "https://cinevaro.app" },
+                  { name: "Attacker", url: "https://attacker.bz" },
+                  { name: "NightFlix", url: "https://www.nightflix.to" },
+                ]
+            ).map((site) => (
+              <button
                 key={site.name}
-                href={site.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg glass px-4 py-2.5 text-sm font-medium hover:bg-muted/40 hover:scale-[1.02] transition-all cursor-pointer no-underline"
+                onClick={async () => {
+                  await copyTitle(summary?.title ?? "");
+                  window.open(site.url, "_blank", "noopener,noreferrer");
+                }}
+                className="inline-flex items-center gap-2 rounded-lg glass px-4 py-2.5 text-sm font-medium hover:bg-muted/40 hover:scale-[1.02] transition-all cursor-pointer"
               >
-                <Play className="h-4 w-4 text-green-500" />
+                <Play className={`h-4 w-4 ${isAnime ? "text-primary" : "text-green-500"}`} />
                 {site.name}
-              </a>
+              </button>
             ))}
           </div>
         </section>
@@ -684,7 +734,7 @@ function MediaDetail() {
           <div className="grid gap-3 md:grid-cols-2">
             {seasonList.map((sn) => (
               <div key={sn.id} className="glass rounded-xl p-4 flex gap-4">
-                {sn.poster_url ? <img src={sn.poster_url} alt="" className="h-24 w-16 rounded-lg object-cover" /> : <div className="h-24 w-16 rounded-lg bg-muted shrink-0" />}
+                {sn.poster_url ? <img src={sn.poster_url} alt="" loading="lazy" className="h-24 w-16 rounded-lg object-cover" /> : <div className="h-24 w-16 rounded-lg bg-muted shrink-0" />}
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold truncate">{sn.name || `Season ${sn.season_number}`}</h3>
                   <p className="text-xs text-muted-foreground">{sn.episode_count ?? "?"} eps{sn.air_date ? ` · ${sn.air_date.slice(0, 4)}` : ""}{sn.overview ? ` · ${sn.overview.slice(0, 60)}…` : ""}</p>
@@ -750,6 +800,7 @@ function MediaDetail() {
           likeFn={likeReviewFn}
           qc={qc}
           currentUserId={currentUserId}
+          requireAuth={requireAuth}
         />
       ) : null}
     </div>
@@ -758,7 +809,7 @@ function MediaDetail() {
 
 // ---- Reviews Section ----
 
-function ReviewsSection({ mediaId, reviews, upsertFn, deleteFn, likeFn, qc, currentUserId }: {
+function ReviewsSection({ mediaId, reviews, upsertFn, deleteFn, likeFn, qc, currentUserId, requireAuth }: {
   mediaId: string;
   reviews: UseQueryResult<ReviewData[]>;
   upsertFn: ReturnType<typeof useServerFn<typeof upsertReview>>;
@@ -766,6 +817,7 @@ function ReviewsSection({ mediaId, reviews, upsertFn, deleteFn, likeFn, qc, curr
   likeFn: ReturnType<typeof useServerFn<typeof toggleReviewLike>>;
   qc: ReturnType<typeof useQueryClient>;
   currentUserId: string | null;
+  requireAuth: (action: RestrictedAction) => boolean;
 }) {
   const [writing, setWriting] = useState(false);
   const [body, setBody] = useState("");
@@ -790,7 +842,7 @@ function ReviewsSection({ mediaId, reviews, upsertFn, deleteFn, likeFn, qc, curr
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-2xl font-bold">Reviews</h2>
         {!writing && !myReview ? (
-          <button onClick={() => setWriting(true)} className="flex items-center gap-1.5 rounded-lg glass px-3 py-1.5 text-sm hover:bg-muted/40">
+          <button onClick={() => { if (requireAuth("writeReview")) setWriting(true); }} className="flex items-center gap-1.5 rounded-lg glass px-3 py-1.5 text-sm hover:bg-muted/40">
             <MessageSquare className="h-4 w-4" /> Write a review
           </button>
         ) : null}
@@ -807,7 +859,7 @@ function ReviewsSection({ mediaId, reviews, upsertFn, deleteFn, likeFn, qc, curr
             <span className="text-xs text-muted-foreground">{body.length}/1000</span>
             <div className="flex gap-2">
               <button onClick={() => { setWriting(false); setBody(""); }} className="rounded-lg glass px-3 py-1.5 text-sm">Cancel</button>
-              <button onClick={() => mSave.mutate()} disabled={!body.trim() || mSave.isPending} className="rounded-lg bg-gradient-accent px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-60">
+              <button onClick={() => { if (requireAuth("writeReview")) mSave.mutate(); }} disabled={!body.trim() || mSave.isPending} className="rounded-lg bg-gradient-accent px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-60">
                 {mSave.isPending ? "Posting…" : "Post review"}
               </button>
             </div>
@@ -827,20 +879,20 @@ function ReviewsSection({ mediaId, reviews, upsertFn, deleteFn, likeFn, qc, curr
             return (
               <div key={r.id} className="glass rounded-xl p-4">
                 <div className="mb-2 flex items-center gap-2">
-                  {p?.avatar_url ? <img src={p.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" /> : <div className="h-8 w-8 rounded-full bg-gradient-accent grid place-items-center text-white text-xs font-bold">{(p?.display_name || p?.username || "?").charAt(0).toUpperCase()}</div>}
+                  {p?.avatar_url ? <img src={p.avatar_url} alt="" loading="lazy" className="h-8 w-8 rounded-full object-cover" /> : <div className="h-8 w-8 rounded-full bg-gradient-accent grid place-items-center text-white text-xs font-bold">{(p?.display_name || p?.username || "?").charAt(0).toUpperCase()}</div>}
                   <div className="flex-1">
                     <div className="text-sm font-semibold">{p?.display_name || p?.username || "Someone"}</div>
                     <div className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString(undefined, { dateStyle: "medium" })}</div>
                   </div>
                   {isMine ? (
-                    <button onClick={() => mDelete.mutate(r.id)} className="rounded-lg p-1.5 text-destructive hover:bg-destructive/10">
+                    <button onClick={() => { if (requireAuth("deleteReview")) mDelete.mutate(r.id); }} className="rounded-lg p-1.5 text-destructive hover:bg-destructive/10">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   ) : null}
                 </div>
                 <p className="text-sm leading-relaxed">{r.body}</p>
                 <button
-                  onClick={() => mLike.mutate(r.id)}
+                  onClick={() => { if (requireAuth("likeReview")) mLike.mutate(r.id); }}
                   className={cn("mt-2 flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs transition-colors", r.liked_by_me ? "text-primary" : "text-muted-foreground hover:text-foreground")}
                 >
                   <ThumbsUp className={cn("h-3.5 w-3.5", r.liked_by_me && "fill-current")} /> {r.likes}

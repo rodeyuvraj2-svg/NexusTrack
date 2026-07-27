@@ -5,9 +5,18 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getStats, listLibrary } from "@/lib/library.functions";
 import { STATUS_LABELS, type WatchStatus } from "@/lib/media-types";
-import { Star, Clock, Flame, TrendingUp, CheckCircle2, Film, Tv, Sparkles, Heart, Edit, Save } from "lucide-react";
+import { Star, Clock, Flame, TrendingUp, CheckCircle2, Film, Tv, Sparkles, Heart, Edit, Save, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useGuest } from "@/lib/guest";
+import { EmptyState } from "@/components/EmptyState";
+import { getFollowCounts, getFollowers, getFollowing } from "@/lib/follows.functions";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({ meta: [{ title: "Profile — NexusTrack" }, { name: "description", content: "Your stats, favorites, and watch history." }] }),
@@ -24,6 +33,26 @@ function Profile() {
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [busy, setBusy] = useState(false);
+  const { isGuest } = useGuest();
+
+  if (isGuest) {
+    return (
+      <div>
+        <h1 className="text-3xl md:text-4xl font-bold mb-6">Profile</h1>
+        <EmptyState
+          icon={Users}
+          title="Sign in to see your profile"
+          description="Track your stats, manage your favorites, and keep your watch history."
+          action={
+            <Link to="/auth" className="inline-block rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white">
+              Sign in
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
+
 
   useEffect(() => {
     (async () => {
@@ -36,6 +65,27 @@ function Profile() {
 
   const statsQ = useQuery({ queryKey: ["stats"], queryFn: () => statsFn() });
   const libQ = useQuery({ queryKey: ["library", "profile"], queryFn: () => libFn() });
+  const countFn = useServerFn(getFollowCounts);
+  const followCountsQ = useQuery({
+    queryKey: ["follow-counts", profile?.id],
+    queryFn: () => countFn({ data: { user_id: profile!.id } }),
+    enabled: !!profile?.id,
+    staleTime: 60_000,
+  });
+
+  const [listMode, setListMode] = useState<"followers" | "following" | null>(null);
+  const followersFn = useServerFn(getFollowers);
+  const followingFn = useServerFn(getFollowing);
+  const followersQ = useQuery({
+    queryKey: ["followers", profile?.id],
+    queryFn: () => followersFn({ data: { user_id: profile!.id } }),
+    enabled: listMode === "followers" && !!profile?.id,
+  });
+  const followingQ = useQuery({
+    queryKey: ["following", profile?.id],
+    queryFn: () => followingFn({ data: { user_id: profile!.id } }),
+    enabled: listMode === "following" && !!profile?.id,
+  });
 
   async function saveProfile() {
     if (!profile) return;
@@ -81,6 +131,19 @@ function Profile() {
               <h1 className="text-3xl md:text-4xl font-bold">{profile.display_name || profile.username}</h1>
               <p className="text-muted-foreground">@{profile.username}</p>
               {profile.bio ? <p className="mt-2 max-w-md text-sm text-muted-foreground">{profile.bio}</p> : null}
+              {/* Follow counts */}
+              <div className="mt-3 flex items-center gap-4 text-sm">
+                <button type="button" onClick={() => setListMode("followers")} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                  <Users className="h-4 w-4" />
+                  <span className="font-semibold text-foreground">{followCountsQ.data?.followers ?? 0}</span>
+                  <span>followers</span>
+                </button>
+                <span className="text-muted-foreground/40">·</span>
+                <button type="button" onClick={() => setListMode("following")} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                  <span className="font-semibold text-foreground">{followCountsQ.data?.following ?? 0}</span>
+                  <span>following</span>
+                </button>
+              </div>
               <button onClick={() => setEditing(true)} className="mt-3 inline-flex items-center gap-1.5 rounded-lg glass px-3 py-1.5 text-sm hover:bg-muted/40">
                 <Edit className="h-3.5 w-3.5" /> Edit profile
               </button>
@@ -117,7 +180,7 @@ function Profile() {
                 </defs>
               </svg>
               <div className="absolute inset-0 grid place-items-center">
-                <span className="text-2xl font-black text-gradient">{s?.completionPct ?? 0}%</span>
+                <span className="text-2xl font-black text-accent">{s?.completionPct ?? 0}%</span>
               </div>
             </div>
             <div className="flex-1 space-y-2">
@@ -214,6 +277,37 @@ function Profile() {
           </div>
         </section>
       ) : null}
+
+      {/* Followers/Following Dialog */}
+      <Dialog open={listMode !== null} onOpenChange={(open) => { if (!open) setListMode(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{listMode === "followers" ? "Followers" : "Following"}</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-80 space-y-3 overflow-y-auto">
+            {(listMode === "followers" ? followersQ.data : followingQ.data)?.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">No one here yet.</p>
+            ) : null}
+            {(listMode === "followers" ? followersQ.data : followingQ.data)?.map((user) => (
+              <Link key={user.id} to={"/user/" + user.username} onClick={() => setListMode(null)}>
+                <div className="flex items-center gap-3 rounded-lg p-2.5 hover:bg-muted/30 transition-colors">
+                  {user.avatar_url ? (
+                    <img src={user.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" />
+                  ) : (
+                    <div className="h-10 w-10 rounded-full bg-gradient-accent grid place-items-center text-white font-bold text-sm">
+                      {(user.display_name || user.username).charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <div className="text-sm font-semibold">{user.display_name || user.username}</div>
+                    <div className="text-xs text-muted-foreground">@{user.username}</div>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -222,7 +316,7 @@ function StatCard({ label, value, Icon, suffix }: { label: string; value: number
   return (
     <div className="glass rounded-xl p-4 text-center">
       <Icon className="mx-auto mb-1 h-4 w-4 text-muted-foreground" />
-      <div className="text-2xl font-black text-gradient">{value}{suffix ?? ""}</div>
+      <div className="text-2xl font-black text-accent">{value}{suffix ?? ""}</div>
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
     </div>
   );
