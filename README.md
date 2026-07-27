@@ -1,99 +1,215 @@
-# NexusTrack
 
-NexusTrack is a polished entertainment tracking experience built for people who watch movies, TV, and anime across multiple platforms. It unifies discovery, library tracking, friend activity, and data portability in a modern web app.
+# 📖 Overview
 
-## Overview
+Managing what you watch shouldn't require **five different apps**.
 
-NexusTrack provides a complete user journey from discovery to playback tracking:
+Today, people use different platforms for different purposes:
 
-- Unified movie, TV, and anime tracking
-- Season-aware progress and watch status
-- Watchlist, watching, completed, favorite, and rating workflows
-- Multi-source search across TMDB and anime providers
-- Trending, popular, top-rated, upcoming, and seasonal discovery feeds
-- Supabase-authenticated accounts with guest mode support
-- Friends, requests, public profiles, and activity sharing
-- Notifications and unread counts with real-time updates
-- Library export/import in JSON or CSV
-- Safe image loading and graceful poster fallbacks
-- Responsive desktop and mobile-first UI
+- 🎥 Letterboxd for movies
+- 📺 Trakt for TV shows
+- 🌸 MyAnimeList or AniList for anime
+- 🍿 Streaming apps for recommendations
 
-## Key Features
+This creates fragmented watchlists, duplicate tracking, and disconnected social experiences.
 
-### Authentication & user state
-- Email/password auth via Supabase
-- Guest mode for quick preview and onboarding
-- Guest restrictions with modal prompts for protected actions
-- Persistent guest state via local storage
+**NexusTrack** solves this by bringing everything together into one modern platform where you can discover, organize, track, and share every movie, TV show, and anime you watch.
 
-### Core app sections
-- `/` — public landing page with feature preview and poster showcase
-- `/auth` — sign-in, signup, password recovery, and guest entry
-- `/dashboard` — personalized homepage with stats, continue watching, trending, popular, and seasonal cards
-- `/discover` — discovery hub with tabs for movies, TV, anime, genre filters, and infinite scrolling
-- `/search` — combined movie/TV/anime search experience with debounced queries
-- `/library` — library management with status and type filters
-- `/friends` — friend discovery, requests, outgoing invites, and friend library summaries
-- `/notifications` — activity feed with read/unread status and real-time Supabase updates
-- `/settings` — profile settings, data export/import, and account deletion
-- `/user/:username` — public friend profile and follow/copy actions
-- `/media/:type/:source/:id` — media detail pages with reviews, friends, and library controls
+---
 
-### Media & discovery
-- TMDB integration for movies and TV metadata
-- Anilist and Jikan support for anime discovery
-- Poster caching and fallback artwork for unavailable covers
-- Media cards with status badges and action buttons
-- Search results show movies, TV, and anime in one view
+# ✨ Why NexusTrack?
 
-### Library & interaction
-- Add media to watchlist, watching, completed, favorites
-- Mark status changes with optimistic UI updates
-- Track progress at the season level for TV and anime
-- Copy titles from friends' libraries
-- Import/export library data for backup and migration
-- Account deletion and profile persistence
+Instead of simply being another watchlist app, NexusTrack provides a complete entertainment ecosystem.
 
-## Technical stack
+- 🎬 Unified tracking for Movies, TV Shows, and Anime
+- 📺 Season-aware progress tracking
+- ❤️ Favorites, ratings, watchlists, and completed libraries
+- 👥 Social profiles and friend activity
+- 🔍 Multi-source media discovery
+- 📤 Import & export your library
+- ⚡ Fast, responsive, and mobile-friendly
+
+---
+
+# 🚀 Features
+
+## 🎥 Unified Library
+
+Manage every piece of entertainment from one place.
+
+- Movies
+- TV Shows
+- Anime
+
+Organize them into:
+
+- Watchlist
+- Watching
+- Completed
+- Favorites
+
+---
+
+## 📺 Season Tracking
+
+Unlike traditional trackers, NexusTrack understands seasons.
+
+Instead of only marking an entire series as watched, you can:
+
+- Track individual seasons
+- Continue where you left off
+- Automatically update overall progress
+
+Perfect for long-running TV series and anime.
+
+---
+
+## 🔍 Smart Discovery
+
+Discover new content from multiple providers.
+
+Browse:
+
+- Trending
+- Popular
+- Top Rated
+- Upcoming
+- Seasonal Anime
+
+Filter by:
+
+- Genre
+- Media Type
+- Search
+
+---
+
+## 👥 Social Experience
+
+Entertainment is better with friends.
+
+Features include:
+
+- Friend requests
+- Public profiles
+- Shared libraries
+- Friend activity
+- Copy titles from friends' watchlists
+
+## ⭐ Personal Library
+
+Track everything you watch.
+
+Save:
+
+- Ratings
+- Favorites
+- Watch Status
+- Watching Progress
+
+Your library stays synchronized across devices.
+
+---
+
+## 📤 Import & Export
+
+Take your data anywhere.
+
+Supported formats:
+
+- JSON
+- CSV
+
+Perfect for backups or migration.
+
+---
+
+## 👤 Authentication
+
+Secure authentication powered by Supabase.
+
+Supports:
+
+- Email & Password
+- Guest Mode
+- Persistent Sessions
+
+Guest users can explore the app before creating an account.
+
+# 🏗️ Tech Stack
+
+## Frontend
 
 - React 19
 - TypeScript
 - Tailwind CSS
-- TanStack Start (server/client rendering)
-- TanStack React Router
-- TanStack React Query
-- Supabase (auth, database, realtime)
-- Lucide icons
-- Sonner toast notifications
-- Nitro / Vercel-compatible production build
+- TanStack Start
+- TanStack Router
+- TanStack Query
 
-## Project structure
+## Backend
 
-- `src/routes` — page routes and route components
-- `src/components` — reusable UI components and controls
-- `src/lib` — data access, API integration, auth, and utilities
-- `src/integrations` — Supabase client and auth middleware
-- `src/hooks` — shared hooks like device detection and guest state
-- `supabase/migrations` — database schema and RLS migration scripts
+- Supabase
+  - Authentication
+  - PostgreSQL Database
+  - Realtime
+  - Row Level Security
 
-## Build & deploy
+## APIs
 
-- `bun run dev` — run locally
-- `bun run build` — build production assets
-- `bun run preview` — preview the production build
-- `bun run lint` — lint the codebase
-- `bun run format` — format source files
+- TMDB
+- AniList
+- Jikan
 
-## Notes
+# 📂 Application Pages
 
-- The app is optimized for both desktop and mobile screens.
-- Supabase is used for auth, real-time notifications, library persistence, and friend connections.
-- The public landing page uses sample poster previews and hero content to show the product flow.
-- Media discovery gracefully falls back to placeholder data when external APIs are unavailable.
+| Route | Description |
+|--------|-------------|
+| `/` | Landing Page |
+| `/auth` | Authentication |
+| `/dashboard` | Personalized Dashboard |
+| `/discover` | Discover Media |
+| `/search` | Global Search |
+| `/library` | Personal Library |
+| `/friends` | Friends |
+| `/notifications` | Activity Feed |
+| `/settings` | Account Settings |
+| `/user/:username` | Public Profile |
+| `/media/:type/:source/:id` | Media Details |
 
-## Contributing
+---
 
-- Follow existing component patterns in `src/components`.
-- Keep UI updates consistent with the existing Tailwind/TanStack design.
-- Use `useServerFn` for server-only actions and `useQuery` / `useMutation` for client-side state.
-- Keep secrets out of Git and use `.env` for local configuration.
+## ✅ Completed
+
+- Authentication
+- Guest Mode
+- Library Management
+- Friends System
+- Notifications
+- Discovery
+- Search
+- Import / Export
+- Responsive UI
+- Public Profiles
+
+# ❤️ Acknowledgements
+
+- TMDB
+- AniList
+- Jikan
+- Supabase
+- TanStack
+- React
+
+---
+
+<div align="center">
+
+## 🌟 Vision
+
+NexusTrack aims to become the all-in-one destination for entertainment tracking.
+
+Whether you're watching blockbuster movies, binge-worthy TV series, or seasonal anime, your entire entertainment journey should live in one place—not scattered across multiple apps.
+
+If you like the project, consider giving it a ⭐ on GitHub!
+
+</div>
