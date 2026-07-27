@@ -8,12 +8,14 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Hop as Home, Search, Compass, Film, Users, User as UserIcon, Bell, Settings, LogOut } from "lucide-react";
+import { Hop as Home, Search, Compass, Film, Users, User as UserIcon, Bell, Settings, LogOut, LogIn } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useGuest } from "@/lib/guest";
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { isGuest, disableGuest } = useGuest();
 
   function go(to: string) {
     onOpenChange(false);
@@ -23,8 +25,33 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   async function signOut() {
     onOpenChange(false);
     await supabase.auth.signOut();
+    disableGuest();
     navigate({ to: "/auth", replace: true });
   }
+
+  function signIn() {
+    onOpenChange(false);
+    navigate({ to: "/auth" });
+  }
+
+  const pages = isGuest
+    ? [
+        { to: "/dashboard", label: "Home", Icon: Home },
+        { to: "/search", label: "Search", Icon: Search },
+        { to: "/discover", label: "Discover", Icon: Compass },
+        { to: "/notifications", label: "Notifications", Icon: Bell },
+        { to: "/profile", label: "Profile", Icon: UserIcon },
+      ]
+    : [
+        { to: "/dashboard", label: "Home", Icon: Home },
+        { to: "/search", label: "Search", Icon: Search },
+        { to: "/discover", label: "Discover", Icon: Compass },
+        { to: "/library", label: "Library", Icon: Film },
+        { to: "/friends", label: "Friends", Icon: Users },
+        { to: "/notifications", label: "Notifications", Icon: Bell },
+        { to: "/profile", label: "Profile", Icon: UserIcon },
+        { to: "/settings", label: "Settings", Icon: Settings },
+      ];
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
@@ -32,17 +59,18 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
         <CommandGroup heading="Pages">
-          <CommandItem onSelect={() => go("/dashboard")}><Home className="mr-2 h-4 w-4" /> Home</CommandItem>
-          <CommandItem onSelect={() => go("/search")}><Search className="mr-2 h-4 w-4" /> Search</CommandItem>
-          <CommandItem onSelect={() => go("/discover")}><Compass className="mr-2 h-4 w-4" /> Discover</CommandItem>
-          <CommandItem onSelect={() => go("/library")}><Film className="mr-2 h-4 w-4" /> Library</CommandItem>
-          <CommandItem onSelect={() => go("/friends")}><Users className="mr-2 h-4 w-4" /> Friends</CommandItem>
-          <CommandItem onSelect={() => go("/notifications")}><Bell className="mr-2 h-4 w-4" /> Notifications</CommandItem>
-          <CommandItem onSelect={() => go("/profile")}><UserIcon className="mr-2 h-4 w-4" /> Profile</CommandItem>
-          <CommandItem onSelect={() => go("/settings")}><Settings className="mr-2 h-4 w-4" /> Settings</CommandItem>
+          {pages.map(({ to, label, Icon }) => (
+            <CommandItem key={to} onSelect={() => go(to)}>
+              <Icon className="mr-2 h-4 w-4" /> {label}
+            </CommandItem>
+          ))}
         </CommandGroup>
         <CommandGroup heading="Account">
-          <CommandItem onSelect={signOut}><LogOut className="mr-2 h-4 w-4" /> Sign out</CommandItem>
+          {isGuest ? (
+            <CommandItem onSelect={signIn}><LogIn className="mr-2 h-4 w-4" /> Sign in</CommandItem>
+          ) : (
+            <CommandItem onSelect={signOut}><LogOut className="mr-2 h-4 w-4" /> Sign out</CommandItem>
+          )}
         </CommandGroup>
       </CommandList>
     </CommandDialog>

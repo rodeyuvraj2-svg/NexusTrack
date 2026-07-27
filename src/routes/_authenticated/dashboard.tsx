@@ -38,6 +38,7 @@ function Dashboard() {
   const trendingQ = useQuery({
     queryKey: ["trending"],
     queryFn: () => trendingFn({ data: { type: "all" } }),
+    placeholderData: (prev) => prev,
     staleTime: 300_000,
     retry: 2,
   });
@@ -46,6 +47,7 @@ function Dashboard() {
   const popularQ = useQuery({
     queryKey: ["popular-movies"],
     queryFn: () => discoverFn({ data: { type: "movie", category: "popular" } }),
+    placeholderData: (prev) => prev,
     staleTime: 300_000,
     retry: 2,
   });
@@ -54,6 +56,7 @@ function Dashboard() {
   const seasonalQ = useQuery({
     queryKey: ["seasonal-anime"],
     queryFn: () => seasonalFn(),
+    placeholderData: (prev) => prev,
     staleTime: 300_000,
     retry: 2,
   });
@@ -62,6 +65,7 @@ function Dashboard() {
   const statsQ = useQuery({
     queryKey: ["stats"],
     queryFn: () => statsFn(),
+    placeholderData: (prev) => prev,
     staleTime: 60_000,
     retry: 1,
   });
@@ -70,6 +74,7 @@ function Dashboard() {
   const watchingQ = useQuery({
     queryKey: ["library", "all"],
     queryFn: () => libraryFn(),
+    placeholderData: (prev) => prev,
     staleTime: 30_000,
     retry: 1,
   });
@@ -78,6 +83,7 @@ function Dashboard() {
   const actQ = useQuery({
     queryKey: ["activity"],
     queryFn: () => actFn(),
+    placeholderData: (prev) => prev,
     staleTime: 60_000,
     retry: 1,
   });
@@ -132,7 +138,7 @@ function Dashboard() {
           stats.map((s) => (
             <div key={s.label} className="glass rounded-xl p-3 text-center">
               <s.icon className="mx-auto mb-1 h-4 w-4 text-muted-foreground" />
-              <div className="text-xl font-black text-gradient">{statsQ.isLoading ? "…" : s.value ?? "—"}{s.suffix ?? ""}</div>
+              <div className="text-xl font-black text-accent">{statsQ.isLoading ? "…" : s.value ?? "—"}{s.suffix ?? ""}</div>
               <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{s.label}</div>
             </div>
           ))
@@ -211,14 +217,24 @@ function Dashboard() {
       ) : actQ.data && actQ.data.length > 0 ? (
         <Section title="Friend activity">
           <div className="space-y-2">
-            {actQ.data.slice(0, 8).map((a) => {
+            {actQ.data.slice(0, 10).map((a) => {
               const p = a.profile as unknown as { username: string; display_name: string } | undefined;
               const m = a.media as unknown as { title: string } | undefined;
+              const name = p?.display_name || p?.username || "Someone";
+              const kindText: Record<string, string> = {
+                started: "started watching",
+                completed: "completed",
+                added: "added to watchlist",
+                favorited: "favorited",
+                rated: "rated",
+                friend_joined: "joined NexusTrack",
+              };
+              const action = kindText[a.kind] || a.kind;
               return (
-                <div key={a.id} className="glass rounded-lg px-4 py-2.5 text-sm flex items-center gap-3">
-                  <span className="font-medium">{p?.display_name || p?.username || "Someone"}</span>
-                  <span className="text-muted-foreground">{a.kind}</span>
-                  <span className="text-gradient font-medium">{m?.title}</span>
+                <div key={a.id} className="glass rounded-lg px-4 py-2.5 text-sm flex items-center gap-2">
+                  <span className="font-medium">{name}</span>
+                  <span className="text-muted-foreground">{action}</span>
+                  {m?.title ? <span className="text-accent font-medium">{m.title}</span> : null}
                 </div>
               );
             })}

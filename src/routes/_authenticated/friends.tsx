@@ -3,7 +3,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { listFriends, searchUsers, sendFriendRequest, respondFriendRequest, removeFriend } from "@/lib/friends.functions";
-import { UserPlus, UserMinus, Check, X } from "lucide-react";
+import { UserPlus, UserMinus, Check, X, Users as UsersIcon } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
+import { useGuest } from "@/lib/guest";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/friends")({
@@ -15,7 +17,26 @@ const TYPE_FILTERS = ["all", "movies", "tv", "anime"] as const;
 type MediaTypeFilter = (typeof TYPE_FILTERS)[number];
 
 function Friends() {
+  const { isGuest } = useGuest();
   const qc = useQueryClient();
+
+  if (isGuest) {
+    return (
+      <div>
+        <h1 className="text-3xl md:text-4xl font-bold mb-6">Friends</h1>
+        <EmptyState
+          icon={UsersIcon}
+          title="Sign in to connect with friends"
+          description="See what friends are watching, share recommendations, and never watch alone."
+          action={
+            <Link to="/auth" className="inline-block rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white">
+              Sign in
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
   const listFn = useServerFn(listFriends);
   const searchFn = useServerFn(searchUsers);
   const sendFn = useServerFn(sendFriendRequest);
@@ -24,7 +45,8 @@ function Friends() {
 
   const [q, setQ] = useState("");
   const [typeFilter, setTypeFilter] = useState<MediaTypeFilter>("all");
-  const friends = useQuery({ queryKey: ["friends"], queryFn: () => listFn(), staleTime: 30_000 });
+  const friends = useQuery({ queryKey: ["friends"], queryFn: () => listFn(), placeholderData: (prev) => prev,
+    staleTime: 30_000 });
   const search = useQuery({ queryKey: ["user-search", q], queryFn: () => searchFn({ data: { q } }), enabled: q.length > 1 });
 
   const invalidate = () => { qc.invalidateQueries({ queryKey: ["friends"] }); qc.invalidateQueries({ queryKey: ["user-search"] }); };
@@ -44,18 +66,33 @@ function Friends() {
         {q.length > 1 && search.data ? (
           <ul className="mt-3 space-y-2">
             {search.data.length === 0 ? <p className="text-sm text-muted-foreground">No matches.</p> : null}
-            {search.data.map((u) => (
+            {search.data.map((u) => {
+              const isAccepted = friends.data?.accepted?.some((f: any) => (f.profile as any)?.id === u.id);
+              const isIncoming = friends.data?.incoming?.some((f: any) => (f.profile as any)?.id === u.id);
+              const isOutgoing = friends.data?.outgoing?.some((f: any) => (f.profile as any)?.id === u.id);
+              return (
               <li key={u.id} className="flex items-center gap-3 rounded-lg bg-muted/30 p-2.5">
-                <Avatar url={u.avatar_url} name={u.display_name || u.username} />
-                <div className="flex-1">
-                  <div className="text-sm font-semibold">{u.display_name || u.username}</div>
-                  <div className="text-xs text-muted-foreground">@{u.username}</div>
-                </div>
-                <button onClick={() => mSend.mutate(u.id)} className="rounded-lg bg-gradient-accent px-3 py-1.5 text-xs font-semibold text-white">
-                  <UserPlus className="inline h-3 w-3 mr-1" /> Add
-                </button>
+                <Link to="/user/$username" params={{ username: u.username }} className="flex items-center gap-3 flex-1 min-w-0">
+                  <Avatar url={u.avatar_url} name={u.display_name || u.username} />
+                  <div>
+                    <div className="text-sm font-semibold">{u.display_name || u.username}</div>
+                    <div className="text-xs text-muted-foreground">@{u.username}</div>
+                  </div>
+                </Link>
+                {isAccepted ? (
+                  <span className="text-xs text-muted-foreground shrink-0">Friends</span>
+                ) : isIncoming ? (
+                  <span className="text-xs text-muted-foreground shrink-0">Request sent to you</span>
+                ) : isOutgoing ? (
+                  <span className="text-xs text-muted-foreground shrink-0">Request sent</span>
+                ) : (
+                  <button onClick={() => mSend.mutate(u.id)} className="rounded-lg bg-gradient-accent px-3 py-1.5 text-xs font-semibold text-white shrink-0">
+                    <UserPlus className="inline h-3 w-3 mr-1" /> Add
+                  </button>
+                )}
               </li>
-            ))}
+              );
+            })}
           </ul>
         ) : null}
       </div>
@@ -63,11 +100,15 @@ function Friends() {
       {friends.data?.incoming?.length ? (
         <Section title="Incoming requests">
           {friends.data.incoming.map((r) => {
-            const p = r.profile as unknown as { username: string; display_name: string; avatar_url: string | null } | undefined;
+            const p = r.profile as unknown as { username: string; display_name: string; avatar_url: string | null; id: string } | undefined;
             return (
               <div key={r.id} className="glass rounded-xl p-3 flex items-center gap-3">
-                <Avatar url={p?.avatar_url ?? null} name={p?.display_name || p?.username || "?"} />
-                <div className="flex-1"><div className="font-semibold text-sm">{p?.display_name || p?.username}</div></div>
+                <Link to="/user/$username" params={{ username: p?.username ?? "" }}>
+                  <Avatar url={p?.avatar_url ?? null} name={p?.display_name || p?.username || "?"} />
+                </Link>
+                <Link to="/user/$username" params={{ username: p?.username ?? "" }} className="flex-1 min-w-0">
+                  <div className="font-semibold text-sm">{p?.display_name || p?.username}</div>
+                </Link>
                 <button onClick={() => mResp.mutate({ id: r.id, accept: true })} className="rounded-lg bg-success/20 text-success p-2"><Check className="h-4 w-4" /></button>
                 <button onClick={() => mResp.mutate({ id: r.id, accept: false })} className="rounded-lg bg-destructive/20 text-destructive p-2"><X className="h-4 w-4" /></button>
               </div>
@@ -87,7 +128,7 @@ function Friends() {
       <Section title="Your friends">
         {(friends.data?.accepted ?? []).length === 0 ? <p className="text-muted-foreground">No friends yet — search above.</p> : null}
         {friends.data?.accepted.map((r) => {
-          const p = r.profile as unknown as { username: string; display_name: string; avatar_url: string | null } | undefined;
+          const p = r.profile as unknown as { username: string; display_name: string; avatar_url: string | null; id: string } | undefined;
           const lib = r.library as unknown as { watching: number; completed: number; planned: number; favorites: number } | undefined;
           return (
             <div key={r.id} className="glass rounded-xl p-3 flex items-center gap-3 mb-2">
@@ -133,6 +174,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function Avatar({ url, name }: { url: string | null; name: string }) {
-  if (url) return <img src={url} alt={name} className="h-10 w-10 rounded-full object-cover" />;
+  if (url) return <img src={url} alt={name} loading="lazy" className="h-10 w-10 rounded-full object-cover" />;
   return <div className="h-10 w-10 rounded-full bg-gradient-accent grid place-items-center text-white font-bold text-sm">{name.charAt(0).toUpperCase()}</div>;
 }

@@ -52,6 +52,7 @@ function SearchPage() {
     },
     enabled: debounced.length > 1,
     retry: 1,
+    placeholderData: (prev) => prev,
     staleTime: 60_000,
   });
 

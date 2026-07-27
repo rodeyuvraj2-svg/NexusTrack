@@ -30,7 +30,7 @@ function Landing() {
           <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-accent shadow-lg">
             <span className="text-base font-black text-white">N</span>
           </div>
-          <span className="text-lg font-bold">Nexus<span className="text-gradient">Track</span></span>
+          <span className="text-lg font-bold">Nexus<span className="text-accent">Track</span></span>
         </Link>
         <Link to="/auth" className="rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white shadow-lg hover:opacity-90">
           Start Tracking Free
@@ -39,14 +39,14 @@ function Landing() {
 
       {/* HERO */}
       <section className="mx-auto max-w-7xl px-6 pt-12 md:pt-24 pb-16 text-center">
-        <div className="mx-auto inline-flex items-center gap-2 rounded-full glass px-4 py-1.5 text-xs text-muted-foreground">
+        <div className="mx-auto inline-flex items-center gap-2 rounded-full glass px-4 py-1.5 text-xs text-foreground/85">
           <Sparkles className="h-3.5 w-3.5 text-accent" /> Movies · TV · Anime — one library
         </div>
         <h1 className="mt-6 text-5xl md:text-7xl font-black leading-[0.95] tracking-tight">
           One list, <br />
-          <span className="text-gradient">every screen.</span>
+          <span className="text-accent">every screen.</span>
         </h1>
-        <p className="mx-auto mt-6 max-w-xl text-lg text-muted-foreground">
+        <p className="mx-auto mt-6 max-w-xl text-lg text-foreground/80">
           Stop juggling five apps. Track what you watch, discover what's next, and copy titles straight from your friends. Free, forever.
         </p>
         <div className="mt-8 flex items-center justify-center gap-3">
@@ -65,14 +65,33 @@ function Landing() {
               <div className="h-3 w-3 rounded-full bg-destructive/60" />
               <div className="h-3 w-3 rounded-full bg-warning/60" />
               <div className="h-3 w-3 rounded-full bg-success/60" />
-              <div className="ml-4 flex items-center gap-2 flex-1 rounded-lg bg-background/60 px-3 py-1.5 text-xs text-muted-foreground">
+              <div className="ml-4 flex items-center gap-2 flex-1 rounded-lg bg-background/60 px-3 py-1.5 text-xs text-foreground/80">
                 <Search className="h-3.5 w-3.5" /> Search movies, series, anime…
               </div>
             </div>
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-              {[300, 340, 320, 360, 310, 350].map((h, i) => (
-                <div key={i} className="rounded-xl glass overflow-hidden animate-float" style={{ height: `${h / 2}px`, animationDelay: `${i * 0.5}s` }}>
-                  <div className="h-full w-full bg-gradient-to-br from-primary/30 via-primary/10 to-accent/20" />
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+              {[
+                { title: "Interstellar", type: "Movie", img: "https://image.tmdb.org/t/p/w342/yQvGrMoipbRoddT0ZR8tPoR7NfX.jpg" },
+                { title: "Breaking Bad", type: "TV", img: "https://image.tmdb.org/t/p/w342/anFx9aTOOYqgS3v7x3R84Kz67ly.jpg" },
+                { title: "One Piece", type: "Anime", img: "https://image.tmdb.org/t/p/w342/blWCPEqDGLBuLB9u89CxP9ORQP4.jpg" },
+                { title: "Stranger Things", type: "TV", img: "https://image.tmdb.org/t/p/w342/uOOtwVbSr4QDjAGIifLDwpb2Pdl.jpg" },
+                { title: "Your Name", type: "Anime", img: "https://image.tmdb.org/t/p/w342/q719jXXEzOoYaps6babgKnONONX.jpg" },
+                { title: "The Batman", type: "Movie", img: "https://image.tmdb.org/t/p/w342/74xTEgt7R36Fpooo50r9T25onhq.jpg" },
+              ].map((item, i) => (
+                <div key={i} className="rounded-xl glass overflow-hidden animate-float flex flex-col" style={{ animationDelay: `${i * 0.5}s` }}>
+                  <div className="relative flex-1 min-h-[170px] bg-muted overflow-hidden">
+                    <img
+                      src={item.img}
+                      alt={item.title}
+                      loading="lazy"
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 p-2.5">
+                      <div className="text-sm font-bold text-white drop-shadow-lg truncate">{item.title}</div>
+                      <div className="text-xs text-white/70 drop-shadow">{item.type}</div>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -97,7 +116,7 @@ function Landing() {
                 <f.Icon className="h-5 w-5" />
               </div>
               <h3 className="font-semibold">{f.title}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{f.body}</p>
+              <p className="mt-1 text-sm text-foreground/75">{f.body}</p>
             </div>
           ))}
         </div>
@@ -106,37 +125,37 @@ function Landing() {
       <section className="mx-auto max-w-3xl px-6 py-20">
         <h2 className="mb-10 text-center text-3xl md:text-4xl font-bold">Frequently asked questions</h2>
         <Accordion type="single" collapsible className="space-y-3">
-          <AccordionItem value="q1" className="glass rounded-xl px-5 border-border/40">
+          <AccordionItem value="q1" className="glass rounded-xl px-5 pb-px border-border/40">
             <AccordionTrigger className="text-left text-base font-semibold hover:no-underline">Is NexusTrack really free?</AccordionTrigger>
             <AccordionContent className="text-muted-foreground text-sm leading-relaxed">
               Yes. Every feature is completely free — no subscriptions, no premium tiers, no ads, no limits. Ever.
             </AccordionContent>
           </AccordionItem>
-          <AccordionItem value="q2" className="glass rounded-xl px-5 border-border/40">
+          <AccordionItem value="q2" className="glass rounded-xl px-5 pb-px border-border/40">
             <AccordionTrigger className="text-left text-base font-semibold hover:no-underline">What can I track?</AccordionTrigger>
             <AccordionContent className="text-muted-foreground text-sm leading-relaxed">
               Movies, TV shows, and anime — all from one unified library. Search across all three at once and add anything with a single click.
             </AccordionContent>
           </AccordionItem>
-          <AccordionItem value="q3" className="glass rounded-xl px-5 border-border/40">
+          <AccordionItem value="q3" className="glass rounded-xl px-5 pb-px border-border/40">
             <AccordionTrigger className="text-left text-base font-semibold hover:no-underline">Do I have to mark every episode?</AccordionTrigger>
             <AccordionContent className="text-muted-foreground text-sm leading-relaxed">
               No. You track progress at the season level, not episode-by-episode. Mark a season as watching, completed, or skipped — the show's overall status updates automatically.
             </AccordionContent>
           </AccordionItem>
-          <AccordionItem value="q4" className="glass rounded-xl px-5 border-border/40">
+          <AccordionItem value="q4" className="glass rounded-xl px-5 pb-px border-border/40">
             <AccordionTrigger className="text-left text-base font-semibold hover:no-underline">Can I see what my friends are watching?</AccordionTrigger>
             <AccordionContent className="text-muted-foreground text-sm leading-relaxed">
               Yes. Add friends, browse their libraries, and copy any title to your own list with one click. You can also see friend activity on your dashboard.
             </AccordionContent>
           </AccordionItem>
-          <AccordionItem value="q5" className="glass rounded-xl px-5 border-border/40">
+          <AccordionItem value="q5" className="glass rounded-xl px-5 pb-px border-border/40">
             <AccordionTrigger className="text-left text-base font-semibold hover:no-underline">Can I export my data?</AccordionTrigger>
             <AccordionContent className="text-muted-foreground text-sm leading-relaxed">
               Absolutely. Export your entire library as JSON or CSV from Settings at any time. You can also import from a previously exported file.
             </AccordionContent>
           </AccordionItem>
-          <AccordionItem value="q6" className="glass rounded-xl px-5 border-border/40">
+          <AccordionItem value="q6" className="glass rounded-xl px-5 pb-px border-border/40">
             <AccordionTrigger className="text-left text-base font-semibold hover:no-underline">Where does the data come from?</AccordionTrigger>
             <AccordionContent className="text-muted-foreground text-sm leading-relaxed">
               Movie and TV metadata comes from TMDB (The Movie Database). Anime metadata comes from the Jikan API (MyAnimeList). All data is cached for fast loading.

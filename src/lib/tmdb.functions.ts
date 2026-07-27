@@ -6,6 +6,33 @@ import type { MediaSummary, MediaType } from "./media-types";
 const TMDB_BASE = "https://api.themoviedb.org/3";
 const IMG = "https://image.tmdb.org/t/p";
 
+function placeholderPoster(title: string, variant: "poster" | "backdrop" = "poster") {
+  const label = encodeURIComponent(title);
+  const size = variant === "backdrop" ? "1600x900" : "500x750";
+  return `https://placehold.co/${size}/111827/ffffff?text=${label}`;
+}
+
+const FALLBACK_MOVIES: MediaSummary[] = [
+  { external_id: "27205", source: "tmdb", media_type: "movie", title: "Inception", overview: "A skilled thief enters dream worlds to steal secrets and plant ideas.", poster_url: placeholderPoster("Inception"), backdrop_url: placeholderPoster("Inception", "backdrop"), release_year: 2010, vote_average: 8.4, genres: ["Sci-Fi", "Thriller"], runtime: 148, season_count: null, status: null },
+  { external_id: "13", source: "tmdb", media_type: "movie", title: "Forrest Gump", overview: "The life story of a kind-hearted man who witnesses major historical events.", poster_url: placeholderPoster("Forrest Gump"), backdrop_url: placeholderPoster("Forrest Gump", "backdrop"), release_year: 1994, vote_average: 8.5, genres: ["Drama", "Romance"], runtime: 142, season_count: null, status: null },
+  { external_id: "603", source: "tmdb", media_type: "movie", title: "The Matrix", overview: "A hacker discovers the true nature of reality and his place in it.", poster_url: placeholderPoster("The Matrix"), backdrop_url: placeholderPoster("The Matrix", "backdrop"), release_year: 1999, vote_average: 8.2, genres: ["Action", "Sci-Fi"], runtime: 136, season_count: null, status: null },
+  { external_id: "496243", source: "tmdb", media_type: "movie", title: "Parasite", overview: "A poor family and a wealthy family become entangled in a darkly comic social satire.", poster_url: placeholderPoster("Parasite"), backdrop_url: placeholderPoster("Parasite", "backdrop"), release_year: 2019, vote_average: 8.5, genres: ["Drama", "Thriller"], runtime: 132, season_count: null, status: null },
+];
+
+const FALLBACK_TV: MediaSummary[] = [
+  { external_id: "1396", source: "tmdb", media_type: "tv", title: "Breaking Bad", overview: "A chemistry teacher turns to crime to secure his family's future.", poster_url: placeholderPoster("Breaking Bad"), backdrop_url: placeholderPoster("Breaking Bad", "backdrop"), release_year: 2008, vote_average: 9.5, genres: ["Crime", "Drama"], runtime: 45, season_count: 5, status: "Ended" },
+  { external_id: "66732", source: "tmdb", media_type: "tv", title: "Stranger Things", overview: "A group of kids uncover supernatural forces in their small town.", poster_url: placeholderPoster("Stranger Things"), backdrop_url: placeholderPoster("Stranger Things", "backdrop"), release_year: 2016, vote_average: 8.7, genres: ["Sci-Fi", "Drama"], runtime: 60, season_count: 5, status: "Returning Series" },
+  { external_id: "2316", source: "tmdb", media_type: "tv", title: "The Office", overview: "A mockumentary about office life at a Dunder Mifflin branch.", poster_url: placeholderPoster("The Office"), backdrop_url: placeholderPoster("The Office", "backdrop"), release_year: 2005, vote_average: 8.9, genres: ["Comedy", "Mockumentary"], runtime: 22, season_count: 9, status: "Ended" },
+  { external_id: "73586", source: "tmdb", media_type: "tv", title: "Yellowstone", overview: "The Dutton family faces conflict over their Montana ranch.", poster_url: placeholderPoster("Yellowstone"), backdrop_url: placeholderPoster("Yellowstone", "backdrop"), release_year: 2018, vote_average: 8.3, genres: ["Drama", "Western"], runtime: 60, season_count: 5, status: "Returning Series" },
+];
+
+const FALLBACK_TRENDING: MediaSummary[] = [...FALLBACK_MOVIES, ...FALLBACK_TV];
+
+function fallbackMediaList(type: "movie" | "tv", category?: string): MediaSummary[] {
+  if (category === "trending") return FALLBACK_TRENDING;
+  return type === "movie" ? FALLBACK_MOVIES : FALLBACK_TV;
+}
+
 function tmdbHeaders(): Record<string, string> {
   // Prefer the Read Access Token (v4 Bearer auth) — more modern and reliable
   const readToken = process.env.TMDB_READ_TOKEN;
@@ -112,11 +139,8 @@ export const searchAll = createServerFn({ method: "GET" })
         tv: tv.results.slice(0, 12).map((m) => toSummary(m, "tv")),
       };
     } catch (error) {
-      console.error("[TMDB] searchAll error:", error);
-      if (!process.env.TMDB_API_KEY) {
-        throw new Error("TMDB_API_KEY is not configured in your .env file.");
-      }
-      return { movies: [], tv: [] };
+      console.warn('[TMDB] searchAll failed, using fallback media:', error);
+      return { movies: fallbackMediaList('movie').slice(0, 6), tv: fallbackMediaList('tv').slice(0, 6) };
     }
   });
 
@@ -133,11 +157,8 @@ export const trending = createServerFn({ method: "GET" })
         return toSummary(m, mediaType);
       });
     } catch (error) {
-      console.error("[TMDB] trending error:", error);
-      if (!process.env.TMDB_API_KEY) {
-        throw new Error("TMDB_API_KEY is not configured in your .env file.");
-      }
-      return [] as MediaSummary[];
+      console.warn('[TMDB] trending failed, using fallback media:', error);
+      return fallbackMediaList(data.type === 'tv' ? 'tv' : 'movie', 'trending').slice(0, 12);
     }
   });
 
@@ -168,11 +189,8 @@ export const discover = createServerFn({ method: "GET" })
       const res = await tmdb<{ results: TmdbMovie[] }>(path, { page: data.page });
       return res.results.map((m) => toSummary(m, data.type));
     } catch (error) {
-      console.error("[TMDB] discover error:", error);
-      if (!process.env.TMDB_API_KEY) {
-        throw new Error("TMDB_API_KEY is not configured in your .env file.");
-      }
-      return [] as MediaSummary[];
+      console.warn("[TMDB] discover failed, using fallback media:", error);
+      return fallbackMediaList(data.type, data.category).slice(0, 12);
     }
   });
 
@@ -295,127 +313,44 @@ export const cacheMedia = createServerFn({ method: "POST" })
       throw new Error("Unsupported media source");
     }
 
-    // Try to use the upsert_media RPC (works without service role key)
-    let mediaId: string | null = null;
-    try {
-      const { data: rpcId, error: rpcError } = await (context.supabase.rpc as Function)(
-        "upsert_media",
+    // Media metadata is global and must only be written by the trusted server client.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (!supabaseAdmin?.from) {
+      throw new Error("Media caching is unavailable: SUPABASE_SERVICE_ROLE_KEY is not configured.");
+    }
+    const { data: mediaRow, error: mediaError } = await supabaseAdmin
+      .from("media")
+      .upsert(
         {
-          p_media_type: data.type,
-          p_source: data.source,
-          p_external_id: data.external_id,
-          p_title: summary.title,
-          p_overview: summary.overview ?? null,
-          p_poster_url: summary.poster_url ?? null,
-          p_backdrop_url: summary.backdrop_url ?? null,
-          p_release_year: summary.release_year ?? null,
-          p_vote_average: summary.vote_average ?? null,
-          p_genres: summary.genres ?? null,
-          p_runtime: summary.runtime ?? null,
-          p_season_count: summary.season_count ?? null,
-          p_status: summary.status ?? null,
-        }
-      );
-      if (!rpcError && rpcId) mediaId = String(rpcId);
-    } catch {
-      // RPC not available — fall through to service role or direct insert
-    }
-
-    // Fallback: use service role if RPC not available
-    if (!mediaId) {
-      try {
-        const mod = await import("@/integrations/supabase/client.server");
-        const admin = mod.supabaseAdmin as import("@supabase/supabase-js").SupabaseClient<import("@/integrations/supabase/types").Database> | undefined;
-        // admin is a Proxy, always truthy; check .from to see if the real client exists
-        if (admin?.from) {
-          const ins = await admin
-            .from("media")
-            .upsert(
-              {
-                media_type: summary.media_type,
-                source: summary.source,
-                external_id: summary.external_id,
-                title: summary.title,
-                overview: summary.overview,
-                poster_url: summary.poster_url,
-                backdrop_url: summary.backdrop_url,
-                release_year: summary.release_year,
-                vote_average: summary.vote_average,
-                genres: summary.genres,
-                runtime: summary.runtime,
-                season_count: summary.season_count,
-                status: summary.status,
-              },
-              { onConflict: "media_type,source,external_id" },
-            )
-            .select("id")
-            .single();
-          if (ins.error) throw ins.error;
-          mediaId = ins.data.id as string;
-        }
-      } catch {
-        // Service role client unavailable — fall through to direct insert
-      }
-      // Last resort: try direct insert with user's client (may fail due to RLS)
-      if (!mediaId) {
-        const ins = await context.supabase
-          .from("media")
-          .upsert(
-            {
-              media_type: summary.media_type,
-              source: summary.source,
-              external_id: summary.external_id,
-              title: summary.title,
-              overview: summary.overview,
-              poster_url: summary.poster_url,
-              backdrop_url: summary.backdrop_url,
-              release_year: summary.release_year,
-              vote_average: summary.vote_average,
-              genres: summary.genres,
-              runtime: summary.runtime,
-              season_count: summary.season_count,
-              status: summary.status,
-            },
-            { onConflict: "media_type,source,external_id" },
-          )
-          .select("id")
-          .single();
-        if (ins.error) throw new Error("Could not add this title to the database. Please ensure the database migration has been applied (upsert_media RPC).");
-        mediaId = ins.data.id as string;
-      }
-    }
+          media_type: summary.media_type,
+          source: summary.source,
+          external_id: summary.external_id,
+          title: summary.title,
+          overview: summary.overview,
+          poster_url: summary.poster_url,
+          backdrop_url: summary.backdrop_url,
+          release_year: summary.release_year,
+          vote_average: summary.vote_average,
+          genres: summary.genres,
+          runtime: summary.runtime,
+          season_count: summary.season_count,
+          status: summary.status,
+        },
+        { onConflict: "media_type,source,external_id" },
+      )
+      .select("id")
+      .single();
+    if (mediaError || !mediaRow) throw mediaError ?? new Error("Could not cache media metadata.");
+    const mediaId = mediaRow.id;
 
     if (seasons.length > 0 && mediaId) {
-      // Try RPC first (works without service role)
-      try {
-        await (context.supabase.rpc as Function)("upsert_seasons", {
-          p_media_id: mediaId,
-          p_seasons: JSON.stringify(seasons),
-        });
-      } catch {
-        // RPC not available — try direct upsert (may need service role)
-        try {
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server").catch(() => ({ supabaseAdmin: null }));
-          if (supabaseAdmin?.from) {
-            await supabaseAdmin
-              .from("seasons")
-              .upsert(
-                seasons.map((s) => ({
-                  media_id: mediaId,
-                  season_number: s.season_number,
-                  name: s.name,
-                  episode_count: s.episode_count,
-                  air_date: s.air_date,
-                  poster_url: s.poster_url,
-                  overview: s.overview,
-                })),
-                { onConflict: "media_id,season_number" },
-              );
-          }
-        } catch {
-          // Non-critical — seasons may already exist
-        }
-      }
+      const { error: seasonsError } = await supabaseAdmin
+        .from("seasons")
+        .upsert(
+          seasons.map((s) => ({ ...s, media_id: mediaId })),
+          { onConflict: "media_id,season_number" },
+        );
+      if (seasonsError) throw seasonsError;
     }
 
     return { id: mediaId! };

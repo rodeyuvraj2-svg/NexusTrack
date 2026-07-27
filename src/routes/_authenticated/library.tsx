@@ -4,9 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { listLibrary } from "@/lib/library.functions";
 import { MediaGrid } from "@/components/MediaCard";
+import { EmptyState } from "@/components/EmptyState";
+import { useGuest } from "@/lib/guest";
 import type { WatchStatus, MediaSummary } from "@/lib/media-types";
+import { Film, Eye, Search } from "lucide-react";
 
-const STATUSES = ["all", "watching", "completed", "planned", "favorites"] as const;
+const STATUSES = ["all", "planned", "watching", "completed", "favorites"] as const;
 const TYPES = ["all", "movie", "tv", "anime"] as const;
 type FilterStatus = (typeof STATUSES)[number];
 type MediaFilterType = (typeof TYPES)[number];
@@ -22,9 +25,29 @@ export const Route = createFileRoute("/_authenticated/library")({
 });
 
 function Library() {
+  const { isGuest } = useGuest();
   const [status, setStatus] = useState<FilterStatus>("all");
   const [type, setType] = useState<MediaFilterType>("all");
   const fn = useServerFn(listLibrary);
+
+  // Guest guard
+  if (isGuest) {
+    return (
+      <div>
+        <h1 className="text-3xl md:text-4xl font-bold mb-6">Your library</h1>
+        <EmptyState
+          icon={Film}
+          title="Sign in to build your library"
+          description="Track what you watch, mark favorites, and never lose a title you loved."
+          action={
+            <Link to="/auth" className="inline-block rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white">
+              Sign in
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
 
   const q = useQuery({
     queryKey: ["library", status, type],
@@ -36,8 +59,8 @@ function Library() {
           favorite: status === "favorites" ? true : undefined,
         },
       }),
-    staleTime: 30_000,
     placeholderData: (prev) => prev,
+    staleTime: 30_000,
   });
 
   const rows = q.data ?? [];

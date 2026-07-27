@@ -1,12 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { exportLibrary, importLibrary } from "@/lib/import-export.functions";
 import { deleteAccount } from "@/lib/auth.functions";
+import { EmptyState } from "@/components/EmptyState";
+import { useGuest } from "@/lib/guest";
 import { toast } from "sonner";
-import { Download, Upload, Trash2, User as UserIcon } from "lucide-react";
+import { Download, Upload, Trash2, User as UserIcon, Settings as SettingsIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({ meta: [{ title: "Settings — NexusTrack" }, { name: "description", content: "Manage your account, privacy, and data." }] }),
@@ -14,7 +16,26 @@ export const Route = createFileRoute("/_authenticated/settings")({
 });
 
 function Settings() {
+  const { isGuest } = useGuest();
   const qc = useQueryClient();
+
+  if (isGuest) {
+    return (
+      <div className="max-w-2xl">
+        <h1 className="mb-8 text-3xl md:text-4xl font-bold">Settings</h1>
+        <EmptyState
+          icon={SettingsIcon}
+          title="Sign in to manage settings"
+          description="Customize your profile, manage your data, and control your privacy."
+          action={
+            <Link to="/auth" className="inline-block rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white">
+              Sign in
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
   const exportFn = useServerFn(exportLibrary);
   const importFn = useServerFn(importLibrary);
   const deleteFn = useServerFn(deleteAccount);

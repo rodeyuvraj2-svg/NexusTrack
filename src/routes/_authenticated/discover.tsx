@@ -56,6 +56,7 @@ function Discover() {
       if (tab.startsWith("tv")) return genresFn({ data: { type: "tv" } });
       return Promise.resolve([] as Genre[]);
     },
+    placeholderData: (prev) => prev,
     staleTime: Infinity,
     enabled: !showAnimeGenres,
   });
@@ -105,6 +106,7 @@ function Discover() {
       if (!lastPage || lastPage.length < 20) return undefined;
       return (lastPageParam as number) + 1;
     },
+    placeholderData: (prev) => prev,
     staleTime: 300_000,
     retry: 1,
   });

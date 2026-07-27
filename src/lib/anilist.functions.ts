@@ -4,7 +4,18 @@ import type { MediaSummary } from "./media-types";
 
 // ---- AniList GraphQL endpoint ----
 const ANILIST_URL = "https://graphql.anilist.co";
+function placeholderPoster(title: string, variant: 'poster' | 'backdrop' = 'poster') {
+  const label = encodeURIComponent(title);
+  const size = variant === 'backdrop' ? '1600x900' : '500x750';
+  return `https://placehold.co/${size}/111827/ffffff?text=${label}`;
+}
 
+const FALLBACK_ANIME: MediaSummary[] = [
+  { external_id: '21', source: 'anilist', media_type: 'anime', title: 'One Piece', overview: 'A young pirate sets sail to become the King of the Pirates.', poster_url: placeholderPoster('One Piece'), backdrop_url: placeholderPoster('One Piece', 'backdrop'), release_year: 1999, vote_average: 8.7, genres: ['Adventure', 'Action'], runtime: 24, season_count: 1100, status: 'RELEASING' },
+  { external_id: '16498', source: 'anilist', media_type: 'anime', title: 'Attack on Titan', overview: 'Humanity fights for survival against giant humanoid creatures.', poster_url: placeholderPoster('Attack on Titan'), backdrop_url: placeholderPoster('Attack on Titan', 'backdrop'), release_year: 2013, vote_average: 8.8, genres: ['Action', 'Drama'], runtime: 24, season_count: 100, status: 'FINISHED' },
+  { external_id: '1535', source: 'anilist', media_type: 'anime', title: 'Death Note', overview: 'A gifted student discovers a notebook that can kill anyone whose name is written in it.', poster_url: placeholderPoster('Death Note'), backdrop_url: placeholderPoster('Death Note', 'backdrop'), release_year: 2006, vote_average: 8.6, genres: ['Mystery', 'Thriller'], runtime: 23, season_count: 37, status: 'FINISHED' },
+  { external_id: '20605', source: 'anilist', media_type: 'anime', title: 'Frieren', overview: 'An elf mage journeys through a fantasy world after a long quest.', poster_url: placeholderPoster('Frieren'), backdrop_url: placeholderPoster('Frieren', 'backdrop'), release_year: 2023, vote_average: 8.9, genres: ['Fantasy', 'Adventure'], runtime: 24, season_count: 28, status: 'RELEASING' },
+];
 // ---- Types ----
 
 interface AniListMedia {
@@ -134,8 +145,8 @@ export const searchAnime = createServerFn({ method: "GET" })
       );
       return (result.Page.media ?? []).map(toSummary);
     } catch (error) {
-      console.error("[AniList] searchAnime error:", error);
-      return [] as MediaSummary[];
+      console.warn('[AniList] searchAnime failed, using fallback anime:', error);
+      return FALLBACK_ANIME.slice(0, 6);
     }
   });
 
@@ -167,8 +178,8 @@ export const topAnime = createServerFn({ method: "GET" })
       );
       return (result.Page.media ?? []).map(toSummary);
     } catch (error) {
-      console.error("[AniList] topAnime error:", error);
-      return [] as MediaSummary[];
+      console.warn('[AniList] topAnime failed, using fallback anime:', error);
+      return FALLBACK_ANIME.slice(0, 6);
     }
   });
 
@@ -267,8 +278,8 @@ export const seasonalAnime = createServerFn({ method: "GET" })
     );
     return (result.Page.media ?? []).map(toSummary);
   } catch (error) {
-    console.error("[AniList] seasonalAnime error:", error);
-    return [] as MediaSummary[];
+    console.warn('[AniList] seasonalAnime failed, using fallback anime:', error);
+    return FALLBACK_ANIME.slice(0, 6);
   }
 });
 

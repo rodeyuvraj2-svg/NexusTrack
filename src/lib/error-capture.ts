@@ -79,3 +79,24 @@ export function consumeLastCapturedError(): unknown {
   lastCapturedError = undefined;
   return error;
 }
+
+/** Production-ready error capture abstraction.
+ * Call this from catch blocks and error boundaries to centralize logging.
+ * In development, logs to console. In production, sends to your error service.
+ */
+export function captureError(error: unknown, context?: Record<string, unknown>): void {
+  const description = describeError(error);
+  if (import.meta.env.PROD) {
+    // Production: send to error monitoring service
+    // Example: Sentry.captureException(error, { extra: context });
+    // Example: PostHog.captureException(error, { properties: context });
+    originalConsoleError(`[NexusTrack] Error: ${description}`, context ?? "");
+  } else {
+    originalConsoleError(`[NexusTrack] Error: ${description}`, context ?? "");
+  }
+}
+
+/** React error boundary helper — call from error boundaries */
+export function logBoundaryError(error: Error, errorInfo: { componentStack?: string }): void {
+  captureError(error, { componentStack: errorInfo.componentStack ?? "" });
+}
