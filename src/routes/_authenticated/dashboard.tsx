@@ -123,20 +123,20 @@ function Dashboard() {
 
   return (
     <div>
-      <div className="mb-8">
+      <div className="mb-8 animate-fade-in">
         <h1 className="text-3xl md:text-4xl font-bold">Welcome back.</h1>
         <p className="text-muted-foreground mt-1">Pick up where you left off, or find something new.</p>
       </div>
 
       {/* Stats row */}
-      <div className="mb-10 grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="mb-10 grid grid-cols-2 md:grid-cols-4 gap-3 animate-fade-in">
         {statsQ.isError ? (
           <div className="col-span-full text-center text-sm text-muted-foreground flex items-center justify-center gap-1">
             <AlertCircle className="h-4 w-4" /> Stats temporarily unavailable — run the SQL grant to fix
           </div>
         ) : (
           stats.map((s) => (
-            <div key={s.label} className="glass rounded-xl p-3 text-center">
+            <div key={s.label} className="glass rounded-xl p-3 text-center card-hover">
               <s.icon className="mx-auto mb-1 h-4 w-4 text-muted-foreground" />
               <div className="text-xl font-black text-accent">{statsQ.isLoading ? "…" : s.value ?? "—"}{s.suffix ?? ""}</div>
               <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{s.label}</div>
@@ -147,7 +147,7 @@ function Dashboard() {
 
       {/* Continue watching */}
       {watchingItems.length > 0 ? (
-        <Section title="Continue watching" action={<Link to="/library" className="text-sm text-muted-foreground hover:text-foreground">View all →</Link>}>
+        <Section title="Continue watching" action={<Link to="/library" className="text-sm text-muted-foreground hover:text-foreground transition-colors">View all →</Link>}>
           <MediaGrid items={watchingItems} />
         </Section>
       ) : watchingQ.isLoading ? (
@@ -164,7 +164,7 @@ function Dashboard() {
       )}
 
       {/* Trending this week */}
-      <Section title="Trending this week" action={<Link to="/discover" className="text-sm text-muted-foreground hover:text-foreground">Discover all →</Link>}>
+      <Section title="Trending this week" action={<Link to="/discover" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Discover all →</Link>}>
         {trendingQ.isError ? (
           <div className="glass rounded-2xl p-12 text-center">
             <TrendingUp className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
@@ -178,7 +178,7 @@ function Dashboard() {
       </Section>
 
       {/* Popular movies */}
-      <Section title="Popular movies" action={<Link to="/discover" className="text-sm text-muted-foreground hover:text-foreground">Discover all →</Link>}>
+      <Section title="Popular movies" action={<Link to="/discover" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Discover all →</Link>}>
         {popularQ.isError ? (
           <div className="glass rounded-2xl p-12 text-center">
             <Film className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
@@ -192,7 +192,7 @@ function Dashboard() {
       </Section>
 
       {/* Seasonal anime */}
-      <Section title="Airing this season" action={<Link to="/discover" className="text-sm text-muted-foreground hover:text-foreground">Discover all →</Link>}>
+      <Section title="Airing this season" action={<Link to="/discover" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Discover all →</Link>}>
         {seasonalQ.isError ? (
           <div className="glass rounded-2xl p-12 text-center">
             <Sparkles className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
@@ -249,7 +249,7 @@ function SkeletonGrid({ count = 6 }: { count?: number }) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="aspect-[2/3] rounded-xl glass animate-pulse" />
+        <div key={i} className="aspect-[2/3] rounded-xl glass animate-pulse" style={{ animationDelay: i * 100 + "ms" }} />
       ))}
     </div>
   );

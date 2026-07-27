@@ -1,8 +1,7 @@
 import { createFileRoute, useParams, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient, useMutation, type UseQueryResult } from "@tanstack/react-query";
-import { getDetails, cacheMedia, getRecommendations, getCast, reclassifyMedia, getWatchProviders } from "@/lib/tmdb.functions";
-import type { WatchProviderResult } from "@/lib/tmdb.functions";
+import { getDetails, cacheMedia, getRecommendations, getCast, reclassifyMedia } from "@/lib/tmdb.functions";
 import { getAnimeDetails, getMultipleAnimeDetails } from "@/lib/anilist.functions";
 import { getLibraryItem, upsertLibraryItem, removeLibraryItem, listSeasonsWithProgress, setSeasonStatus } from "@/lib/library.functions";
 import { listReviews, upsertReview, deleteReview, toggleReviewLike } from "@/lib/reviews.functions";
@@ -165,14 +164,6 @@ function MediaDetail() {
   }, [summary?.title]);
 
   // ---- TMDB Watch Providers ----
-  const providersFn = useServerFn(getWatchProviders);
-  const watchProvidersQ = useQuery({
-    queryKey: ["watch-providers", type, id],
-    queryFn: () => providersFn({ data: { type: type as "movie" | "tv", id } }),
-    enabled: !isAnime && !!summary?.title,
-    staleTime: 300_000,
-  });
-  const watchProvidersResult = watchProvidersQ.data;
 
   // Anime relations (Jikan API)
   const relations = isAnime ? (animeDetailsQ.data?.extra?.relations ?? []) : [];
@@ -469,7 +460,7 @@ function MediaDetail() {
   return (
     <div>
       {/* Hero */}
-      <div className="relative -mx-4 md:-mx-8 -mt-6 md:-mt-10 mb-8 h-64 md:h-80 overflow-hidden">
+      <div className="relative -mx-4 md:-mx-8 -mt-6 md:-mt-10 mb-8 h-48 md:h-80 overflow-hidden">
         {summary.backdrop_url ? (
           <img src={summary.backdrop_url} alt="" className="h-full w-full object-cover opacity-30" />
         ) : <div className="h-full w-full bg-gradient-to-br from-primary/20 to-accent/20" />}
@@ -487,7 +478,7 @@ function MediaDetail() {
 
       <div className="grid gap-8 md:grid-cols-[220px_1fr]">
         {/* Poster */}
-        <div className="glass rounded-xl overflow-hidden aspect-[2/3] -mt-32 md:-mt-40 shadow-2xl relative z-10">
+        <div className="glass rounded-xl overflow-hidden aspect-[2/3] -mt-32 md:-mt-40 shadow-2xl relative z-10 max-w-[160px] md:max-w-[220px]">
           {summary.poster_url ? <img src={summary.poster_url} alt={summary.title} loading="lazy" className="h-full w-full object-cover" /> : null}
         </div>
 
@@ -511,7 +502,7 @@ function MediaDetail() {
             {summary.runtime ? <span>· {summary.runtime}m</span> : null}
             {isAnime && animeDetailsQ.data?.extra?.duration ? <span>· {animeDetailsQ.data.extra.duration}</span> : null}
           </div>
-          <h1 className="mt-2 text-3xl md:text-5xl font-black">{summary.title}</h1>
+          <h1 className="mt-2 text-2xl md:text-5xl font-black">{summary.title}</h1>
           {summary.vote_average ? (
             <div className="mt-2 flex items-center gap-1 text-warning">
               <Star className="h-4 w-4 fill-current" /> <span className="font-semibold">{summary.vote_average.toFixed(1)}</span>
@@ -602,33 +593,6 @@ function MediaDetail() {
         </div>
       </div>
 
-      {/* ---- Where to Watch (TMDB Providers) ---- */}
-      {!isAnime && watchProvidersResult?.flatrate && watchProvidersResult.flatrate.length > 0 ? (
-        <section className="mt-12">
-          <h2 className="mb-4 text-2xl font-bold flex items-center gap-2">
-            <Play className="h-5 w-5 text-primary" /> Where to Watch
-          </h2>
-          <div className="flex flex-wrap gap-3">
-            {watchProvidersResult.flatrate.map((p) => (
-              <button
-                key={p.provider_id}
-                onClick={async () => {
-                  await copyTitle(summary?.title ?? "");
-                  if (watchProvidersResult.link) window.open(watchProvidersResult.link, "_blank", "noopener,noreferrer");
-                }}
-                className="inline-flex items-center gap-2 rounded-lg glass px-4 py-2.5 text-sm font-medium hover:bg-muted/40 hover:scale-[1.02] transition-all cursor-pointer"
-              >
-                {p.logo_path ? (
-                  <img src={`https://image.tmdb.org/t/p/w92${p.logo_path}`} alt={p.provider_name} loading="lazy" className="h-5 w-5 rounded object-contain" />
-                ) : (
-                  <Globe className="h-4 w-4 text-primary" />
-                )}
-                {p.provider_name}
-              </button>
-            ))}
-          </div>
-        </section>
-      ) : null}
 
       {/* ---- Watch on (free streaming sites) ---- */}
       {summary?.title ? (
@@ -644,10 +608,10 @@ function MediaDetail() {
                   { name: "Anikoto", url: "https://anikoto.cz" },
                 ]
               : [
-                  { name: "MoviesJoy", url: "https://moviesjoy.bz" },
                   { name: "Cinevaro", url: "https://cinevaro.app" },
                   { name: "Attacker", url: "https://attacker.bz" },
                   { name: "NightFlix", url: "https://www.nightflix.to" },
+                  { name: "MoviesJoy", url: "https://moviesjoy.bz" },
                 ]
             ).map((site) => (
               <button
@@ -911,7 +875,7 @@ function ReviewsSection({ mediaId, reviews, upsertFn, deleteFn, likeFn, qc, curr
 function DetailSkeleton() {
   return (
     <div className="animate-pulse">
-      <div className="h-64 md:h-80 bg-muted rounded-xl mb-8" />
+      <div className="h-48 md:h-80 bg-muted rounded-xl mb-8" />
       <div className="grid gap-8 md:grid-cols-[220px_1fr]">
         <div className="aspect-[2/3] rounded-xl bg-muted" />
         <div className="space-y-4">

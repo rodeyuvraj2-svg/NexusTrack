@@ -143,15 +143,15 @@ function Discover() {
 
   return (
     <div>
-      <h1 className="text-3xl md:text-4xl font-bold mb-6">Discover</h1>
+      <h1 className="text-3xl md:text-4xl font-bold mb-6 animate-fade-in">Discover</h1>
 
       {/* Tab navigation */}
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-4 flex gap-2 overflow-x-auto pb-2 scrollbar-none md:flex-wrap">
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`rounded-full px-4 py-1.5 text-sm transition-colors ${
+            className={`rounded-full px-4 py-1.5 text-sm transition-colors btn-press ${
               tab === t.id ? "bg-gradient-accent text-white shadow-md" : "glass hover:bg-muted/40"
             }`}
           >
@@ -166,7 +166,7 @@ function Discover() {
           <div className="flex flex-wrap gap-1.5">
             <button
               onClick={() => setSelectedGenres([])}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors btn-press ${
                 selectedGenres.length === 0 ? "bg-primary/20 text-primary border border-primary/30" : "glass hover:bg-muted/40"
               }`}
             >
@@ -176,7 +176,7 @@ function Discover() {
               <button
                 key={chip.id}
                 onClick={() => toggleGenre(chip.id)}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors btn-press ${
                   selectedGenres.includes(chip.id) ? "bg-accent/20 text-accent border border-accent/30" : "glass hover:bg-muted/40"
                 }`}
               >
@@ -211,15 +211,15 @@ function Discover() {
       {q.isLoading ? (
         <SkeletonGrid />
       ) : q.isError ? (
-        <div className="glass rounded-2xl p-12 text-center">
+        <div className="glass rounded-2xl p-12 text-center animate-fade-in">
           <AlertCircle className="mx-auto mb-3 h-8 w-8 text-destructive" />
           <p className="text-muted-foreground">Failed to load content. Please try again.</p>
-          <button onClick={() => q.refetch()} className="mt-4 rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white">
+          <button onClick={() => q.refetch()} className="mt-4 rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white btn-press">
             Try again
           </button>
         </div>
       ) : items.length === 0 && !q.isFetchingNextPage ? (
-        <div className="glass rounded-2xl p-12 text-center">
+        <div className="glass rounded-2xl p-12 text-center animate-fade-in">
           <Compass className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
             {selectedGenres.length > 0
@@ -251,7 +251,7 @@ function SkeletonGrid({ count = 12 }: { count?: number }) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="aspect-[2/3] rounded-xl glass animate-pulse" />
+        <div key={i} className="aspect-[2/3] rounded-xl glass animate-pulse" style={{ animationDelay: i * 50 + "ms" }} />
       ))}
     </div>
   );

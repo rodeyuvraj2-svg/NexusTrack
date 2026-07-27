@@ -68,10 +68,10 @@ function SearchPage() {
 
   return (
     <div>
-      <h1 className="text-3xl md:text-4xl font-bold mb-6">Search</h1>
+      <h1 className="text-3xl md:text-4xl font-bold mb-6 animate-fade-in">Search</h1>
 
       {/* Search bar */}
-      <div className="glass-strong rounded-2xl p-2 flex items-center gap-2 mb-8">
+      <div className="glass-strong rounded-2xl p-2 flex items-center gap-2 mb-8 animate-fade-in">
         <SearchIcon className="ml-3 h-5 w-5 text-muted-foreground shrink-0" />
         <input
           ref={inputRef}
@@ -84,7 +84,7 @@ function SearchPage() {
           <Loader2 className="mr-3 h-5 w-5 animate-spin text-muted-foreground shrink-0" />
         ) : q.length > 0 ? (
           <button onClick={() => { setQ(""); setDebounced(""); inputRef.current?.focus(); }}
-            className="mr-2 text-muted-foreground hover:text-foreground text-xs">
+            className="mr-2 text-muted-foreground hover:text-foreground text-xs btn-press">
             Clear
           </button>
         ) : null}
@@ -105,7 +105,7 @@ function SearchPage() {
 
       {/* Prompt when idle */}
       {isIdle ? (
-        <div className="glass rounded-2xl p-12 text-center">
+        <div className="glass rounded-2xl p-12 text-center animate-fade-in">
           <SearchIcon className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">Type at least 2 characters to search.</p>
           <p className="mt-1 text-xs text-muted-foreground">Movies, TV shows, and anime — all at once.</p>
@@ -117,7 +117,7 @@ function SearchPage() {
         <div className="space-y-10">
           {["Movies", "TV Shows", "Anime"].map((section) => (
             <section key={section}>
-              <h2 className="text-xl font-bold mb-3">{section}</h2>
+              <h2 className="text-xl font-bold mb-3 animate-fade-in">{section}</h2>
               <SkeletonGrid />
             </section>
           ))}
@@ -126,11 +126,11 @@ function SearchPage() {
 
       {/* Error state */}
       {hasError && !isLoading ? (
-        <div className="glass rounded-2xl p-12 text-center">
+        <div className="glass rounded-2xl p-12 text-center animate-fade-in">
           <AlertCircle className="mx-auto mb-3 h-8 w-8 text-destructive" />
           <p className="text-muted-foreground">Search failed. Please try again.</p>
           <p className="mt-1 text-xs text-muted-foreground">{query.error?.message}</p>
-          <button onClick={() => query.refetch()} className="mt-4 rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white">
+          <button onClick={() => query.refetch()} className="mt-4 rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white btn-press">
             Try again
           </button>
         </div>
@@ -166,7 +166,7 @@ function SearchPage() {
             ) : null}
           </div>
         ) : (
-          <div className="glass rounded-2xl p-12 text-center">
+          <div className="glass rounded-2xl p-12 text-center animate-fade-in">
             <SearchIcon className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
             <p className="text-muted-foreground">No results for "{debounced}"</p>
             <p className="mt-1 text-sm text-muted-foreground">Try a different search term or check your spelling.</p>
@@ -181,7 +181,7 @@ function SkeletonGrid() {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="aspect-[2/3] rounded-xl glass animate-pulse" />
+        <div key={i} className="aspect-[2/3] rounded-xl glass animate-pulse" style={{ animationDelay: i * 80 + "ms" }} />
       ))}
     </div>
   );
