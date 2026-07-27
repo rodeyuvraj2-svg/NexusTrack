@@ -5,6 +5,7 @@ import type { MediaSummary, MediaType } from "./media-types";
 
 const TMDB_BASE = "https://api.themoviedb.org/3";
 const IMG = "https://image.tmdb.org/t/p";
+const TMDB_TIMEOUT = 4_000; // 4s fail-fast timeout when TMDB is unreachable
 
 function placeholderPoster(title: string, variant: "poster" | "backdrop" = "poster") {
   const label = encodeURIComponent(title);
@@ -34,12 +35,8 @@ function fallbackMediaList(type: "movie" | "tv", category?: string): MediaSummar
 }
 
 function tmdbHeaders(): Record<string, string> {
-  // Prefer the Read Access Token (v4 Bearer auth) — more modern and reliable
   const readToken = process.env.TMDB_READ_TOKEN;
-  if (readToken) {
-    return { Authorization: `Bearer ${readToken}`, "Content-Type": "application/json" };
-  }
-  // Fall back to v3 API key (passed as query param, no auth header needed)
+  if (readToken) return { Authorization: `Bearer ${readToken}`, "Content-Type": "application/json" };
   const apiKey = process.env.TMDB_API_KEY;
   if (!apiKey) throw new Error("TMDB_API_KEY is not configured — add TMDB_API_KEY or TMDB_READ_TOKEN to your .env file.");
   return { "Content-Type": "application/json" };
@@ -47,7 +44,6 @@ function tmdbHeaders(): Record<string, string> {
 
 function tmdbUrl(path: string, params: Record<string, string | number | undefined> = {}) {
   const url = new URL(TMDB_BASE + path);
-  // Only append api_key if we're NOT using Bearer token auth
   const readToken = process.env.TMDB_READ_TOKEN;
   if (!readToken) {
     const apiKey = process.env.TMDB_API_KEY;
@@ -58,16 +54,32 @@ function tmdbUrl(path: string, params: Record<string, string | number | undefine
 }
 
 async function tmdb<T>(path: string, params: Record<string, string | number | undefined> = {}): Promise<T> {
-  const res = await fetch(tmdbUrl(path, params), { headers: tmdbHeaders() });
-  if (res.status === 429) {
-    // Rate limited — wait 1s and retry once
-    await new Promise((r) => setTimeout(r, 1000));
-    const retry = await fetch(tmdbUrl(path, params), { headers: tmdbHeaders() });
-    if (!retry.ok) throw new Error(`TMDB ${retry.status} (rate limited): ${await retry.text()}`);
-    return retry.json() as Promise<T>;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => { try { controller.abort(); } catch {} }, TMDB_TIMEOUT);
+  try {
+    const res = await fetch(tmdbUrl(path, params), { headers: tmdbHeaders(), signal: controller.signal });
+    clearTimeout(timeout);
+    if (res.status === 429) {
+      await new Promise((r) => setTimeout(r, 1000));
+      // Create a new controller for the retry with its own timeout
+      const retryController = new AbortController();
+      const retryTimeout = setTimeout(() => { try { retryController.abort(); } catch {} }, TMDB_TIMEOUT);
+      try {
+        const retry = await fetch(tmdbUrl(path, params), { headers: tmdbHeaders(), signal: retryController.signal });
+        clearTimeout(retryTimeout);
+        if (!retry.ok) throw new Error(`TMDB ${retry.status}: ${await retry.text()}`);
+        return retry.json() as Promise<T>;
+      } catch (retryErr) {
+        clearTimeout(retryTimeout);
+        throw retryErr;
+      }
+    }
+    if (!res.ok) throw new Error(`TMDB ${res.status}: ${await res.text()}`);
+    return res.json() as Promise<T>;
+  } catch (err) {
+    clearTimeout(timeout);
+    throw err;
   }
-  if (!res.ok) throw new Error(`TMDB ${res.status}: ${await res.text()}`);
-  return res.json() as Promise<T>;
 }
 
 function imgUrl(path: string | null | undefined, size = "w500") {
@@ -171,7 +183,6 @@ export const discover = createServerFn({ method: "GET" })
   }).parse(input ?? {}))
   .handler(async ({ data }) => {
     try {
-      // If a genre filter is active, use the discover endpoint with with_genres
       if (data.genre) {
         const sortBy = data.category === "top_rated" ? "vote_count.desc" : "popularity.desc";
         const res = await tmdb<{ results: TmdbMovie[] }>(`/discover/${data.type}`, {
@@ -262,7 +273,8 @@ export const cacheMedia = createServerFn({ method: "POST" })
           }));
       }
     } else if ((data.source === "anilist" || data.source === "jikan") && data.type === "anime") {
-      // Fetch from AniList GraphQL (no API key needed)
+      const aniController = new AbortController();
+      const aniTimeout = setTimeout(() => { try { aniController.abort(); } catch {} }, TMDB_TIMEOUT);
       const aniRes = await fetch("https://graphql.anilist.co", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -278,19 +290,10 @@ export const cacheMedia = createServerFn({ method: "POST" })
           variables: { id: Number(data.external_id) },
         }),
       });
+      clearTimeout(aniTimeout);
       if (!aniRes.ok) throw new Error(`AniList ${aniRes.status}: ${await aniRes.text()}`);
       const aniJson = (await aniRes.json()) as {
-        data: {
-          Media: {
-            id: number; title: { romaji: string | null; english: string | null };
-            description?: string | null;
-            coverImage: { extraLarge?: string | null; large?: string | null };
-            bannerImage?: string | null;
-            averageScore?: number | null; episodes?: number | null;
-            duration?: number | null; status?: string | null;
-            genres?: string[]; seasonYear?: number | null; source?: string | null;
-          }
-        }
+        data: { Media: { id: number; title: { romaji: string | null; english: string | null }; description?: string | null; coverImage: { extraLarge?: string | null; large?: string | null }; bannerImage?: string | null; averageScore?: number | null; episodes?: number | null; duration?: number | null; status?: string | null; genres?: string[]; seasonYear?: number | null; source?: string | null } }
       };
       const a = aniJson.data.Media;
       const poster = a.coverImage.extraLarge || a.coverImage.large || null;
@@ -303,7 +306,7 @@ export const cacheMedia = createServerFn({ method: "POST" })
         poster_url: poster,
         backdrop_url: a.bannerImage || poster,
         release_year: a.seasonYear ?? null,
-        vote_average: a.averageScore ? a.averageScore / 10 : null,
+        vote_average: a.averageScore != null ? a.averageScore / 10 : null,
         genres: a.genres ?? [],
         runtime: a.duration ?? null,
         season_count: a.episodes ?? null,

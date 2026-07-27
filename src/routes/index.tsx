@@ -6,6 +6,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { SafeImage } from "@/components/SafeImage";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -32,7 +33,7 @@ function Landing() {
           </div>
           <span className="text-lg font-bold">Nexus<span className="text-accent">Track</span></span>
         </Link>
-        <Link to="/auth" className="rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white shadow-lg hover:opacity-90">
+        <Link to="/auth" className="rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white shadow-lg hover:opacity-90 btn-press">
           Start Tracking Free
         </Link>
       </header>
@@ -50,10 +51,10 @@ function Landing() {
           Stop juggling five apps. Track what you watch, discover what's next, and copy titles straight from your friends. Free, forever.
         </p>
         <div className="mt-8 flex items-center justify-center gap-3">
-          <Link to="/auth" className="rounded-xl bg-gradient-accent px-6 py-3 text-sm font-semibold text-white shadow-xl hover:-translate-y-0.5 transition-transform">
+          <Link to="/auth" className="rounded-xl bg-gradient-accent px-6 py-3 text-sm font-semibold text-white shadow-xl hover:-translate-y-0.5 transition-transform btn-press">
             Create your library
           </Link>
-          <a href="#features" className="rounded-xl glass px-6 py-3 text-sm font-medium hover:bg-muted/40">
+          <a href="#features" className="rounded-xl glass px-6 py-3 text-sm font-medium hover:bg-muted/40 btn-press">
             See what's inside
           </a>
         </div>
@@ -78,18 +79,18 @@ function Landing() {
                 { title: "Your Name", type: "Anime", img: "https://image.tmdb.org/t/p/w342/q719jXXEzOoYaps6babgKnONONX.jpg" },
                 { title: "The Batman", type: "Movie", img: "https://image.tmdb.org/t/p/w342/74xTEgt7R36Fpooo50r9T25onhq.jpg" },
               ].map((item, i) => (
-                <div key={i} className="rounded-xl glass overflow-hidden animate-float flex flex-col" style={{ animationDelay: `${i * 0.5}s` }}>
+                <div key={item.title} className="rounded-xl glass overflow-hidden animate-float flex flex-col" style={{ animationDelay: `${i * 0.5}s` }}>
                   <div className="relative flex-1 min-h-[170px] bg-muted overflow-hidden">
-                    <img
+                    <SafeImage
                       src={item.img}
                       alt={item.title}
-                      loading="lazy"
                       className="absolute inset-0 h-full w-full object-cover"
+                      wrapperClassName="absolute inset-0 h-full w-full"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
                     <div className="absolute bottom-0 left-0 right-0 p-2.5">
                       <div className="text-sm font-bold text-white drop-shadow-lg truncate">{item.title}</div>
-                      <div className="text-xs text-white/70 drop-shadow">{item.type}</div>
+                      <div className="text-xs text-white/85 drop-shadow">{item.type}</div>
                     </div>
                   </div>
                 </div>
@@ -100,7 +101,7 @@ function Landing() {
       </section>
 
       {/* FEATURES */}
-      <section id="features" className="mx-auto max-w-7xl px-6 py-20">
+      <section id="features" className="animate-fade-in mx-auto max-w-7xl px-6 py-20">
         <h2 className="text-3xl md:text-5xl font-bold text-center">Built the way you actually watch.</h2>
         <div className="mt-12 grid gap-4 md:grid-cols-3">
           {[
@@ -110,8 +111,8 @@ function Landing() {
             { Icon: Search, title: "One search bar", body: "Movies, TV, and anime results side by side, instantly." },
             { Icon: Heart, title: "Favorites & notes", body: "Star what you love. Jot private notes. Rate on a 10-point scale." },
             { Icon: Sparkles, title: "Free forever", body: "No premium tier, no ads, no limits — just the tool." },
-          ].map((f) => (
-            <div key={f.title} className="glass rounded-2xl p-6">
+          ].map((f, i) => (
+            <div key={f.title} className="glass rounded-2xl p-6 card-hover animate-fade-in" style={{ animationDelay: `${i * 100}ms` }}>
               <div className="mb-3 grid h-10 w-10 place-items-center rounded-lg bg-primary/20 text-primary">
                 <f.Icon className="h-5 w-5" />
               </div>
@@ -122,10 +123,10 @@ function Landing() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-3xl px-6 py-20">
+      <section className="mx-auto max-w-3xl px-6 py-20 animate-fade-in">
         <h2 className="mb-10 text-center text-3xl md:text-4xl font-bold">Frequently asked questions</h2>
         <Accordion type="single" collapsible className="space-y-3">
-          <AccordionItem value="q1" className="glass rounded-xl px-5 pb-px border-border/40">
+          <AccordionItem value="q1" className="glass rounded-xl px-5 pb-px border-border/40 card-hover">
             <AccordionTrigger className="text-left text-base font-semibold hover:no-underline">Is NexusTrack really free?</AccordionTrigger>
             <AccordionContent className="text-muted-foreground text-sm leading-relaxed">
               Yes. Every feature is completely free — no subscriptions, no premium tiers, no ads, no limits. Ever.
@@ -164,10 +165,10 @@ function Landing() {
         </Accordion>
       </section>
 
-      <section className="mx-auto max-w-4xl px-6 py-24 text-center">
+      <section className="mx-auto max-w-4xl px-6 py-24 text-center animate-fade-in">
         <h2 className="text-3xl md:text-5xl font-bold">Start your library in seconds.</h2>
         <p className="mt-4 text-muted-foreground">Sign in with Google or email. Your first movie is one click away.</p>
-        <Link to="/auth" className="mt-8 inline-block rounded-xl bg-gradient-accent px-8 py-3.5 text-sm font-semibold text-white shadow-xl">
+        <Link to="/auth" className="mt-8 inline-block rounded-xl bg-gradient-accent px-8 py-3.5 text-sm font-semibold text-white shadow-xl btn-press">
           Get started — it's free
         </Link>
       </section>

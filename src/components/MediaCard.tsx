@@ -20,6 +20,7 @@ import { useState, useCallback, useRef, createContext, useContext, useMemo, memo
 import { toast } from "sonner";
 import { useGuest } from "@/lib/guest";
 import type { RestrictedAction } from "@/lib/guest";
+import { SafeImage } from "@/components/SafeImage";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -397,18 +398,12 @@ const MediaCardInner = memo(function MediaCardInner({ item }: { item: MediaSumma
         className="block"
       >
         <div className="aspect-[2/3] bg-muted overflow-hidden relative">
-          {item.poster_url ? (
-            <img
+          <SafeImage
               src={item.poster_url}
               alt={item.title}
-              loading="lazy"
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              wrapperClassName="h-full w-full"
             />
-          ) : (
-            <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-              No image
-            </div>
-          )}
           {status && !isLoading && <StatusBadge status={status} />}
           {isFavorite && <FavoriteBadge />}
         </div>
@@ -459,7 +454,7 @@ export function MediaGrid({ items }: { items: MediaSummary[] }) {
     );
   }
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+    <div className="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
       {items.map((it) => (
         <MediaCard key={`${it.source}-${it.media_type}-${it.external_id}`} item={it} />
       ))}

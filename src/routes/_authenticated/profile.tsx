@@ -153,7 +153,7 @@ function Profile() {
       </div>
 
       {/* Stat cards */}
-      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 animate-fade-in">
         <StatCard label="In Library" value={s?.total ?? 0} Icon={Film} />
         <StatCard label="Completed" value={s?.completed ?? 0} Icon={CheckCircle2} />
         <StatCard label="Watching" value={s?.watching ?? 0} Icon={Tv} />
@@ -314,7 +314,7 @@ function Profile() {
 
 function StatCard({ label, value, Icon, suffix }: { label: string; value: number; Icon: typeof Film; suffix?: string }) {
   return (
-    <div className="glass rounded-xl p-4 text-center">
+    <div className="glass rounded-xl p-4 text-center card-hover">
       <Icon className="mx-auto mb-1 h-4 w-4 text-muted-foreground" />
       <div className="text-2xl font-black text-accent">{value}{suffix ?? ""}</div>
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>

@@ -98,7 +98,7 @@ function Library() {
       <h1 className="text-3xl md:text-4xl font-bold mb-6">Your library</h1>
 
       {/* Status filter pills */}
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-4 flex gap-2 overflow-x-auto pb-2 scrollbar-none md:flex-wrap">
         {STATUSES.map((s) => (
           <button
             key={s}
