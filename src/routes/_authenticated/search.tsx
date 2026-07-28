@@ -3,9 +3,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { searchAll } from "@/lib/tmdb.functions";
-import { searchAnime } from "@/lib/anilist.functions";
+import { searchAnime, searchManga } from "@/lib/anilist.functions";
 import { MediaGrid } from "@/components/MediaCard";
-import { Search as SearchIcon, Loader2, AlertCircle, Film, Tv, Sparkles } from "lucide-react";
+import { Search as SearchIcon, Loader2, AlertCircle, Film, Tv, Sparkles, BookmarkIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/search")({
   head: () => ({ meta: [{ title: "Search — NexusTrack" }, { name: "description", content: "Search movies, TV, and anime from one place." }] }),
@@ -20,6 +20,7 @@ function SearchPage() {
 
   const tmdbFn = useServerFn(searchAll);
   const anilistFn = useServerFn(searchAnime);
+  const mangaFn = useServerFn(searchManga);
 
   // Debounce input: wait 400ms after the user stops typing
   useEffect(() => {
@@ -37,18 +38,20 @@ function SearchPage() {
     queryKey: ["search", debounced],
     queryFn: async () => {
       // Run searches in parallel — each handles its own errors internally
-      const [tmdb, anime] = await Promise.allSettled([
+      const [tmdb, anime, manga] = await Promise.allSettled([
         tmdbFn({ data: { q: debounced } }),
         anilistFn({ data: { q: debounced } }),
+        mangaFn({ data: { q: debounced } }),
       ]);
       const tmdbData = tmdb.status === "fulfilled" ? tmdb.value : { movies: [], tv: [] };
       const animeData = anime.status === "fulfilled" ? anime.value : [];
-      
+      const mangaData = manga.status === "fulfilled" ? manga.value : [];
+
       let errorMsg = null;
       if (tmdb.status === "rejected") {
         errorMsg = tmdb.reason instanceof Error ? tmdb.reason.message : String(tmdb.reason);
       }
-      return { ...tmdbData, anime: animeData, errorMsg };
+      return { ...tmdbData, anime: animeData, manga: mangaData, errorMsg };
     },
     enabled: debounced.length > 1,
     retry: 1,
@@ -64,7 +67,7 @@ function SearchPage() {
   const isFetching = query.isFetching && !query.isLoading;
   const hasError = query.isError;
   const data = query.data;
-  const hasResults = data && (data.movies.length > 0 || data.tv.length > 0 || data.anime.length > 0);
+  const hasResults = data && (data.movies.length > 0 || data.tv.length > 0 || data.anime.length > 0 || data.manga.length > 0);
 
   return (
     <div>
@@ -162,6 +165,14 @@ function SearchPage() {
                   <Sparkles className="h-5 w-5 text-warning" /> Anime ({data.anime.length})
                 </h2>
                 <MediaGrid items={data.anime} />
+              </section>
+            ) : null}
+            {data.manga.length > 0 ? (
+              <section>
+                <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
+                  <BookmarkIcon className="h-5 w-5 text-primary" /> Manga ({data.manga.length})
+                </h2>
+                <MediaGrid items={data.manga} />
               </section>
             ) : null}
           </div>

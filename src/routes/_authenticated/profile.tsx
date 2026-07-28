@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getStats, listLibrary } from "@/lib/library.functions";
-import { STATUS_LABELS, type WatchStatus } from "@/lib/media-types";
+import { STATUS_LABELS, getStatusLabel, type WatchStatus } from "@/lib/media-types";
 import { Star, Clock, Flame, TrendingUp, CheckCircle2, Film, Tv, Sparkles, Heart, Edit, Save, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -187,6 +187,7 @@ function Profile() {
               <BreakdownRow label="Movies" value={s?.completedMovies ?? 0} total={s?.completed ?? 1} color="bg-primary" />
               <BreakdownRow label="TV Shows" value={s?.completedTv ?? 0} total={s?.completed ?? 1} color="bg-accent" />
               <BreakdownRow label="Anime" value={s?.completedAnime ?? 0} total={s?.completed ?? 1} color="bg-success" />
+              <BreakdownRow label="Manga" value={s?.completedManga ?? 0} total={s?.completed ?? 1} color="bg-warning" />
             </div>
           </div>
         </div>
@@ -198,6 +199,7 @@ function Profile() {
             <LevelRow label="Movies" completed={s?.completedMovies ?? 0} icon="🎬" />
             <LevelRow label="TV Shows" completed={s?.completedTv ?? 0} icon="📺" />
             <LevelRow label="Anime" completed={s?.completedAnime ?? 0} icon="🌟" />
+            <LevelRow label="Manga" completed={s?.completedManga ?? 0} icon="📖" />
           </div>
         </div>
       </div>
@@ -267,7 +269,7 @@ function Profile() {
                       r.status === "completed" ? "border-success/40 text-success" :
                       r.status === "watching" ? "border-primary/40 text-primary" :
                       "border-muted-foreground/40 text-muted-foreground")}>
-                      {STATUS_LABELS[r.status as WatchStatus]}
+                      {getStatusLabel(r.status as WatchStatus, m?.media_type as "movie" | "tv" | "anime" | "manga")}
                     </span>
                     <p className="mt-0.5 line-clamp-1 text-xs font-medium">{m.title}</p>
                   </div>

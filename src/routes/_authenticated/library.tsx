@@ -10,7 +10,7 @@ import type { WatchStatus, MediaSummary } from "@/lib/media-types";
 import { Film, Eye, Search } from "lucide-react";
 
 const STATUSES = ["all", "planned", "watching", "completed", "favorites"] as const;
-const TYPES = ["all", "movie", "tv", "anime"] as const;
+const TYPES = ["all", "movie", "tv", "anime", "manga"] as const;
 type FilterStatus = (typeof STATUSES)[number];
 type MediaFilterType = (typeof TYPES)[number];
 
@@ -79,7 +79,7 @@ function Library() {
     return {
       external_id: m?.external_id ?? "",
       source: (rawSource === "tmdb" || rawSource === "anilist" || rawSource === "jikan" ? rawSource : "tmdb") as "tmdb" | "anilist" | "jikan",
-      media_type: (rawType === "movie" || rawType === "tv" || rawType === "anime" ? rawType : "movie") as "movie" | "tv" | "anime",
+      media_type: (rawType === "movie" || rawType === "tv" || rawType === "anime" || rawType === "manga" ? rawType : "movie") as "movie" | "tv" | "anime" | "manga",
       title: m?.title ?? "Unknown",
       overview: null,
       poster_url: m?.poster_url ?? null,

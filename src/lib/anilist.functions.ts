@@ -35,6 +35,9 @@ interface AniListMedia {
   averageScore?: number | null;
   episodes?: number | null;
   duration?: number | null;
+  chapters?: number | null;
+  volumes?: number | null;
+  isAdult?: boolean | null;
   status?: string | null;
   genres?: string[];
   format?: string | null;
@@ -51,6 +54,7 @@ interface AniListMedia {
         title: { romaji: string | null; english: string | null };
         format: string | null;
         episodes: number | null;
+        chapters?: number | null;
         coverImage: { large: string | null };
       };
     }>;
@@ -66,23 +70,36 @@ interface AniListMedia {
   };
 }
 
+const ANILIST_TIMEOUT = 10_000; // 10 seconds
+
 // ---- GraphQL helper ----
 
 async function anilist<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
-  const res = await fetch(ANILIST_URL, {
+  async function fetchWithTimeout(url: string, opts: RequestInit, ms: number): Promise<Response> {
+    const ctrl = new AbortController();
+    const id = setTimeout(() => ctrl.abort(), ms);
+    try {
+      const res = await fetch(url, { ...opts, signal: ctrl.signal });
+      return res;
+    } finally {
+      clearTimeout(id);
+    }
+  }
+
+  const res = await fetchWithTimeout(ANILIST_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ query, variables }),
-  });
+  }, ANILIST_TIMEOUT);
 
   if (res.status === 429) {
     const retryAfter = Number(res.headers.get("Retry-After") ?? 1);
-    await new Promise((r) => setTimeout(r, retryAfter * 1000));
-    const retry = await fetch(ANILIST_URL, {
+    await new Promise((r) => setTimeout(r, Math.min(retryAfter, 3) * 1000));
+    const retry = await fetchWithTimeout(ANILIST_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ query, variables }),
-    });
+    }, ANILIST_TIMEOUT);
     if (!retry.ok) throw new Error(`AniList rate limited: ${retry.status}`);
     const json = (await retry.json()) as { data: T; errors?: { message: string }[] };
     if (json.errors?.length) throw new Error(`AniList GraphQL error: ${json.errors[0].message}`);
@@ -117,6 +134,25 @@ function toSummary(a: AniListMedia): MediaSummary {
   };
 }
 
+function toMangaSummary(a: AniListMedia): MediaSummary {
+  const title = a.title?.english || a.title?.romaji || a.title?.native || "Unknown";
+  return {
+    external_id: String(a.id),
+    source: "anilist",
+    media_type: "manga",
+    title,
+    overview: a.description?.replace(/<[^>]*>/g, "") ?? null,
+    poster_url: a.coverImage?.extraLarge || a.coverImage?.large || null,
+    backdrop_url: a.bannerImage || null,
+    release_year: a.seasonYear ?? null,
+    vote_average: a.averageScore ? a.averageScore / 10 : null,
+    genres: a.genres ?? [],
+    chapter_count: a.chapters ?? null,
+    volume_count: a.volumes ?? null,
+    status: a.status ?? null,
+  };
+}
+
 // ---- Server Functions ----
 
 export const searchAnime = createServerFn({ method: "GET" })
@@ -126,7 +162,7 @@ export const searchAnime = createServerFn({ method: "GET" })
       const result = await anilist<{ Page: { media: AniListMedia[] } }>(
         `query ($search: String) {
           Page(page: 1, perPage: 20) {
-            media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
+            media(search: $search, type: ANIME, sort: SEARCH_MATCH, isAdult: false) {
               id
               title { romaji english native }
               description
@@ -145,8 +181,8 @@ export const searchAnime = createServerFn({ method: "GET" })
       );
       return (result.Page.media ?? []).map(toSummary);
     } catch (error) {
-      console.warn('[AniList] searchAnime failed, using fallback anime:', error);
-      return FALLBACK_ANIME.slice(0, 6);
+      console.warn('[AniList] searchAnime failed:', error);
+      return [];
     }
   });
 
@@ -161,7 +197,7 @@ export const topAnime = createServerFn({ method: "GET" })
       const result = await anilist<{ Page: { media: AniListMedia[] } }>(
         `query ($page: Int, $genreIn: [String]) {
           Page(page: $page, perPage: 20) {
-            media(sort: POPULARITY_DESC, type: ANIME, genre_in: $genreIn) {
+            media(sort: POPULARITY_DESC, type: ANIME, genre_in: $genreIn, isAdult: false) {
               id
               title { romaji english }
               coverImage { extraLarge large }
@@ -178,7 +214,8 @@ export const topAnime = createServerFn({ method: "GET" })
       );
       return (result.Page.media ?? []).map(toSummary);
     } catch (error) {
-      console.warn('[AniList] topAnime failed, using fallback anime:', error);
+      console.warn('[AniList] topAnime failed:', error);
+      if (data.genre) return [];
       return FALLBACK_ANIME.slice(0, 6);
     }
   });
@@ -210,7 +247,7 @@ export const seasonalAnime = createServerFn({ method: "GET" })
         anilist<{ Page: { media: AniListMedia[] } }>(
           `query ($season: MediaSeason, $year: Int, $genreIn: [String]) {
             Page(page: 1, perPage: 20) {
-              media(season: $season, seasonYear: $year, type: ANIME, sort: POPULARITY_DESC, genre_in: $genreIn) {
+              media(season: $season, seasonYear: $year, type: ANIME, sort: POPULARITY_DESC, genre_in: $genreIn, isAdult: false) {
                 id
                 title { romaji english }
                 coverImage { extraLarge large }
@@ -228,7 +265,7 @@ export const seasonalAnime = createServerFn({ method: "GET" })
         anilist<{ Page: { media: AniListMedia[] } }>(
           `query ($season: MediaSeason, $year: Int, $genreIn: [String]) {
             Page(page: 1, perPage: 10) {
-              media(season: $season, seasonYear: $year, type: ANIME, sort: POPULARITY_DESC, genre_in: $genreIn) {
+              media(season: $season, seasonYear: $year, type: ANIME, sort: POPULARITY_DESC, genre_in: $genreIn, isAdult: false) {
                 id
                 title { romaji english }
                 coverImage { extraLarge large }
@@ -261,7 +298,7 @@ export const seasonalAnime = createServerFn({ method: "GET" })
     const result = await anilist<{ Page: { media: AniListMedia[] } }>(
       `query ($season: MediaSeason, $year: Int, $page: Int, $genreIn: [String]) {
         Page(page: $page, perPage: 20) {
-          media(season: $season, seasonYear: $year, type: ANIME, sort: POPULARITY_DESC, genre_in: $genreIn) {
+          media(season: $season, seasonYear: $year, type: ANIME, sort: POPULARITY_DESC, genre_in: $genreIn, isAdult: false) {
             id
             title { romaji english }
             coverImage { extraLarge large }
@@ -278,7 +315,8 @@ export const seasonalAnime = createServerFn({ method: "GET" })
     );
     return (result.Page.media ?? []).map(toSummary);
   } catch (error) {
-    console.warn('[AniList] seasonalAnime failed, using fallback anime:', error);
+    console.warn('[AniList] seasonalAnime failed:', error);
+    if (data.genre) return [];
     return FALLBACK_ANIME.slice(0, 6);
   }
 });
@@ -291,6 +329,7 @@ export const getAnimeDetails = createServerFn({ method: "GET" })
         `query ($id: Int) {
           Media(id: $id, type: ANIME) {
             id
+            isAdult
             title { romaji english native }
             description
             coverImage { extraLarge large }
@@ -378,7 +417,7 @@ export const getMultipleAnimeDetails = createServerFn({ method: "GET" })
       const result = await anilist<{ Page: { media: AniListMedia[] } }>(
         `query ($ids: [Int]) {
           Page(page: 1, perPage: 12) {
-            media(id_in: $ids, type: ANIME) {
+            media(id_in: $ids, type: ANIME, isAdult: false) {
               id
               title { romaji english }
               description
@@ -418,4 +457,165 @@ export const getMultipleAnimeDetails = createServerFn({ method: "GET" })
       console.error("[AniList] getMultipleAnimeDetails error:", error);
       return [];
     }
+  });
+
+// ---- Manga --------
+
+const FALLBACK_MANGA: MediaSummary[] = [
+  { external_id: '30010', source: 'anilist', media_type: 'manga', title: 'One Piece', overview: null, poster_url: null, backdrop_url: null, release_year: 1997, vote_average: 8.5, genres: ['Adventure', 'Action'], chapter_count: 1100, volume_count: 100, status: 'RELEASING' },
+];
+
+export const searchManga = createServerFn({ method: "GET" })
+  .validator((input) => z.object({ q: z.string() }).parse(input))
+  .handler(async ({ data }) => {
+    try {
+      const result = await anilist<{ Page: { media: AniListMedia[] } }>(
+        `query ($q: String) {
+          Page(page: 1, perPage: 20) {
+            media(search: $q, type: MANGA, sort: SEARCH_MATCH, isAdult: false) {
+              id
+              title { romaji english }
+              coverImage { extraLarge large }
+              bannerImage
+              averageScore
+              chapters
+              volumes
+              status
+              genres
+              seasonYear
+              description
+            }
+          }
+        }`,
+        { q: data.q }
+      );
+      return (result.Page.media ?? []).map(toMangaSummary);
+    } catch (error) {
+      console.warn('[AniList] searchManga failed:', error);
+      return [];
+    }
+  });
+
+export const topManga = createServerFn({ method: "GET" })
+  .validator((input) => z.object({
+    page: z.number().int().min(1).default(1),
+    genre: z.string().optional(),
+  }).parse(input ?? {}))
+  .handler(async ({ data }) => {
+    try {
+      const genreList = data.genre ? data.genre.split(",").map((g) => g.trim()).filter(Boolean) : [];
+      const result = await anilist<{ Page: { media: AniListMedia[] } }>(
+        `query ($page: Int) {
+          Page(page: $page, perPage: 40) {
+            media(sort: POPULARITY_DESC, type: MANGA, isAdult: false) {
+              id
+              title { romaji english }
+              coverImage { extraLarge large }
+              bannerImage
+              averageScore
+              chapters
+              volumes
+              status
+              genres
+              seasonYear
+              description
+            }
+          }
+        }`,
+        { page: data.page },
+      );
+      let all = result.Page.media ?? [];
+      if (genreList.length > 0) {
+        all = all.filter((m) => m.genres?.some((g) => genreList.includes(g)));
+      }
+      return all.map(toMangaSummary);
+    } catch (error) {
+      console.warn('[AniList] topManga failed:', error);
+      if (data.genre) return [];
+      return FALLBACK_MANGA.slice(0, 6);
+    }
+  });
+
+export const getMangaDetails = createServerFn({ method: "GET" })
+  .validator((input) => z.object({ id: z.string() }).parse(input))
+  .handler(async ({ data }) => {
+    try {
+      const result = await anilist<{ Media: AniListMedia }>(
+        `query ($id: Int) {
+          Media(id: $id, type: MANGA) {
+            id
+            title { romaji english native }
+            description
+            coverImage { extraLarge large }
+            bannerImage
+            averageScore
+            chapters
+            volumes
+            status
+            genres
+            format
+            seasonYear
+            source(version: 2)
+            popularity
+            relations {
+              edges {
+                relationType(version: 2)
+                node {
+                  id
+                  title { romaji english }
+                  format
+                  chapters
+                  coverImage { large }
+                }
+              }
+            }
+          }
+        }`,
+        { id: Number(data.id) },
+      );
+      const a = result.Media;
+      const MANGA_FORMATS = new Set(["MANGA", "ONE_SHOT", "NOVEL", "DOUJIN"]);
+      const relations = (a.relations?.edges ?? [])
+        .filter((edge) => MANGA_FORMATS.has(edge.node.format ?? ""))
+        .map((edge) => ({
+          relation: edge.relationType,
+          entries: [{
+            mal_id: edge.node.id,
+            name: edge.node.title.english || edge.node.title.romaji || "",
+            type: "manga",
+            poster_url: edge.node.coverImage.large || null,
+            chapters: edge.node.chapters ?? null,
+            format: edge.node.format ?? null,
+          }],
+        }));
+      return {
+        summary: toMangaSummary(a),
+        extra: { relations, chapters: a.chapters ?? null, volumes: a.volumes ?? null },
+      };
+    } catch (error) {
+      console.warn('[AniList] getMangaDetails failed:', error);
+      return { summary: FALLBACK_MANGA[0], extra: null };
+    }
+  });
+
+export const getMultipleMangaDetails = createServerFn({ method: "GET" })
+  .validator((input) => z.object({ ids: z.array(z.number()) }).parse(input))
+  .handler(async ({ data }) => {
+    const results: Array<{ mal_id: number; title: string; year: number | null; images: { jpg: { large_image_url: string | null; image_url: string | null } } | null; relation?: string }> = [];
+    for (const mid of data.ids.slice(0, 8)) {
+      try {
+        const r = await anilist<{ Media: AniListMedia }>(
+          `query ($id: Int) { Media(id: $id, type: MANGA) { id title { romaji english } coverImage { extraLarge large } seasonYear format } }`,
+          { id: mid },
+        );
+        const a = r.Media;
+        results.push({
+          mal_id: a.id,
+          title: a.title.english || a.title.romaji || "",
+          year: a.seasonYear ?? null,
+          images: { jpg: { large_image_url: a.coverImage?.extraLarge ?? null, image_url: a.coverImage?.large ?? null } },
+        });
+      } catch { /* skip failed */ }
+    }
+    return results;
   });

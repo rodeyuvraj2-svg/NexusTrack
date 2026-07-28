@@ -237,7 +237,7 @@ export const cacheMedia = createServerFn({ method: "POST" })
   .validator((input) =>
     z
       .object({
-        type: z.enum(["movie", "tv", "anime"]),
+        type: z.enum(["movie", "tv", "anime", "manga"]),
         external_id: z.string(),
         source: z.enum(["tmdb", "jikan", "anilist"]).default("tmdb"),
       })
@@ -248,7 +248,7 @@ export const cacheMedia = createServerFn({ method: "POST" })
     const existing = await context.supabase
       .from("media")
       .select("id")
-      .eq("media_type", data.type)
+      .eq("media_type", data.type as any)
       .eq("source", data.source)
       .eq("external_id", data.external_id)
       .maybeSingle();
@@ -272,6 +272,46 @@ export const cacheMedia = createServerFn({ method: "POST" })
             overview: s.overview,
           }));
       }
+    } else if (data.source === "anilist" && data.type === "manga") {
+      const aniController = new AbortController();
+      const aniTimeout = setTimeout(() => { try { aniController.abort(); } catch {} }, TMDB_TIMEOUT);
+      const aniRes = await fetch("https://graphql.anilist.co", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          query: `query ($id: Int) {
+            Media(id: $id, type: MANGA) {
+              id title { romaji english }
+              description coverImage { extraLarge large }
+              bannerImage averageScore chapters volumes
+              status genres seasonYear
+            }
+          }`,
+          variables: { id: Number(data.external_id) },
+        }),
+      });
+      clearTimeout(aniTimeout);
+      if (!aniRes.ok) throw new Error(`AniList ${aniRes.status}: ${await aniRes.text()}`);
+      const aniJson = (await aniRes.json()) as {
+        data: { Media: { id: number; title: { romaji: string | null; english: string | null }; description?: string | null; coverImage: { extraLarge?: string | null; large?: string | null }; bannerImage?: string | null; averageScore?: number | null; chapters?: number | null; volumes?: number | null; status?: string | null; genres?: string[]; seasonYear?: number | null } }
+      };
+      const a = aniJson.data.Media;
+      const poster = a.coverImage.extraLarge || a.coverImage.large || null;
+      summary = {
+        external_id: String(a.id),
+        source: "anilist",
+        media_type: "manga",
+        title: a.title.english || a.title.romaji || "Untitled",
+        overview: a.description ? a.description.replace(/<[^>]*>/g, "") : null,
+        poster_url: poster,
+        backdrop_url: a.bannerImage || poster,
+        release_year: a.seasonYear ?? null,
+        vote_average: a.averageScore != null ? a.averageScore / 10 : null,
+        genres: a.genres ?? [],
+        chapter_count: a.chapters ?? null,
+        volume_count: a.volumes ?? null,
+        status: a.status ?? null,
+      };
     } else if ((data.source === "anilist" || data.source === "jikan") && data.type === "anime") {
       const aniController = new AbortController();
       const aniTimeout = setTimeout(() => { try { aniController.abort(); } catch {} }, TMDB_TIMEOUT);
@@ -325,7 +365,7 @@ export const cacheMedia = createServerFn({ method: "POST" })
       .from("media")
       .upsert(
         {
-          media_type: summary.media_type,
+          media_type: summary.media_type as any,
           source: summary.source,
           external_id: summary.external_id,
           title: summary.title,
@@ -457,13 +497,13 @@ export const reclassifyMedia = createServerFn({ method: "POST" })
   .validator((input) =>
     z.object({
       media_id: z.string().uuid(),
-      new_type: z.enum(["movie", "tv", "anime"]),
+      new_type: z.enum(["movie", "tv", "anime", "manga"]),
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("media")
-      .update({ media_type: data.new_type })
+      .update({ media_type: data.new_type as any })
       .eq("id", data.media_id);
     if (error) throw new Error("Could not reclassify: " + error.message);
     return { ok: true };

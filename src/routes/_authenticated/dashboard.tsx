@@ -8,6 +8,8 @@ import { getStats, listLibrary } from "@/lib/library.functions";
 import { MediaGrid } from "@/components/MediaCard";
 import type { MediaSummary } from "@/lib/media-types";
 import { AlertCircle, Film, Tv, Sparkles, TrendingUp, Clock, CheckCircle2, BookmarkIcon, Heart, Flame } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — NexusTrack" }, { name: "description", content: "Your personalized entertainment dashboard." }] }),
@@ -27,6 +29,18 @@ function Section({ title, action, children }: { title: string; action?: React.Re
 }
 
 function Dashboard() {
+  const [userName, setUserName] = useState<string | null>(null);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      const userId = data.user?.id;
+      if (!userId) return;
+      supabase.from("profiles").select("display_name, username").eq("id", userId).single().then(({ data: profile }) => {
+        if (profile?.display_name) setUserName(profile.display_name);
+        else if (profile?.username) setUserName(profile.username);
+      });
+    });
+  }, []);
+
   const trendingFn = useServerFn(trending);
   const discoverFn = useServerFn(discover);
   const seasonalFn = useServerFn(seasonalAnime);
@@ -104,7 +118,7 @@ function Dashboard() {
       return {
         external_id: m?.external_id ?? "",
         source: (m?.source ?? "tmdb") as "tmdb" | "anilist" | "jikan",
-        media_type: (m?.media_type ?? "movie") as "movie" | "tv" | "anime",
+        media_type: (m?.media_type ?? "movie") as "movie" | "tv" | "anime" | "manga",
         title: m?.title ?? "",
         overview: null,
         poster_url: m?.poster_url ?? null,
@@ -124,7 +138,7 @@ function Dashboard() {
   return (
     <div>
       <div className="mb-8 animate-fade-in">
-        <h1 className="text-3xl md:text-4xl font-bold">Welcome back.</h1>
+        <h1 className="text-3xl md:text-4xl font-bold">Welcome back{userName ? `, ${userName}` : ""}.</h1>
         <p className="text-muted-foreground mt-1">Pick up where you left off, or find something new.</p>
       </div>
 

@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getPublicProfile, copyFromFriend } from "@/lib/friends.functions";
-import { STATUS_LABELS, STATUS_COLORS, type WatchStatus } from "@/lib/media-types";
+import { STATUS_LABELS, STATUS_COLORS, getStatusLabel, type WatchStatus } from "@/lib/media-types";
 import { Film, Heart, Check, BookmarkIcon, Plus, Users, UserPlus, UserCheck, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dialog";
 
 const STATUS_FILTERS = ["all", "planned", "watching", "completed", "favorites"] as const;
-const TYPE_FILTERS = ["all", "movie", "tv", "anime"] as const;
+const TYPE_FILTERS = ["all", "movie", "tv", "anime", "manga"] as const;
 
 export const Route = createFileRoute("/_authenticated/user/$username")({
   head: () => ({ meta: [{ title: "Profile — NexusTrack" }, { name: "description", content: "View a friend's library." }] }),
@@ -274,7 +274,7 @@ function FriendGrid({ items, profileId, mCopy }: {
               </div>
               <div className="p-2.5">
                 <span className={cn("inline-block rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider", STATUS_COLORS[item.status])}>
-                  {STATUS_LABELS[item.status]}
+                  {getStatusLabel(item.status, m?.media_type as "movie" | "tv" | "anime" | "manga")}
                 </span>
                 <h3 className="mt-1 line-clamp-2 text-xs font-semibold">{m.title}</h3>
               </div>
