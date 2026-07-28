@@ -1,4 +1,4 @@
-export type MediaType = "movie" | "tv" | "anime";
+export type MediaType = "movie" | "tv" | "anime" | "manga";
 export type WatchStatus =
   | "watching"
   | "completed"
@@ -21,6 +21,8 @@ export interface MediaSummary {
   genres?: string[];
   runtime?: number | null;
   season_count?: number | null;
+  chapter_count?: number | null;
+  volume_count?: number | null;
   status?: string | null;
 }
 
@@ -43,3 +45,16 @@ export const STATUS_COLORS: Record<WatchStatus, string> = {
   skipped: "bg-muted/40 text-muted-foreground border-border",
   rewatching: "bg-accent/20 text-accent border-accent/30",
 };
+
+/** Returns a context-aware status label. Manga uses reading terminology. */
+export function getStatusLabel(status: WatchStatus, media_type?: MediaType): string {
+  if (media_type === "manga") {
+    switch (status) {
+      case "planned": return "Plan to Read";
+      case "watching": return "Reading";
+      case "rewatching": return "Rereading";
+      default: return STATUS_LABELS[status];
+    }
+  }
+  return STATUS_LABELS[status];
+}

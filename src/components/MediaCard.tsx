@@ -1,8 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
-import type { MediaSummary, WatchStatus } from "@/lib/media-types";
-import { STATUS_LABELS, STATUS_COLORS } from "@/lib/media-types";
+import type { MediaSummary, MediaType, WatchStatus } from "@/lib/media-types";
+import { STATUS_LABELS, STATUS_COLORS, getStatusLabel } from "@/lib/media-types";
 import {
   BookmarkIcon,
   BookmarkCheck,
@@ -364,7 +364,7 @@ function ActionButton({
 
 const CARD_LINK = "/media/$type/$source/$id" as const;
 
-function StatusBadge({ status }: { status: WatchStatus }) {
+function StatusBadge({ status, mediaType }: { status: WatchStatus; mediaType?: MediaType }) {
   return (
     <span
       className={cn(
@@ -372,7 +372,7 @@ function StatusBadge({ status }: { status: WatchStatus }) {
         STATUS_COLORS[status],
       )}
     >
-      {STATUS_LABELS[status]}
+      {getStatusLabel(status, mediaType)}
     </span>
   );
 }
@@ -404,7 +404,7 @@ const MediaCardInner = memo(function MediaCardInner({ item }: { item: MediaSumma
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
               wrapperClassName="h-full w-full"
             />
-          {status && !isLoading && <StatusBadge status={status} />}
+          {status && !isLoading && <StatusBadge status={status} mediaType={item.media_type} />}
           {isFavorite && <FavoriteBadge />}
         </div>
       </Link>
@@ -455,8 +455,8 @@ export function MediaGrid({ items }: { items: MediaSummary[] }) {
   }
   return (
     <div className="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-      {items.map((it) => (
-        <MediaCard key={`${it.source}-${it.media_type}-${it.external_id}`} item={it} />
+      {items.map((it, idx) => (
+        <MediaCard key={`${it.source}-${it.media_type}-${it.external_id}-${idx}`} item={it} />
       ))}
     </div>
   );

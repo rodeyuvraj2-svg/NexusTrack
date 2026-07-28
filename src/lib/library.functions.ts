@@ -10,7 +10,7 @@ export const listLibrary = createServerFn({ method: "GET" })
     z
       .object({
         status: StatusEnum.optional(),
-        type: z.enum(["movie", "tv", "anime"]).optional(),
+        type: z.enum(["movie", "tv", "anime", "manga"]).optional(),
         favorite: z.boolean().optional(),
       })
       .parse(input ?? {}),
@@ -23,7 +23,7 @@ export const listLibrary = createServerFn({ method: "GET" })
       .order("updated_at", { ascending: false });
     if (data.status) q = q.eq("status", data.status);
     if (data.favorite) q = q.eq("favorite", true);
-    if (data.type) q = q.eq("media.media_type", data.type);
+    if (data.type) q = q.eq("media.media_type", data.type as any);
     const { data: rows, error } = await q;
     if (error) throw error;
     return rows;
@@ -284,9 +284,11 @@ export interface ProfileStats {
   movies: number;
   tv: number;
   anime: number;
+  manga: number;
   completedMovies: number;
   completedTv: number;
   completedAnime: number;
+  completedManga: number;
   completionPct: number;
   hoursWatched: number;
   favoriteGenres: Array<{ genre: string; count: number }>;
@@ -325,9 +327,11 @@ export const getStats = createServerFn({ method: "GET" })
     const movies = list.filter((r) => (r.media as { media_type: string } | null)?.media_type === "movie").length;
     const tv = list.filter((r) => (r.media as { media_type: string } | null)?.media_type === "tv").length;
     const anime = list.filter((r) => (r.media as { media_type: string } | null)?.media_type === "anime").length;
+    const manga = list.filter((r) => (r.media as { media_type: string } | null)?.media_type === "manga").length;
     const completedMovies = list.filter((r) => r.status === "completed" && (r.media as { media_type: string } | null)?.media_type === "movie").length;
     const completedTv = list.filter((r) => r.status === "completed" && (r.media as { media_type: string } | null)?.media_type === "tv").length;
     const completedAnime = list.filter((r) => r.status === "completed" && (r.media as { media_type: string } | null)?.media_type === "anime").length;
+    const completedManga = list.filter((r) => r.status === "completed" && (r.media as { media_type: string } | null)?.media_type === "manga").length;
     const completionPct = total > 0 ? Math.round((completed / total) * 100) : 0;
 
     // Hours watched: sum runtime for all completed items
@@ -399,5 +403,5 @@ export const getStats = createServerFn({ method: "GET" })
       longestStreak = Math.max(longestStreak, currentStreak, sortedDates.length > 0 ? 1 : 0);
     }
 
-    return { total, completed, watching, planned, movies, tv, anime, completedMovies, completedTv, completedAnime, completionPct, hoursWatched, favoriteGenres, topRatings, currentStreak, longestStreak } as ProfileStats;
+    return { total, completed, watching, planned, movies, tv, anime, manga, completedMovies, completedTv, completedAnime, completedManga, completionPct, hoursWatched, favoriteGenres, topRatings, currentStreak, longestStreak } as ProfileStats;
   });

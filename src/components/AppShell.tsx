@@ -20,6 +20,14 @@ const nav = [
   { to: "/settings", label: "Settings", Icon: Settings },
 ] as const;
 
+const BOTTOM_NAV = [
+  { to: "/dashboard", label: "Home", Icon: Home },
+  { to: "/search", label: "Search", Icon: Search },
+  { to: "/discover", label: "Discover", Icon: Compass },
+  { to: "/library", label: "Library", Icon: Film },
+  { to: "/profile", label: "Profile", Icon: UserIcon },
+] as const;
+
 export function AppShell() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -109,11 +117,35 @@ export function AppShell() {
         </div>
       ) : null}
 
-      <main className="flex-1 md:pl-0 pt-16 md:pt-0 pb-4">
+      <main className="flex-1 md:pl-0 pt-16 md:pt-0 pb-20 md:pb-4 overflow-x-hidden">
         <div className="mx-auto max-w-7xl px-4 md:px-8 py-6 md:py-10">
           <Outlet />
         </div>
       </main>
+
+      {/* Mobile bottom nav */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-background/95 backdrop-blur-lg border-t border-border/60 safe-area-bottom">
+        <div className="flex items-center justify-around px-2 py-1">
+          {BOTTOM_NAV.map(({ to, label, Icon }) => {
+            const active = pathname === to || (to !== "/dashboard" && pathname.startsWith(to + "/"));
+            return (
+              <Link
+                key={to}
+                to={to}
+                className={cn(
+                  "flex flex-col items-center gap-0.5 rounded-lg px-3 py-2 text-[10px] font-medium transition-colors min-w-0",
+                  active
+                    ? "text-primary"
+                    : "text-muted-foreground/70 hover:text-foreground",
+                )}
+              >
+                <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_var(--primary)]")} />
+                <span className="truncate">{label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

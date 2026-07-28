@@ -71,8 +71,8 @@ function toSummary(a: JikanAnime): MediaSummary {
     media_type: "anime",
     title: a.title_english || a.title,
     overview: a.synopsis ?? null,
-    poster_url: a.images.jpg.large_image_url,
-    backdrop_url: a.images.jpg.large_image_url,
+    poster_url: a.images?.jpg?.large_image_url ?? null,
+    backdrop_url: a.images?.jpg?.large_image_url ?? null,
     release_year: a.year ?? null,
     vote_average: a.score ?? null,
     genres: a.genres?.map((g) => g.name) ?? [],
@@ -107,6 +107,27 @@ async function jikan<T>(path: string): Promise<T> {
   }
   if (!res.ok) throw new Error(`Jikan ${res.status}: ${await res.text()}`);
   return res.json() as Promise<T>;
+}
+
+// Cache for manga genre map (name -> id)
+let mangaGenreMap: Record<string, number> | null = null;
+async function getMangaGenreMap(): Promise<Record<string, number>> {
+  if (mangaGenreMap !== null) {
+    return mangaGenreMap;
+  }
+  try {
+    const res = await jikan<{ data: { mal_id: number; name: string }[] }>(`/genres/manga`);
+    const map: Record<string, number> = {};
+    for (const genre of res.data) {
+      map[genre.name] = genre.mal_id;
+    }
+    mangaGenreMap = map;
+    return map;
+  } catch (error) {
+    console.error("[Jikan] Failed to fetch manga genres:", error);
+    // Return empty map on error
+    return {};
+  }
 }
 
 // ---- Server Functions ----
@@ -243,4 +264,114 @@ export const getMultipleAnimeDetails = createServerFn({ method: "GET" })
     }
 
     return results;
+  });
+
+// ---- Manga types ----
+
+interface JikanManga {
+  mal_id: number;
+  title: string;
+  title_english?: string | null;
+  synopsis?: string | null;
+  images: { jpg: { image_url: string; large_image_url: string } };
+  type?: string;
+  chapters?: number | null;
+  volumes?: number | null;
+  status?: string | null;
+  score?: number | null;
+  genres?: { name: string }[];
+  published?: { from?: string; to?: string } | null;
+}
+
+function toMangaSummary(a: JikanManga): MediaSummary {
+  return {
+    external_id: String(a.mal_id),
+    source: "jikan",
+    media_type: "manga",
+    title: a.title_english || a.title,
+    overview: a.synopsis ?? null,
+    poster_url: a.images?.jpg?.large_image_url ?? null,
+    backdrop_url: null,
+    release_year: a.published?.from ? new Date(a.published.from).getFullYear() : null,
+    vote_average: a.score ?? null,
+    genres: a.genres?.map((g) => g.name) ?? [],
+    chapter_count: a.chapters ?? null,
+    volume_count: a.volumes ?? null,
+    status: a.status ?? null,
+  };
+}
+
+// ---- Manga Server Functions ----
+
+export const topManga = createServerFn({ method: "GET" })
+  .validator((input) => z.object({
+    page: z.number().int().min(1).default(1),
+    genre: z.string().optional(),
+    type: z.enum(["top", "popular"]).default("popular"),
+  }).parse(input ?? {}))
+  .handler(async ({ data }) => {
+    try {
+      // Determine order_by based on type
+      const isPopular = data.type === "popular";
+      const orderBy = isPopular ? "members" : "score";
+      const sort = "desc";
+      const limit = "20";
+      const sfw = "true";
+
+      // If we have a genre filter, we need to use the /manga endpoint with genre filtering
+      if (data.genre && data.genre.trim() !== "") {
+        // The frontend sends genre IDs as comma-separated string (e.g., "1,2")
+        // Validate that it's a proper comma-separated list of numbers
+        const genreIds = data.genre.split(",").map(id => id.trim()).filter(id => id !== "" && !isNaN(Number(id)));
+
+        // If we have valid genre IDs, use /manga endpoint with genres filter
+        if (genreIds.length > 0) {
+          const queryParams = new URLSearchParams({
+            limit,
+            order_by: orderBy,
+            sort,
+            sfw,
+            page: String(data.page),
+          });
+          queryParams.append("genres", genreIds.join(","));
+          const url = `/manga?${queryParams.toString()}`;
+          console.log(`[Jikan topManga] Request URL (filtered): ${url}`);
+          const r = await jikan<{ data: JikanManga[] }>(url);
+          console.log(`[Jikan topManga] Response count: ${r.data.length}`);
+          return r.data.map(toMangaSummary);
+        }
+        // If no valid genre IDs found, fall back to no genre filter (show all)
+      }
+
+      // No genre filter (or invalid genre): use the /manga endpoint with appropriate ordering
+      // This is consistent with how we handle the genre-filtered case and the search function
+      const queryParams = new URLSearchParams({
+        limit,
+        order_by: orderBy,
+        sort,
+        sfw,
+        page: String(data.page),
+      });
+      const url = `/manga?${queryParams.toString()}`;
+      console.log(`[Jikan topManga] Request URL (unfiltered): ${url}`);
+      const r = await jikan<{ data: JikanManga[] }>(url);
+      console.log(`[Jikan topManga] Response count: ${r.data.length}`);
+      return r.data.map(toMangaSummary);
+    } catch (error) {
+      console.error("[Jikan] topManga error:", error);
+      // Return empty array on error to prevent breaking the UI
+      return [] as MediaSummary[];
+    }
+  });
+
+export const searchManga = createServerFn({ method: "GET" })
+  .validator((input) => z.object({ q: z.string().min(1) }).parse(input))
+  .handler(async ({ data }) => {
+    try {
+      const r = await jikan<{ data: JikanManga[] }>(`/manga?q=${encodeURIComponent(data.q)}&limit=12&sfw=true`);
+      return r.data.map(toMangaSummary);
+    } catch (error) {
+      console.error("[Jikan] searchManga error:", error);
+      return [] as MediaSummary[];
+    }
   });
