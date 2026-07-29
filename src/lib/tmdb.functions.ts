@@ -160,9 +160,19 @@ export const trending = createServerFn({ method: "GET" })
   .validator((input) => z.object({
     type: z.enum(["movie", "tv", "all"]).default("all"),
     page: z.number().int().min(1).default(1),
+    genre: z.string().optional(),
   }).parse(input ?? {}))
   .handler(async ({ data }) => {
     try {
+      // Trending endpoint doesn't support genre — use discover with popularity sort instead
+      if (data.genre && data.type !== "all") {
+        const res = await tmdb<{ results: TmdbMovie[] }>(`/discover/${data.type}`, {
+          sort_by: "popularity.desc",
+          with_genres: data.genre,
+          page: data.page,
+        });
+        return res.results.map((m) => toSummary(m, data.type as "movie" | "tv"));
+      }
       const res = await tmdb<{ results: TmdbMovie[] }>(`/trending/${data.type}/week`, { page: data.page });
       return res.results.map((m) => {
         const mediaType: MediaType = (m as unknown as { media_type?: string }).media_type === "tv" ? "tv" : data.type === "tv" ? "tv" : "movie";
@@ -170,7 +180,8 @@ export const trending = createServerFn({ method: "GET" })
       });
     } catch (error) {
       console.warn('[TMDB] trending failed, using fallback media:', error);
-      return fallbackMediaList(data.type === 'tv' ? 'tv' : 'movie', 'trending').slice(0, 12);
+      const fallback = fallbackMediaList(data.type === 'tv' ? 'tv' : 'movie', 'trending').slice(0, 12);
+      return data.genre ? fallback.filter((m) => data.genre?.split(",").some((g) => m.genres?.includes(g))) : fallback;
     }
   });
 
@@ -239,7 +250,7 @@ export const cacheMedia = createServerFn({ method: "POST" })
       .object({
         type: z.enum(["movie", "tv", "anime", "manga"]),
         external_id: z.string(),
-        source: z.enum(["tmdb", "jikan", "anilist"]).default("tmdb"),
+        source: z.enum(["tmdb", "anilist"]).default("tmdb"),
       })
       .parse(input),
   )
@@ -312,7 +323,7 @@ export const cacheMedia = createServerFn({ method: "POST" })
         volume_count: a.volumes ?? null,
         status: a.status ?? null,
       };
-    } else if ((data.source === "anilist" || data.source === "jikan") && data.type === "anime") {
+    } else if (data.source === "anilist" && data.type === "anime") {
       const aniController = new AbortController();
       const aniTimeout = setTimeout(() => { try { aniController.abort(); } catch {} }, TMDB_TIMEOUT);
       const aniRes = await fetch("https://graphql.anilist.co", {

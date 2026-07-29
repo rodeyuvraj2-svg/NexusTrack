@@ -190,7 +190,7 @@ function Landing() {
             NexusTrack
           </div>
           <p className="text-xs text-muted-foreground/60">
-            Free forever. Powered by TMDB & Jikan.
+            Data from TMDB & AniList.
           </p>
         </div>
       </footer>

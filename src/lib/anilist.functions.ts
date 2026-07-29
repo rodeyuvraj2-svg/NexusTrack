@@ -11,12 +11,50 @@ function placeholderPoster(title: string, variant: 'poster' | 'backdrop' = 'post
 }
 
 const FALLBACK_ANIME: MediaSummary[] = [
-  { external_id: '21', source: 'anilist', media_type: 'anime', title: 'One Piece', overview: 'A young pirate sets sail to become the King of the Pirates.', poster_url: placeholderPoster('One Piece'), backdrop_url: placeholderPoster('One Piece', 'backdrop'), release_year: 1999, vote_average: 8.7, genres: ['Adventure', 'Action'], runtime: 24, season_count: 1100, status: 'RELEASING' },
-  { external_id: '16498', source: 'anilist', media_type: 'anime', title: 'Attack on Titan', overview: 'Humanity fights for survival against giant humanoid creatures.', poster_url: placeholderPoster('Attack on Titan'), backdrop_url: placeholderPoster('Attack on Titan', 'backdrop'), release_year: 2013, vote_average: 8.8, genres: ['Action', 'Drama'], runtime: 24, season_count: 100, status: 'FINISHED' },
-  { external_id: '1535', source: 'anilist', media_type: 'anime', title: 'Death Note', overview: 'A gifted student discovers a notebook that can kill anyone whose name is written in it.', poster_url: placeholderPoster('Death Note'), backdrop_url: placeholderPoster('Death Note', 'backdrop'), release_year: 2006, vote_average: 8.6, genres: ['Mystery', 'Thriller'], runtime: 23, season_count: 37, status: 'FINISHED' },
-  { external_id: '20605', source: 'anilist', media_type: 'anime', title: 'Frieren', overview: 'An elf mage journeys through a fantasy world after a long quest.', poster_url: placeholderPoster('Frieren'), backdrop_url: placeholderPoster('Frieren', 'backdrop'), release_year: 2023, vote_average: 8.9, genres: ['Fantasy', 'Adventure'], runtime: 24, season_count: 28, status: 'RELEASING' },
+  { external_id: '21', source: 'anilist', media_type: 'anime', title: 'One Piece', poster_url: placeholderPoster('One Piece'), backdrop_url: placeholderPoster('One Piece', 'backdrop'), release_year: 1999, vote_average: 8.7, genres: ['Adventure', 'Action'], runtime: 24, season_count: 1100, status: 'RELEASING' },
+  { external_id: '16498', source: 'anilist', media_type: 'anime', title: 'Attack on Titan', poster_url: placeholderPoster('Attack on Titan'), backdrop_url: placeholderPoster('Attack on Titan', 'backdrop'), release_year: 2013, vote_average: 8.8, genres: ['Action', 'Drama'], runtime: 24, season_count: 100, status: 'FINISHED' },
+  { external_id: '1535', source: 'anilist', media_type: 'anime', title: 'Death Note', poster_url: placeholderPoster('Death Note'), backdrop_url: placeholderPoster('Death Note', 'backdrop'), release_year: 2006, vote_average: 8.6, genres: ['Mystery', 'Thriller'], runtime: 23, season_count: 37, status: 'FINISHED' },
+  { external_id: '20605', source: 'anilist', media_type: 'anime', title: 'Frieren', poster_url: placeholderPoster('Frieren'), backdrop_url: placeholderPoster('Frieren', 'backdrop'), release_year: 2023, vote_average: 8.9, genres: ['Fantasy', 'Adventure'], runtime: 24, season_count: 28, status: 'RELEASING' },
+  { external_id: '101922', source: 'anilist', media_type: 'anime', title: 'Demon Slayer', poster_url: placeholderPoster('Demon Slayer'), backdrop_url: placeholderPoster('Demon Slayer', 'backdrop'), release_year: 2019, vote_average: 8.7, genres: ['Action', 'Fantasy'], runtime: 24, season_count: 63, status: 'FINISHED' },
+  { external_id: '113415', source: 'anilist', media_type: 'anime', title: 'Jujutsu Kaisen', poster_url: placeholderPoster('Jujutsu Kaisen'), backdrop_url: placeholderPoster('Jujutsu Kaisen', 'backdrop'), release_year: 2020, vote_average: 8.6, genres: ['Action', 'Fantasy'], runtime: 24, season_count: 47, status: 'FINISHED' },
+  { external_id: '11757', source: 'anilist', media_type: 'anime', title: 'Steins;Gate', poster_url: placeholderPoster('Steins;Gate'), backdrop_url: placeholderPoster('Steins;Gate', 'backdrop'), release_year: 2011, vote_average: 9.1, genres: ['Sci-Fi', 'Thriller'], runtime: 24, season_count: 24, status: 'FINISHED' },
+  { external_id: '1', source: 'anilist', media_type: 'anime', title: 'Cowboy Bebop', poster_url: placeholderPoster('Cowboy Bebop'), backdrop_url: placeholderPoster('Cowboy Bebop', 'backdrop'), release_year: 1998, vote_average: 8.9, genres: ['Action', 'Sci-Fi'], runtime: 24, season_count: 26, status: 'FINISHED' },
+  { external_id: '5114', source: 'anilist', media_type: 'anime', title: 'Fullmetal Alchemist: Brotherhood', poster_url: placeholderPoster('Fullmetal Alchemist'), backdrop_url: placeholderPoster('Fullmetal Alchemist', 'backdrop'), release_year: 2009, vote_average: 9.2, genres: ['Action', 'Fantasy'], runtime: 24, season_count: 64, status: 'FINISHED' },
+  { external_id: '20954', source: 'anilist', media_type: 'anime', title: 'Sousou no Frieren', poster_url: placeholderPoster('Sousou no Frieren'), backdrop_url: placeholderPoster('Sousou no Frieren', 'backdrop'), release_year: 2023, vote_average: 9.0, genres: ['Fantasy', 'Adventure'], runtime: 24, season_count: 28, status: 'RELEASING' },
+  { external_id: '9253', source: 'anilist', media_type: 'anime', title: 'Steins;Gate 0', poster_url: placeholderPoster('Steins;Gate 0'), backdrop_url: placeholderPoster('Steins;Gate 0', 'backdrop'), release_year: 2018, vote_average: 8.3, genres: ['Sci-Fi', 'Drama'], runtime: 24, season_count: 23, status: 'FINISHED' },
+  { external_id: '20755', source: 'anilist', media_type: 'anime', title: 'Spy x Family', poster_url: placeholderPoster('Spy x Family'), backdrop_url: placeholderPoster('Spy x Family', 'backdrop'), release_year: 2022, vote_average: 8.4, genres: ['Action', 'Comedy'], runtime: 24, season_count: 25, status: 'FINISHED' },
+  { external_id: '131476', source: 'anilist', media_type: 'anime', title: 'Chainsaw Man', poster_url: placeholderPoster('Chainsaw Man'), backdrop_url: placeholderPoster('Chainsaw Man', 'backdrop'), release_year: 2022, vote_average: 8.4, genres: ['Action', 'Fantasy'], runtime: 24, season_count: 12, status: 'FINISHED' },
+  { external_id: '21455', source: 'anilist', media_type: 'anime', title: 'Mob Psycho 100', poster_url: placeholderPoster('Mob Psycho 100'), backdrop_url: placeholderPoster('Mob Psycho 100', 'backdrop'), release_year: 2016, vote_average: 8.7, genres: ['Action', 'Comedy'], runtime: 24, season_count: 25, status: 'FINISHED' },
+  { external_id: '11061', source: 'anilist', media_type: 'anime', title: 'Hunter x Hunter', poster_url: placeholderPoster('Hunter x Hunter'), backdrop_url: placeholderPoster('Hunter x Hunter', 'backdrop'), release_year: 2011, vote_average: 8.9, genres: ['Action', 'Adventure'], runtime: 24, season_count: 148, status: 'FINISHED' },
+  { external_id: '22961', source: 'anilist', media_type: 'anime', title: 'Vinland Saga', poster_url: placeholderPoster('Vinland Saga'), backdrop_url: placeholderPoster('Vinland Saga', 'backdrop'), release_year: 2019, vote_average: 8.7, genres: ['Action', 'Drama'], runtime: 24, season_count: 24, status: 'FINISHED' },
+  { external_id: '21592', source: 'anilist', media_type: 'anime', title: 'Violet Evergarden', poster_url: placeholderPoster('Violet Evergarden'), backdrop_url: placeholderPoster('Violet Evergarden', 'backdrop'), release_year: 2018, vote_average: 8.7, genres: ['Drama', 'Fantasy'], runtime: 24, season_count: 13, status: 'FINISHED' },
+  { external_id: '15017', source: 'anilist', media_type: 'anime', title: 'Haikyuu!!', poster_url: placeholderPoster('Haikyuu'), backdrop_url: placeholderPoster('Haikyuu', 'backdrop'), release_year: 2014, vote_average: 8.5, genres: ['Sports', 'Comedy'], runtime: 24, season_count: 25, status: 'FINISHED' },
+  { external_id: '21519', source: 'anilist', media_type: 'anime', title: 'Kaguya-sama: Love Is War', poster_url: placeholderPoster('Kaguya-sama'), backdrop_url: placeholderPoster('Kaguya-sama', 'backdrop'), release_year: 2019, vote_average: 8.3, genres: ['Comedy', 'Romance'], runtime: 24, season_count: 12, status: 'FINISHED' },
+  { external_id: '120209', source: 'anilist', media_type: 'anime', title: 'Dandadan', poster_url: placeholderPoster('Dandadan'), backdrop_url: placeholderPoster('Dandadan', 'backdrop'), release_year: 2024, vote_average: 8.3, genres: ['Action', 'Comedy'], runtime: 24, season_count: 12, status: 'FINISHED' },
 ];
-// ---- Types ----
+
+const FALLBACK_MANGA: MediaSummary[] = [
+  { external_id: '30010', source: 'anilist', media_type: 'manga', title: 'One Piece', poster_url: placeholderPoster('One Piece Manga'), backdrop_url: placeholderPoster('One Piece Manga', 'backdrop'), release_year: 1997, vote_average: 8.5, genres: ['Adventure', 'Action'], chapter_count: 1100, volume_count: 100, status: 'RELEASING' },
+  { external_id: '100100', source: 'anilist', media_type: 'manga', title: 'Berserk', poster_url: placeholderPoster('Berserk'), backdrop_url: placeholderPoster('Berserk', 'backdrop'), release_year: 1989, vote_average: 9.1, genres: ['Action', 'Fantasy'], chapter_count: 370, volume_count: 40, status: 'RELEASING' },
+  { external_id: '101200', source: 'anilist', media_type: 'manga', title: 'Attack on Titan Manga', poster_url: placeholderPoster('AoT Manga'), backdrop_url: placeholderPoster('AoT Manga', 'backdrop'), release_year: 2009, vote_average: 8.7, genres: ['Action', 'Drama'], chapter_count: 139, volume_count: 34, status: 'FINISHED' },
+  { external_id: '30015', source: 'anilist', media_type: 'manga', title: 'Vagabond', poster_url: placeholderPoster('Vagabond'), backdrop_url: placeholderPoster('Vagabond', 'backdrop'), release_year: 1998, vote_average: 9.0, genres: ['Action', 'Drama'], chapter_count: 327, volume_count: 37, status: 'RELEASING' },
+  { external_id: '30020', source: 'anilist', media_type: 'manga', title: 'Monster', poster_url: placeholderPoster('Monster'), backdrop_url: placeholderPoster('Monster', 'backdrop'), release_year: 1994, vote_average: 9.0, genres: ['Mystery', 'Thriller'], chapter_count: 162, volume_count: 18, status: 'FINISHED' },
+  { external_id: '102001', source: 'anilist', media_type: 'manga', title: 'Goodbye, Eri', poster_url: placeholderPoster('Goodbye Eri'), backdrop_url: placeholderPoster('Goodbye Eri', 'backdrop'), release_year: 2022, vote_average: 8.5, genres: ['Drama', 'Mystery'], chapter_count: 1, volume_count: 1, status: 'FINISHED' },
+  { external_id: '30030', source: 'anilist', media_type: 'manga', title: '20th Century Boys', poster_url: placeholderPoster('20th Century Boys'), backdrop_url: placeholderPoster('20th Century Boys', 'backdrop'), release_year: 1999, vote_average: 8.8, genres: ['Mystery', 'Sci-Fi'], chapter_count: 249, volume_count: 22, status: 'FINISHED' },
+  { external_id: '30040', source: 'anilist', media_type: 'manga', title: 'Pluto', poster_url: placeholderPoster('Pluto'), backdrop_url: placeholderPoster('Pluto', 'backdrop'), release_year: 2003, vote_average: 8.7, genres: ['Mystery', 'Sci-Fi'], chapter_count: 65, volume_count: 8, status: 'FINISHED' },
+  { external_id: '30050', source: 'anilist', media_type: 'manga', title: 'Kingdom', poster_url: placeholderPoster('Kingdom'), backdrop_url: placeholderPoster('Kingdom', 'backdrop'), release_year: 2006, vote_average: 8.8, genres: ['Action', 'Drama'], chapter_count: 770, volume_count: 70, status: 'RELEASING' },
+  { external_id: '30060', source: 'anilist', media_type: 'manga', title: 'Oyasumi Punpun', poster_url: placeholderPoster('Oyasumi Punpun'), backdrop_url: placeholderPoster('Oyasumi Punpun', 'backdrop'), release_year: 2007, vote_average: 8.6, genres: ['Drama', 'Slice of Life'], chapter_count: 147, volume_count: 13, status: 'FINISHED' },
+  { external_id: '30070', source: 'anilist', media_type: 'manga', title: 'Slam Dunk', poster_url: placeholderPoster('Slam Dunk'), backdrop_url: placeholderPoster('Slam Dunk', 'backdrop'), release_year: 1990, vote_average: 8.6, genres: ['Sports', 'Drama'], chapter_count: 276, volume_count: 31, status: 'FINISHED' },
+  { external_id: '30080', source: 'anilist', media_type: 'manga', title: 'Jujutsu Kaisen Manga', poster_url: placeholderPoster('JJK Manga'), backdrop_url: placeholderPoster('JJK Manga', 'backdrop'), release_year: 2018, vote_average: 8.4, genres: ['Action', 'Fantasy'], chapter_count: 270, volume_count: 28, status: 'RELEASING' },
+  { external_id: '30090', source: 'anilist', media_type: 'manga', title: 'Chainsaw Man Manga', poster_url: placeholderPoster('CSM Manga'), backdrop_url: placeholderPoster('CSM Manga', 'backdrop'), release_year: 2018, vote_average: 8.5, genres: ['Action', 'Fantasy'], chapter_count: 190, volume_count: 20, status: 'RELEASING' },
+  { external_id: '30100', source: 'anilist', media_type: 'manga', title: 'Demon Slayer Manga', poster_url: placeholderPoster('DS Manga'), backdrop_url: placeholderPoster('DS Manga', 'backdrop'), release_year: 2016, vote_average: 8.3, genres: ['Action', 'Fantasy'], chapter_count: 205, volume_count: 23, status: 'FINISHED' },
+  { external_id: '30110', source: 'anilist', media_type: 'manga', title: 'Fullmetal Alchemist Manga', poster_url: placeholderPoster('FMA Manga'), backdrop_url: placeholderPoster('FMA Manga', 'backdrop'), release_year: 2001, vote_average: 8.9, genres: ['Action', 'Fantasy'], chapter_count: 108, volume_count: 27, status: 'FINISHED' },
+  { external_id: '30120', source: 'anilist', media_type: 'manga', title: 'Death Note Manga', poster_url: placeholderPoster('DN Manga'), backdrop_url: placeholderPoster('DN Manga', 'backdrop'), release_year: 2003, vote_average: 8.6, genres: ['Mystery', 'Thriller'], chapter_count: 108, volume_count: 12, status: 'FINISHED' },
+  { external_id: '30130', source: 'anilist', media_type: 'manga', title: 'Hunter x Hunter Manga', poster_url: placeholderPoster('HxH Manga'), backdrop_url: placeholderPoster('HxH Manga', 'backdrop'), release_year: 1998, vote_average: 8.5, genres: ['Action', 'Adventure'], chapter_count: 410, volume_count: 37, status: 'RELEASING' },
+  { external_id: '30140', source: 'anilist', media_type: 'manga', title: 'Haikyuu!! Manga', poster_url: placeholderPoster('Haikyuu Manga'), backdrop_url: placeholderPoster('Haikyuu Manga', 'backdrop'), release_year: 2012, vote_average: 8.4, genres: ['Sports', 'Comedy'], chapter_count: 402, volume_count: 45, status: 'FINISHED' },
+  { external_id: '30150', source: 'anilist', media_type: 'manga', title: 'Kaguya-sama Manga', poster_url: placeholderPoster('Kaguya Manga'), backdrop_url: placeholderPoster('Kaguya Manga', 'backdrop'), release_year: 2015, vote_average: 8.3, genres: ['Comedy', 'Romance'], chapter_count: 281, volume_count: 28, status: 'FINISHED' },
+  { external_id: '30160', source: 'anilist', media_type: 'manga', title: 'Spy x Family Manga', poster_url: placeholderPoster('SxF Manga'), backdrop_url: placeholderPoster('SxF Manga', 'backdrop'), release_year: 2019, vote_average: 8.2, genres: ['Action', 'Comedy'], chapter_count: 105, volume_count: 14, status: 'RELEASING' },
+];
 
 interface AniListMedia {
   id: number;
@@ -70,7 +108,7 @@ interface AniListMedia {
   };
 }
 
-const ANILIST_TIMEOUT = 10_000; // 10 seconds
+const ANILIST_TIMEOUT = 3_000; // 3 seconds — fallback kicks in fast if AniList is slow
 
 // ---- GraphQL helper ----
 
@@ -190,14 +228,16 @@ export const topAnime = createServerFn({ method: "GET" })
   .validator((input) => z.object({
     page: z.number().int().min(1).default(1),
     genre: z.string().optional(),
+    sort: z.enum(["trending", "popular"]).default("popular"),
   }).parse(input ?? {}))
   .handler(async ({ data }) => {
     try {
       const genreList = data.genre ? data.genre.split(",").map((g) => g.trim()).filter(Boolean) : [];
+      const sortOrder = data.sort === "trending" ? "TRENDING_DESC" : "POPULARITY_DESC";
       const result = await anilist<{ Page: { media: AniListMedia[] } }>(
         `query ($page: Int, $genreIn: [String]) {
           Page(page: $page, perPage: 20) {
-            media(sort: POPULARITY_DESC, type: ANIME, genre_in: $genreIn, isAdult: false) {
+            media(sort: ${sortOrder}, type: ANIME, genre_in: $genreIn, isAdult: false) {
               id
               title { romaji english }
               coverImage { extraLarge large }
@@ -215,7 +255,6 @@ export const topAnime = createServerFn({ method: "GET" })
       return (result.Page.media ?? []).map(toSummary);
     } catch (error) {
       console.warn('[AniList] topAnime failed:', error);
-      if (data.genre) return [];
       return FALLBACK_ANIME.slice(0, 6);
     }
   });
@@ -316,7 +355,6 @@ export const seasonalAnime = createServerFn({ method: "GET" })
     return (result.Page.media ?? []).map(toSummary);
   } catch (error) {
     console.warn('[AniList] seasonalAnime failed:', error);
-    if (data.genre) return [];
     return FALLBACK_ANIME.slice(0, 6);
   }
 });
@@ -461,10 +499,6 @@ export const getMultipleAnimeDetails = createServerFn({ method: "GET" })
 
 // ---- Manga --------
 
-const FALLBACK_MANGA: MediaSummary[] = [
-  { external_id: '30010', source: 'anilist', media_type: 'manga', title: 'One Piece', overview: null, poster_url: null, backdrop_url: null, release_year: 1997, vote_average: 8.5, genres: ['Adventure', 'Action'], chapter_count: 1100, volume_count: 100, status: 'RELEASING' },
-];
-
 export const searchManga = createServerFn({ method: "GET" })
   .validator((input) => z.object({ q: z.string() }).parse(input))
   .handler(async ({ data }) => {
@@ -500,14 +534,17 @@ export const topManga = createServerFn({ method: "GET" })
   .validator((input) => z.object({
     page: z.number().int().min(1).default(1),
     genre: z.string().optional(),
+    type: z.enum(["top", "popular"]).default("popular"),
   }).parse(input ?? {}))
   .handler(async ({ data }) => {
     try {
       const genreList = data.genre ? data.genre.split(",").map((g) => g.trim()).filter(Boolean) : [];
+      const sort = data.type === "top" ? "SCORE_DESC" : "POPULARITY_DESC";
+      const perPage = data.type === "top" ? 20 : 40;
       const result = await anilist<{ Page: { media: AniListMedia[] } }>(
-        `query ($page: Int) {
-          Page(page: $page, perPage: 40) {
-            media(sort: POPULARITY_DESC, type: MANGA, isAdult: false) {
+        `query ($page: Int, $genreIn: [String]) {
+          Page(page: $page, perPage: ${perPage}) {
+            media(sort: ${sort}, type: MANGA, genre_in: $genreIn, isAdult: false) {
               id
               title { romaji english }
               coverImage { extraLarge large }
@@ -522,17 +559,12 @@ export const topManga = createServerFn({ method: "GET" })
             }
           }
         }`,
-        { page: data.page },
+        { page: data.page, genreIn: genreList.length > 0 ? genreList : undefined },
       );
-      let all = result.Page.media ?? [];
-      if (genreList.length > 0) {
-        all = all.filter((m) => m.genres?.some((g) => genreList.includes(g)));
-      }
-      return all.map(toMangaSummary);
+      return (result.Page.media ?? []).map(toMangaSummary);
     } catch (error) {
       console.warn('[AniList] topManga failed:', error);
-      if (data.genre) return [];
-      return FALLBACK_MANGA.slice(0, 6);
+      return FALLBACK_MANGA.slice(0, 20);
     }
   });
 
