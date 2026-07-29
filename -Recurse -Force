@@ -1,0 +1,440 @@
+[1mdiff --git a/package-lock.json b/package-lock.json[m
+[1mindex dc4ccbe..6d0b5f5 100644[m
+[1m--- a/package-lock.json[m
+[1m+++ b/package-lock.json[m
+[36m@@ -44,8 +44,10 @@[m
+         "cmdk": "^1.1.1",[m
+         "date-fns": "^4.1.0",[m
+         "embla-carousel-react": "^8.6.0",[m
+[32m+[m[32m        "framer-motion": "^12.43.0",[m
+         "input-otp": "^1.4.2",[m
+         "lucide-react": "^0.575.0",[m
+[32m+[m[32m        "motion": "^12.43.0",[m
+         "react": "^19.2.0",[m
+         "react-day-picker": "^9.14.0",[m
+         "react-dom": "^19.2.0",[m
+[36m@@ -66,7 +68,7 @@[m
+         "@types/react": "^19.2.0",[m
+         "@types/react-dom": "^19.2.0",[m
+         "@vitejs/plugin-react": "^5.2.0",[m
+[31m-        "eslint": "^9.32.0",[m
+[32m+[m[32m        "eslint": "^10.8.0",[m
+         "eslint-config-prettier": "^10.1.1",[m
+         "eslint-plugin-prettier": "^5.2.6",[m
+         "eslint-plugin-react-hooks": "^5.2.0",[m
+[36m@@ -443,81 +445,44 @@[m
+       }[m
+     },[m
+     "node_modules/@eslint/config-array": {[m
+[31m-      "version": "0.21.2",[m
+[31m-      "resolved": "https://registry.npmjs.org/@eslint/config-array/-/config-array-0.21.2.tgz",[m
+[31m-      "integrity": "sha512-nJl2KGTlrf9GjLimgIru+V/mzgSK0ABCDQRvxw5BjURL7WfH5uoWmizbH7QB6MmnMBd8cIC9uceWnezL1VZWWw==",[m
+[32m+[m[32m      "version": "0.23.5",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/@eslint/config-array/-/config-array-0.23.5.tgz",[m
+[32m+[m[32m      "integrity": "sha512-Y3kKLvC1dvTOT+oGlqNQ1XLqK6D1HU2YXPc52NmAlJZbMMWDzGYXMiPRJ8TYD39muD/OTjlZmNJ4ib7dvSrMBA==",[m
+       "dev": true,[m
+       "license": "Apache-2.0",[m
+       "dependencies": {[m
+[31m-        "@eslint/object-schema": "^2.1.7",[m
+[32m+[m[32m        "@eslint/object-schema": "^3.0.5",[m
+         "debug": "^4.3.1",[m
+[31m-        "minimatch": "^3.1.5"[m
+[32m+[m[32m        "minimatch": "^10.2.4"[m
+       },[m
+       "engines": {[m
+[31m-        "node": "^18.18.0 || ^20.9.0 || >=21.1.0"[m
+[32m+[m[32m        "node": "^20.19.0 || ^22.13.0 || >=24"[m
+       }[m
+     },[m
+     "node_modules/@eslint/config-helpers": {[m
+[31m-      "version": "0.4.2",[m
+[31m-      "resolved": "https://registry.npmjs.org/@eslint/config-helpers/-/config-helpers-0.4.2.tgz",[m
+[31m-      "integrity": "sha512-gBrxN88gOIf3R7ja5K9slwNayVcZgK6SOUORm2uBzTeIEfeVaIhOpCtTox3P6R7o2jLFwLFTLnC7kU/RGcYEgw==",[m
+[32m+[m[32m      "version": "0.7.0",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/@eslint/config-helpers/-/config-helpers-0.7.0.tgz",[m
+[32m+[m[32m      "integrity": "sha512-DObd/KKUsU+FaFv4PLxSRenpXfQWmPXXP3pPZ6/K1PCrMu2vQpMDMuQe/BqYeoLcz8ro0bVDF1RxOJgfVEdhUw==",[m
+       "dev": true,[m
+       "license": "Apache-2.0",[m
+       "dependencies": {[m
+[31m-        "@eslint/core": "^0.17.0"[m
+[32m+[m[32m        "@eslint/core": "^1.2.1"[m
+       },[m
+       "engines": {[m
+[31m-        "node": "^18.18.0 || ^20.9.0 || >=21.1.0"[m
+[32m+[m[32m        "node": "^20.19.0 || ^22.13.0 || >=24"[m
+       }[m
+     },[m
+     "node_modules/@eslint/core": {[m
+[31m-      "version": "0.17.0",[m
+[31m-      "resolved": "https://registry.npmjs.org/@eslint/core/-/core-0.17.0.tgz",[m
+[31m-      "integrity": "sha512-yL/sLrpmtDaFEiUj1osRP4TI2MDz1AddJL+jZ7KSqvBuliN4xqYY54IfdN8qD8Toa6g1iloph1fxQNkjOxrrpQ==",[m
+[32m+[m[32m      "version": "1.2.1",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/@eslint/core/-/core-1.2.1.tgz",[m
+[32m+[m[32m      "integrity": "sha512-MwcE1P+AZ4C6DWlpin/OmOA54mmIZ/+xZuJiQd4SyB29oAJjN30UW9wkKNptW2ctp4cEsvhlLY/CsQ1uoHDloQ==",[m
+       "dev": true,[m
+       "license": "Apache-2.0",[m
+       "dependencies": {[m
+         "@types/json-schema": "^7.0.15"[m
+       },[m
+       "engines": {[m
+[31m-        "node": "^18.18.0 || ^20.9.0 || >=21.1.0"[m
+[31m-      }[m
+[31m-    },[m
+[31m-    "node_modules/@eslint/eslintrc": {[m
+[31m-      "version": "3.3.6",[m
+[31m-      "resolved": "https://registry.npmjs.org/@eslint/eslintrc/-/eslintrc-3.3.6.tgz",[m
+[31m-      "integrity": "sha512-l2Ul9PrHsPCKcEY/ac7VgFj9D80C7S68sOKc618SyHDPK36s1XcFebXY0iTzUVn4Yq+YbwvSnDmCz9yxjX+QrA==",[m
+[31m-      "dev": true,[m
+[31m-      "license": "MIT",[m
+[31m-      "dependencies": {[m
+[31m-        "ajv": "^6.14.0",[m
+[31m-        "debug": "^4.3.2",[m
+[31m-        "espree": "^10.0.1",[m
+[31m-        "globals": "^14.0.0",[m
+[31m-        "ignore": "^5.2.0",[m
+[31m-        "import-fresh": "^3.2.1",[m
+[31m-        "js-yaml": "^4.3.0",[m
+[31m-        "minimatch": "^3.1.5",[m
+[31m-        "strip-json-comments": "^3.1.1"[m
+[31m-      },[m
+[31m-      "engines": {[m
+[31m-        "node": "^18.18.0 || ^20.9.0 || >=21.1.0"[m
+[31m-      },[m
+[31m-      "funding": {[m
+[31m-        "url": "https://opencollective.com/eslint"[m
+[31m-      }[m
+[31m-    },[m
+[31m-    "node_modules/@eslint/eslintrc/node_modules/globals": {[m
+[31m-      "version": "14.0.0",[m
+[31m-      "resolved": "https://registry.npmjs.org/globals/-/globals-14.0.0.tgz",[m
+[31m-      "integrity": "sha512-oahGvuMGQlPw/ivIYBjVSrWAfWLBeku5tpPE2fOPLi+WHffIWbuh2tCjhyQhTBPMf5E9jDEH4FOmTYgYwbKwtQ==",[m
+[31m-      "dev": true,[m
+[31m-      "license": "MIT",[m
+[31m-      "engines": {[m
+[31m-        "node": ">=18"[m
+[31m-      },[m
+[31m-      "funding": {[m
+[31m-        "url": "https://github.com/sponsors/sindresorhus"[m
+[32m+[m[32m        "node": "^20.19.0 || ^22.13.0 || >=24"[m
+       }[m
+     },[m
+     "node_modules/@eslint/js": {[m
+[36m@@ -534,27 +499,27 @@[m
+       }[m
+     },[m
+     "node_modules/@eslint/object-schema": {[m
+[31m-      "version": "2.1.7",[m
+[31m-      "resolved": "https://registry.npmjs.org/@eslint/object-schema/-/object-schema-2.1.7.tgz",[m
+[31m-      "integrity": "sha512-VtAOaymWVfZcmZbp6E2mympDIHvyjXs/12LqWYjVw6qjrfF+VK+fyG33kChz3nnK+SU5/NeHOqrTEHS8sXO3OA==",[m
+[32m+[m[32m      "version": "3.0.5",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/@eslint/object-schema/-/object-schema-3.0.5.tgz",[m
+[32m+[m[32m      "integrity": "sha512-vqTaUEgxzm+YDSdElad6PiRoX4t8VGDjCtt05zn4nU810UIx/uNEV7/lZJ6KwFThKZOzOxzXy48da+No7HZaMw==",[m
+       "dev": true,[m
+       "license": "Apache-2.0",[m
+       "engines": {[m
+[31m-        "node": "^18.18.0 || ^20.9.0 || >=21.1.0"[m
+[32m+[m[32m        "node": "^20.19.0 || ^22.13.0 || >=24"[m
+       }[m
+     },[m
+     "node_modules/@eslint/plugin-kit": {[m
+[31m-      "version": "0.4.1",[m
+[31m-      "resolved": "https://registry.npmjs.org/@eslint/plugin-kit/-/plugin-kit-0.4.1.tgz",[m
+[31m-      "integrity": "sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==",[m
+[32m+[m[32m      "version": "0.7.2",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/@eslint/plugin-kit/-/plugin-kit-0.7.2.tgz",[m
+[32m+[m[32m      "integrity": "sha512-+CNAzxglkrpNf/kKywqQfk74QjtceuOE7Qm+AF8miRvPF/wmmK5+OJOgVh3AVTT3RP2mH3+FOaxlE5v72owk0A==",[m
+       "dev": true,[m
+       "license": "Apache-2.0",[m
+       "dependencies": {[m
+[31m-        "@eslint/core": "^0.17.0",[m
+[32m+[m[32m        "@eslint/core": "^1.2.1",[m
+         "levn": "^0.4.1"[m
+       },[m
+       "engines": {[m
+[31m-        "node": "^18.18.0 || ^20.9.0 || >=21.1.0"[m
+[32m+[m[32m        "node": "^20.19.0 || ^22.13.0 || >=24"[m
+       }[m
+     },[m
+     "node_modules/@floating-ui/core": {[m
+[36m@@ -3632,6 +3597,13 @@[m
+       "integrity": "sha512-Ps3T8E8dZDam6fUyNiMkekK3XUsaUEik+idO9/YjPtfj2qruF8tFBXS7XhtE4iIXBLxhmLjP3SXpLhVf21I9Lw==",[m
+       "license": "MIT"[m
+     },[m
+[32m+[m[32m    "node_modules/@types/esrecurse": {[m
+[32m+[m[32m      "version": "4.3.1",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/@types/esrecurse/-/esrecurse-4.3.1.tgz",[m
+[32m+[m[32m      "integrity": "sha512-xJBAbDifo5hpffDBuHl0Y8ywswbiAp/Wi7Y/GtAgSlZyIABppyurxVueOPE8LUQOxdlgi6Zqce7uoEpqNTeiUw==",[m
+[32m+[m[32m      "dev": true,[m
+[32m+[m[32m      "license": "MIT"[m
+[32m+[m[32m    },[m
+     "node_modules/@types/estree": {[m
+       "version": "1.0.9",[m
+       "resolved": "https://registry.npmjs.org/@types/estree/-/estree-1.0.9.tgz",[m
+[36m@@ -3864,45 +3836,6 @@[m
+         "typescript": ">=4.8.4 <6.1.0"[m
+       }[m
+     },[m
+[31m-    "node_modules/@typescript-eslint/typescript-estree/node_modules/balanced-match": {[m
+[31m-      "version": "4.0.4",[m
+[31m-      "resolved": "https://registry.npmjs.org/balanced-match/-/balanced-match-4.0.4.tgz",[m
+[31m-      "integrity": "sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==",[m
+[31m-      "dev": true,[m
+[31m-      "license": "MIT",[m
+[31m-      "engines": {[m
+[31m-        "node": "18 || 20 || >=22"[m
+[31m-      }[m
+[31m-    },[m
+[31m-    "node_modules/@typescript-eslint/typescript-estree/node_modules/brace-expansion": {[m
+[31m-      "version": "5.0.8",[m
+[31m-      "resolved": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-5.0.8.tgz",[m
+[31m-      "integrity": "sha512-JZyDyq3D4AUifKTPOB7DELf6XsB3WdPuNxCtob1vFXPsSXhdAiHBWJ/tJ8HAc9aH84BK+5JFZLNkJKx3G9kzQg==",[m
+[31m-      "dev": true,[m
+[31m-      "license": "MIT",[m
+[31m-      "dependencies": {[m
+[31m-        "balanced-match": "^4.0.2"[m
+[31m-      },[m
+[31m-      "engines": {[m
+[31m-        "node": "20 || >=22"[m
+[31m-      }[m
+[31m-    },[m
+[31m-    "node_modules/@typescript-eslint/typescript-estree/node_modules/minimatch": {[m
+[31m-      "version": "10.2.5",[m
+[31m-      "resolved": "https://registry.npmjs.org/minimatch/-/minimatch-10.2.5.tgz",[m
+[31m-      "integrity": "sha512-MULkVLfKGYDFYejP07QOurDLLQpcjk7Fw+7jXS2R2czRQzR56yHRveU5NDJEOviH+hETZKSkIk5c+T23GjFUMg==",[m
+[31m-      "dev": true,[m
+[31m-      "license": "BlueOak-1.0.0",[m
+[31m-      "dependencies": {[m
+[31m-        "brace-expansion": "^5.0.5"[m
+[31m-      },[m
+[31m-      "engines": {[m
+[31m-        "node": "18 || 20 || >=22"[m
+[31m-      },[m
+[31m-      "funding": {[m
+[31m-        "url": "https://github.com/sponsors/isaacs"[m
+[31m-      }[m
+[31m-    },[m
+     "node_modules/@typescript-eslint/typescript-estree/node_modules/semver": {[m
+       "version": "7.8.5",[m
+       "resolved": "https://registry.npmjs.org/semver/-/semver-7.8.5.tgz",[m
+[36m@@ -3958,19 +3891,6 @@[m
+         "url": "https://opencollective.com/typescript-eslint"[m
+       }[m
+     },[m
+[31m-    "node_modules/@typescript-eslint/visitor-keys/node_modules/eslint-visitor-keys": {[m
+[31m-      "version": "5.0.1",[m
+[31m-      "resolved": "https://registry.npmjs.org/eslint-visitor-keys/-/eslint-visitor-keys-5.0.1.tgz",[m
+[31m-      "integrity": "sha512-tD40eHxA35h0PEIZNeIjkHoDR4YjjJp34biM0mDvplBe//mB+IHCqHDGV7pxF+7MklTvighcCPPZC7ynWyjdTA==",[m
+[31m-      "dev": true,[m
+[31m-      "license": "Apache-2.0",[m
+[31m-      "engines": {[m
+[31m-        "node": "^20.19.0 || ^22.13.0 || >=24"[m
+[31m-      },[m
+[31m-      "funding": {[m
+[31m-        "url": "https://opencollective.com/eslint"[m
+[31m-      }[m
+[31m-    },[m
+     "node_modules/@vitejs/plugin-react": {[m
+       "version": "5.2.0",[m
+       "resolved": "https://registry.npmjs.org/@vitejs/plugin-react/-/plugin-react-5.2.0.tgz",[m
+[36m@@ -3993,9 +3913,9 @@[m
+       }[m
+     },[m
+     "node_modules/acorn": {[m
+[31m-      "version": "8.17.0",[m
+[31m-      "resolved": "https://registry.npmjs.org/acorn/-/acorn-8.17.0.tgz",[m
+[31m-      "integrity": "sha512-xRQbDb9BnwDafYNn6Vwl839DYVjqXYb1XVGtWAZ1kcDc6iwAL4hg3B1dZlRiuENFeO2H53gFG3in621AdERVAg==",[m
+[32m+[m[32m      "version": "8.18.0",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/acorn/-/acorn-8.18.0.tgz",[m
+[32m+[m[32m      "integrity": "sha512-lGq+9yr1/GuAWaVYIHRjvvySG5/4VfKIvC8EWxStPdcDh/Ka7FG3twP6v4d5BkravUilhIAsG4Qj83t02LWUPQ==",[m
+       "dev": true,[m
+       "license": "MIT",[m
+       "bin": {[m
+[36m@@ -4032,22 +3952,6 @@[m
+         "url": "https://github.com/sponsors/epoberezkin"[m
+       }[m
+     },[m
+[31m-    "node_modules/ansi-styles": {[m
+[31m-      "version": "4.3.0",[m
+[31m-      "resolved": "https://registry.npmjs.org/ansi-styles/-/ansi-styles-4.3.0.tgz",[m
+[31m-      "integrity": "sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg==",[m
+[31m-      "dev": true,[m
+[31m-      "license": "MIT",[m
+[31m-      "dependencies": {[m
+[31m-        "color-convert": "^2.0.1"[m
+[31m-      },[m
+[31m-      "engines": {[m
+[31m-        "node": ">=8"[m
+[31m-      },[m
+[31m-      "funding": {[m
+[31m-        "url": "https://github.com/chalk/ansi-styles?sponsor=1"[m
+[31m-      }[m
+[31m-    },[m
+     "node_modules/ansis": {[m
+       "version": "4.3.1",[m
+       "resolved": "https://registry.npmjs.org/ansis/-/ansis-4.3.1.tgz",[m
+[36m@@ -4088,11 +3992,14 @@[m
+       }[m
+     },[m
+     "node_modules/balanced-match": {[m
+[31m-      "version": "1.0.2",[m
+[31m-      "resolved": "https://registry.npmjs.org/balanced-match/-/balanced-match-1.0.2.tgz",[m
+[31m-      "integrity": "sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==",[m
+[32m+[m[32m      "version": "4.0.4",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/balanced-match/-/balanced-match-4.0.4.tgz",[m
+[32m+[m[32m      "integrity": "sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==",[m
+       "dev": true,[m
+[31m-      "license": "MIT"[m
+[32m+[m[32m      "license": "MIT",[m
+[32m+[m[32m      "engines": {[m
+[32m+[m[32m        "node": "18 || 20 || >=22"[m
+[32m+[m[32m      }[m
+     },[m
+     "node_modules/baseline-browser-mapping": {[m
+       "version": "2.11.1",[m
+[36m@@ -4107,14 +4014,16 @@[m
+       }[m
+     },[m
+     "node_modules/brace-expansion": {[m
+[31m-      "version": "1.1.16",[m
+[31m-      "resolved": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-1.1.16.tgz",[m
+[31m-      "integrity": "sha512-IDw48K2/2kRkg9LdJxurvq3lV3aBgq0REY89duEqFRthjlPdXHKMj7EnQOXVckxzgisinf3nHfrcE2FufFLXMw==",[m
+[32m+[m[32m      "version": "5.0.8",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-5.0.8.tgz",[m
+[32m+[m[32m      "integrity": "sha512-JZyDyq3D4AUifKTPOB7DELf6XsB3WdPuNxCtob1vFXPsSXhdAiHBWJ/tJ8HAc9aH84BK+5JFZLNkJKx3G9kzQg==",[m
+       "dev": true,[m
+       "license": "MIT",[m
+       "dependencies": {[m
+[31m-        "balanced-match": "^1.0.0",[m
+[31m-        "concat-map": "0.0.1"[m
+[32m+[m[32m        "balanced-match": "^4.0.2"[m
+[32m+[m[32m      },[m
+[32m+[m[32m      "engines": {[m
+[32m+[m[32m        "node": "20 || >=22"[m
+       }[m
+     },[m
+     "node_modules/browserslist": {[m
+[36m@@ -4150,16 +4059,6 @@[m
+         "node": "^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7"[m
+       }[m
+     },[m
+[31m-    "node_modules/callsites": {[m
+[31m-      "version": "3.1.0",[m
+[31m-      "resolved": "https://registry.npmjs.org/callsites/-/callsites-3.1.0.tgz",[m
+[31m-      "integrity": "sha512-P8BjAsXvZS+VIDUI11hHCQEv74YT67YUi5JJFNWIqL235sBmjX4+qx9Muvls5ivyNENctx46xQLQ3aTuE7ssaQ==",[m
+[31m-      "dev": true,[m
+[31m-      "license": "MIT",[m
+[31m-      "engines": {[m
+[31m-        "node": ">=6"[m
+[31m-      }[m
+[31m-    },[m
+     "node_modules/caniuse-lite": {[m
+       "version": "1.0.30001806",[m
+       "resolved": "https://registry.npmjs.org/caniuse-lite/-/caniuse-lite-1.0.30001806.tgz",[m
+[36m@@ -4232,33 +4131,6 @@[m
+         "react-dom": "^18 || ^19 || ^19.0.0-rc"[m
+       }[m
+     },[m
+[31m-    "node_modules/color-convert": {[m
+[31m-      "version": "2.0.1",[m
+[31m-      "resolved": "https://registry.npmjs.org/color-convert/-/color-convert-2.0.1.tgz",[m
+[31m-      "integrity": "sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==",[m
+[31m-      "dev": true,[m
+[31m-      "license": "MIT",[m
+[31m-      "dependencies": {[m
+[31m-        "color-name": "~1.1.4"[m
+[31m-      },[m
+[31m-      "engines": {[m
+[31m-        "node": ">=7.0.0"[m
+[31m-      }[m
+[31m-    },[m
+[31m-    "node_modules/color-name": {[m
+[31m-      "version": "1.1.4",[m
+[31m-      "resolved": "https://registry.npmjs.org/color-name/-/color-name-1.1.4.tgz",[m
+[31m-      "integrity": "sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==",[m
+[31m-      "dev": true,[m
+[31m-      "license": "MIT"[m
+[31m-    },[m
+[31m-    "node_modules/concat-map": {[m
+[31m-      "version": "0.0.1",[m
+[31m-      "resolved": "https://registry.npmjs.org/concat-map/-/concat-map-0.0.1.tgz",[m
+[31m-      "integrity": "sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==",[m
+[31m-      "dev": true,[m
+[31m-      "license": "MIT"[m
+[31m-    },[m
+     "node_modules/consola": {[m
+       "version": "3.4.2",[m
+       "resolved": "https://registry.npmjs.org/consola/-/consola-3.4.2.tgz",[m
+[36m@@ -4659,33 +4531,33 @@[m
+       }[m
+     },[m
+     "node_modules/eslint": {[m
+[31m-      "version": "9.39.5",[m
+[31m-      "resolved": "https://registry.npmjs.org/eslint/-/eslint-9.39.5.tgz",[m
+[31m-      "integrity": "sha512-DgZS62aPLXKlnxILS/AYCoRvHaZeXceIzlXPkkGGzJWSow1aEk0lbTlxUSlyjC8jcaKxAdOnTDz+o1JFSBsyjw==",[m
+[32m+[m[32m      "version": "10.8.0",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/eslint/-/eslint-10.8.0.tgz",[m
+[32m+[m[32m      "integrity": "sha512-nuKKvN+oIBO0koN7Tm7dlkmnkc21mtt0QJLwAKzjLq14y6lRTdVG36MZHJ8eQHwdJMwZbQNMlPOYedMq/oVJvQ==",[m
+       "dev": true,[m
+       "license": "MIT",[m
+[32m+[m[32m      "workspaces": [[m
+[32m+[m[32m        "packages/*"[m
+[32m+[m[32m      ],[m
+       "dependencies": {[m
+         "@eslint-community/eslint-utils": "^4.8.0",[m
+[31m-        "@eslint-community/regexpp": "^4.12.1",[m
+[31m-        "@eslint/config-array": "^0.21.2",[m
+[31m-        "@eslint/config-helpers": "^0.4.2",[m
+[31m-        "@eslint/core": "^0.17.0",[m
+[31m-        "@eslint/eslintrc": "^3.3.6",[m
+[31m-        "@eslint/js": "9.39.5",[m
+[31m-        "@eslint/plugin-kit": "^0.4.1",[m
+[32m+[m[32m        "@eslint-community/regexpp": "^4.12.2",[m
+[32m+[m[32m        "@eslint/config-array": "^0.23.5",[m
+[32m+[m[32m        "@eslint/config-helpers": "^0.7.0",[m
+[32m+[m[32m        "@eslint/core": "^1.2.1",[m
+[32m+[m[32m        "@eslint/plugin-kit": "^0.7.2",[m
+         "@humanfs/node": "^0.16.6",[m
+         "@humanwhocodes/module-importer": "^1.0.1",[m
+         "@humanwhocodes/retry": "^0.4.2",[m
+         "@types/estree": "^1.0.6",[m
+         "ajv": "^6.14.0",[m
+[31m-        "chalk": "^4.0.0",[m
+         "cross-spawn": "^7.0.6",[m
+         "debug": "^4.3.2",[m
+         "escape-string-regexp": "^4.0.0",[m
+[31m-        "eslint-scope": "^8.4.0",[m
+[31m-        "eslint-visitor-keys": "^4.2.1",[m
+[31m-        "espree": "^10.4.0",[m
+[31m-        "esquery": "^1.5.0",[m
+[32m+[m[32m        "eslint-scope": "^9.1.2",[m
+[32m+[m[32m        "eslint-visitor-keys": "^5.0.1",[m
+[32m+[m[32m        "espree": "^11.2.0",[m
+[32m+[m[32m        "esquery": "^1.7.0",[m
+         "esutils": "^2.0.2",[m
+         "fast-deep-equal": "^3.1.3",[m
+         "file-entry-cache": "^8.0.0",[m
+[36m@@ -4695,8 +4567,7 @@[m
+         "imurmurhash": "^0.1.4",[m
+         "is-glob": "^4.0.0",[m
+         "json-stable-stringify-without-jsonify": "^1.0.1",[m
+[31m-        "lodash.merge": "^4.6.2",[m
+[31m-        "minimatch": "^3.1.5",[m
+[32m+[m[32m        "minimatch": "^10.2.5",[m
+         "natural-compare": "^1.4.0",[m
+         "optionator": "^0.9.3"[m
+       },[m
+[36m@@ -4704,7 +4575,7 @@[m
+         "eslint": "bin/eslint.js"[m
+       },[m
+       "engines": {[m
+[31m-        "node": "^18.18.0 || ^20.9.0 || >=21.1.0"[m
+[32m+[m[32m        "node": "^20.19.0 || ^22.13.0 || >=24"[m
+       },[m
+       "funding": {[m
+         "url": "https://eslint.org/donate"[m
+[36m@@ -4789,65 +4660,50 @@[m
+       }[m
+     },[m
+     "node_modules/eslint-scope": {[m
+[31m-      "version": "8.4.0",[m
+[31m-      "resolved": "https://registry.npmjs.org/eslint-scope/-/eslint-scope-8.4.0.

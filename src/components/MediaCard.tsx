@@ -2,9 +2,9 @@ import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import type { MediaSummary, MediaType, WatchStatus } from "@/lib/media-types";
-import { STATUS_LABELS, STATUS_COLORS, getStatusLabel } from "@/lib/media-types";
+import { STATUS_LABELS, getStatusLabel } from "@/lib/media-types";
 import {
-  BookmarkIcon,
+  BookmarkPlus,
   BookmarkCheck,
   Eye,
   CheckCircle2,
@@ -12,6 +12,7 @@ import {
   Loader2,
   Star,
   Trash2,
+  Plus,
 } from "lucide-react";
 import { cacheMedia } from "@/lib/tmdb.functions";
 import { getLibraryItem, upsertLibraryItem, removeLibraryItem } from "@/lib/library.functions";
@@ -60,17 +61,9 @@ function useMediaLibraryEntry(item: MediaSummary) {
   const upsertFn = useServerFn(upsertLibraryItem);
   const removeFn = useServerFn(removeLibraryItem);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const cacheQ = useQuery({
     queryKey: ["media-cache", item.source, item.media_type, item.external_id],
-    queryFn: () =>
-      cacheFn({
-        data: {
-          type: item.media_type,
-          external_id: item.external_id,
-          source: item.source,
-        },
-      }),
+    queryFn: () => cacheFn({ data: { type: item.media_type, external_id: item.external_id, source: item.source } }),
     placeholderData: (prev) => prev,
     staleTime: Infinity,
   }) as UseQueryResult<{ id: string | null }, unknown>;
@@ -92,9 +85,7 @@ function useMediaLibraryEntry(item: MediaSummary) {
 
   const upsertMutation = useMutation({
     mutationFn: async (data: { status?: WatchStatus; favorite?: boolean }) => {
-      if (!mediaId) {
-        throw new Error(cacheFailed && cacheErrorMsg ? cacheErrorMsg : "Media not yet ready");
-      }
+      if (!mediaId) throw new Error(cacheFailed && cacheErrorMsg ? cacheErrorMsg : "Media not yet ready");
       return upsertFn({ data: { media_id: mediaId, ...data } });
     },
     onMutate: async (data) => {
@@ -102,18 +93,12 @@ function useMediaLibraryEntry(item: MediaSummary) {
       const previousEntry = qc.getQueryData<LibraryEntry | null>(["library-entry", mediaId]);
       qc.setQueryData(["library-entry", mediaId], (old: LibraryEntry | null | undefined) => {
         const base = old ?? { id: "", status: "planned" as WatchStatus, favorite: false, rating: null, notes: null };
-        return {
-          ...base,
-          favorite: data.favorite !== undefined ? data.favorite : base.favorite,
-          status: data.status !== undefined ? data.status : base.status,
-        };
+        return { ...base, favorite: data.favorite !== undefined ? data.favorite : base.favorite, status: data.status !== undefined ? data.status : base.status };
       });
       return { previousEntry };
     },
     onError: (err, _vars, context) => {
       qc.setQueryData(["library-entry", mediaId], context?.previousEntry ?? null);
-      const msg = typeof err === "string" ? err : (err as { message?: string })?.message || "Failed to update";
-      toast.error(msg);
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["library-entry", mediaId] });
@@ -124,9 +109,7 @@ function useMediaLibraryEntry(item: MediaSummary) {
 
   const removeMutation = useMutation({
     mutationFn: async () => {
-      if (!mediaId) {
-        throw new Error(cacheFailed && cacheErrorMsg ? cacheErrorMsg : "Media not ready yet");
-      }
+      if (!mediaId) throw new Error(cacheFailed && cacheErrorMsg ? cacheErrorMsg : "Media not ready yet");
       return removeFn({ data: { media_id: mediaId } });
     },
     onMutate: async () => {
@@ -145,13 +128,10 @@ function useMediaLibraryEntry(item: MediaSummary) {
     },
   });
 
-  const upsert = useCallback(
-    async (data: { status?: WatchStatus; favorite?: boolean }) => {
-      if (upsertMutation.isPending || removeMutation.isPending) return;
-      await upsertMutation.mutateAsync(data);
-    },
-    [upsertMutation, removeMutation],
-  );
+  const upsert = useCallback(async (data: { status?: WatchStatus; favorite?: boolean }) => {
+    if (upsertMutation.isPending || removeMutation.isPending) return;
+    await upsertMutation.mutateAsync(data);
+  }, [upsertMutation, removeMutation]);
 
   const remove = useCallback(async () => {
     if (upsertMutation.isPending || removeMutation.isPending) return;
@@ -160,203 +140,105 @@ function useMediaLibraryEntry(item: MediaSummary) {
 
   const isPending = upsertMutation.isPending || removeMutation.isPending;
 
-  return useMemo(
-    () => ({
-      mediaId,
-      entry: entryQ.data,
-      isLoading: cacheQ.isLoading || entryQ.isLoading,
-      isPending,
-      upsert,
-      remove,
-    }),
-    [mediaId, entryQ.data, cacheQ.isLoading, entryQ.isLoading, isPending, upsert, remove],
-  );
+  return useMemo(() => ({
+    mediaId,
+    entry: entryQ.data,
+    isLoading: cacheQ.isLoading || entryQ.isLoading,
+    isPending,
+    upsert,
+    remove,
+  }), [mediaId, entryQ.data, cacheQ.isLoading, entryQ.isLoading, isPending, upsert, remove]);
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
-function MediaEntryProvider({
-  item,
-  children,
-}: {
-  item: MediaSummary;
-  children: React.ReactNode;
-}) {
+function MediaEntryProvider({ item, children }: { item: MediaSummary; children: React.ReactNode }) {
   const value = useMediaLibraryEntry(item);
-  return (
-    <MediaEntryContext.Provider value={value}>{children}</MediaEntryContext.Provider>
-  );
+  return <MediaEntryContext.Provider value={value}>{children}</MediaEntryContext.Provider>;
 }
 
-// ─── Action Panel ──────────────────────────────────────────────────────────────
+// ─── Status Pills ──────────────────────────────────────────────────────────────
 
-/**
- * Polished, modern media action panel.
- * Actions: Watchlist · Watching · Completed · Favorite
- * Before the item is in the library, only the Watchlist button is shown.
- * Each has hover animation, active state, loading spinner, and optimistic updates.
- */
-function MediaActionPanel() {
-  const { entry, isLoading, isPending, upsert, remove } = useMediaEntryContext();
-  const { requireAuth } = useGuest();
+const STATUS_OPTIONS: { value: WatchStatus; label: string; icon: typeof BookmarkPlus }[] = [
+  { value: "planned", label: "Plan to Watch", icon: BookmarkPlus },
+  { value: "watching", label: "Watching", icon: Eye },
+  { value: "completed", label: "Completed", icon: CheckCircle2 },
+];
 
-  const status = entry?.status ?? null;
-  const isFavorite = entry?.favorite ?? false;
-  const isInLibrary = !!entry && !!entry.id;
-  const disabled = isPending || isLoading;
-
-  async function toggleFavorite() {
-    if (!requireAuth("addFavorite")) return;
-    try {
-      await upsert({ favorite: !isFavorite });
-      toast.success(isFavorite ? "Removed from Favorites" : "Added to Favorites");
-    } catch { /* error handled by mutation's onError */ }
-  }
-
-  async function toggleWatchlist() {
-    if (!requireAuth("addToWatchlist")) return;
-    try {
-      if (status === "planned") {
-        await remove();
-        toast.success("Removed from Watchlist");
-      } else {
-        await upsert({ status: "planned" });
-        toast.success("Added to Watchlist");
-      }
-    } catch { /* error handled by mutation's onError */ }
-  }
-
-  async function toggleWatching() {
-    if (!requireAuth("markWatching")) return;
-    try {
-      await upsert({ status: status === "watching" ? "planned" : "watching" });
-      toast.success(status === "watching" ? "Moved to Watchlist" : "Marked as Watching");
-    } catch { /* error handled by mutation's onError */ }
-  }
-
-  async function toggleCompleted() {
-    if (!requireAuth("markCompleted")) return;
-    try {
-      await upsert({ status: status === "completed" ? "planned" : "completed" });
-      toast.success(status === "completed" ? "Moved to Watchlist" : "Marked as Completed");
-    } catch { /* error handled by mutation's onError */ }
-  }
-
-  async function toggleRemove() {
-    if (!confirm("Remove this title from your library?")) return;
-    try {
-      await remove();
-      toast.success("Removed from library");
-    } catch { /* error handled by mutation's onError */ }
-  }
-
-  return (
-    <div className="flex items-center gap-1.5 flex-wrap">
-      <ActionButton
-        onClick={toggleWatchlist}
-        disabled={disabled}
-        active={status === "planned"}
-        activeClass="bg-warning/20 text-warning border-warning/30 hover:bg-warning/25"
-        inactiveClass="bg-muted/40 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-        label={isInLibrary ? "Watchlist" : "Add to Watchlist"}
-        title={status === "planned" ? "Remove from Watchlist" : "Add to Watchlist"}
-        icon={status === "planned" ? <BookmarkCheck className="h-4 w-4" /> : <BookmarkIcon className="h-4 w-4" />}
-      />
-
-      {isInLibrary && (
-        <>
-          <ActionButton
-            onClick={toggleWatching}
-            disabled={disabled}
-            active={status === "watching"}
-            activeClass="bg-primary/20 text-primary border-primary/30 hover:bg-primary/25"
-            inactiveClass="bg-muted/40 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-            label="Watching"
-            title={status === "watching" ? "Stop Watching" : "Start Watching"}
-            icon={<Eye className="h-4 w-4" />}
-          />
-
-          <ActionButton
-            onClick={toggleCompleted}
-            disabled={disabled}
-            active={status === "completed"}
-            activeClass="bg-success/20 text-success border-success/30 hover:bg-success/25"
-            inactiveClass="bg-muted/40 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-            label="Completed"
-            title={status === "completed" ? "Mark as Not Completed" : "Mark as Completed"}
-            icon={<CheckCircle2 className="h-4 w-4" />}
-          />
-
-          <ActionButton
-            onClick={toggleFavorite}
-            disabled={disabled}
-            active={isFavorite}
-            activeClass="bg-accent/20 text-accent border-accent/30 hover:bg-accent/25"
-            inactiveClass="bg-muted/40 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-            label="Favorite"
-            title={isFavorite ? "Remove from Favorites" : "Add to Favorites"}
-            icon={<Heart className={cn("h-4 w-4", isFavorite && "fill-current")} />}
-          />
-
-          <button
-            onClick={toggleRemove}
-            disabled={disabled}
-            title="Remove from library"
-            className="rounded-lg border border-transparent p-1.5 text-muted-foreground/50 hover:text-destructive hover:border-destructive/30 hover:bg-destructive/10 transition-colors"
-          >
-            {disabled ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-          </button>
-        </>
-      )}
-    </div>
-  );
-}
-
-// ─── Action Button ─────────────────────────────────────────────────────────────
-
-interface ActionButtonProps {
-  onClick: () => void;
+function StatusPill({ current, onChange, disabled, onRemove }: {
+  current: WatchStatus | null;
+  onChange: (status: WatchStatus) => Promise<void>;
   disabled: boolean;
-  active: boolean;
-  activeClass: string;
-  inactiveClass: string;
-  label: string;
-  title: string;
-  icon: React.ReactNode;
-}
+  onRemove: () => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
-function ActionButton({
-  onClick,
-  disabled,
-  active,
-  activeClass,
-  inactiveClass,
-  label,
-  title,
-  icon,
-}: ActionButtonProps) {
+  // Close on outside click
+  const handleBlur = useCallback((e: React.FocusEvent) => {
+    if (!ref.current?.contains(e.relatedTarget as Node)) {
+      setTimeout(() => setOpen(false), 150);
+    }
+  }, []);
+
+  const activeOption = STATUS_OPTIONS.find((o) => o.value === current);
+  const Icon = activeOption?.icon ?? BookmarkPlus;
+
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className={cn(
-        "group relative flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-200",
-        "hover:scale-[1.03] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
-        active ? activeClass : inactiveClass,
-        disabled && "opacity-50 cursor-not-allowed hover:scale-100",
-      )}
-    >
-      <span
+    <div ref={ref} className="relative" onBlur={handleBlur} onFocus={() => setOpen(true)}>
+      <button
+        onClick={() => setOpen(!open)}
+        disabled={disabled}
         className={cn(
-          "flex items-center justify-center h-4 w-4 transition-transform duration-200",
-          active && "scale-110",
+          "flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition-all",
+          "hover:scale-[1.02] active:scale-[0.98]",
+          current === "watching" && "border-primary/40 bg-primary/15 text-primary",
+          current === "completed" && "border-success/40 bg-success/15 text-success",
+          current === "planned" && "border-warning/40 bg-warning/15 text-warning",
+          !current && "border-border/50 bg-muted/30 text-muted-foreground hover:text-foreground",
+          disabled && "opacity-50 cursor-not-allowed",
         )}
       >
-        {disabled ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : icon}
-      </span>
-      <span className="hidden sm:inline">{label}</span>
-    </button>
+        {disabled ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
+        <span>{current ? getStatusLabel(current as WatchStatus) : "Add to Watchlist"}</span>
+      </button>
+
+      {open && (
+        <div className="absolute bottom-full left-0 mb-1.5 z-30 min-w-[140px] rounded-xl border border-border/40 bg-card p-1 shadow-2xl shadow-black/40 animate-fade-in">
+          {STATUS_OPTIONS.map((opt) => {
+            const isActive = current === opt.value;
+            return (
+              <button
+                key={opt.value}
+                onClick={async () => {
+                  setOpen(false);
+                  if (isActive) {
+                    await onRemove();
+                  } else {
+                    await onChange(opt.value);
+                  }
+                }}
+                className={cn(
+                  "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
+                  isActive ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+                )}
+              >
+                <opt.icon className="h-4 w-4" />
+                {isActive ? `✓ ${opt.label}` : opt.label}
+              </button>
+            );
+          })}
+          {current && (
+            <button
+              onClick={async () => { setOpen(false); await onRemove(); }}
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
+            >
+              <Trash2 className="h-4 w-4" /> Remove
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -364,73 +246,89 @@ function ActionButton({
 
 const CARD_LINK = "/media/$type/$source/$id" as const;
 
-function StatusBadge({ status, mediaType }: { status: WatchStatus; mediaType?: MediaType }) {
-  return (
-    <span
-      className={cn(
-        "absolute top-2 left-2 rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider shadow-sm backdrop-blur-sm",
-        STATUS_COLORS[status],
-      )}
-    >
-      {getStatusLabel(status, mediaType)}
-    </span>
-  );
-}
-
-function FavoriteBadge() {
-  return (
-    <span className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-accent/90 shadow-sm backdrop-blur-sm">
-      <Heart className="h-3.5 w-3.5 fill-white text-white" />
-    </span>
-  );
-}
-
 const MediaCardInner = memo(function MediaCardInner({ item }: { item: MediaSummary }) {
-  const { entry, isLoading } = useMediaEntryContext();
+  const { entry, isLoading, isPending, upsert, remove } = useMediaEntryContext();
+  const { requireAuth } = useGuest();
   const status = entry?.status ?? null;
   const isFavorite = entry?.favorite ?? false;
 
+  async function handleStatusChange(newStatus: WatchStatus) {
+    if (!requireAuth("addToWatchlist")) return;
+    upsert({ status: newStatus });
+  }
+
+  async function handleRemove() {
+    if (!requireAuth("addToWatchlist")) return;
+    remove();
+  }
+
+  async function toggleFavorite() {
+    if (!requireAuth("addFavorite")) return;
+    upsert({ favorite: !isFavorite });
+  }
+
   return (
-    <div className="group relative block overflow-hidden rounded-xl glass hover:ring-accent transition-all duration-300 hover:-translate-y-1">
-      <Link
-        to={CARD_LINK}
-        params={{ type: item.media_type, source: item.source, id: item.external_id }}
-        className="block"
-      >
+    <div className="group relative block overflow-hidden rounded-xl bg-card/60 border border-border/30 transition-all duration-300 hover:border-border/60 hover:shadow-xl hover:shadow-black/30 hover:-translate-y-0.5">
+      <Link to={CARD_LINK} params={{ type: item.media_type, source: item.source, id: item.external_id }} className="block">
         <div className="aspect-[2/3] bg-muted overflow-hidden relative">
           <SafeImage
-              src={item.poster_url}
-              alt={item.title}
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-              wrapperClassName="h-full w-full"
-            />
-          {status && !isLoading && <StatusBadge status={status} mediaType={item.media_type} />}
-          {isFavorite && <FavoriteBadge />}
+            src={item.poster_url}
+            alt={item.title}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            wrapperClassName="h-full w-full"
+          />
+          {/* Gradient overlay */}
+          <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+          {/* Rating badge */}
+          {item.vote_average != null && (
+            <div className="absolute top-2 left-2 flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-sm px-1.5 py-0.5">
+              <Star className="h-3 w-3 fill-warning text-warning" />
+              <span className="text-[11px] font-bold text-white">{item.vote_average.toFixed(1)}</span>
+            </div>
+          )}
+
+          {/* Favorite button */}
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(); }}
+            className={cn(
+              "absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full transition-all duration-200",
+              isFavorite
+                ? "bg-accent/90 text-white scale-100 opacity-100"
+                : "bg-black/40 text-white/70 opacity-0 group-hover:opacity-100 hover:scale-110",
+            )}
+          >
+            <Heart className={cn("h-3.5 w-3.5", isFavorite && "fill-current")} />
+          </button>
         </div>
       </Link>
 
       <div className="p-3">
-        <Link
-          to={CARD_LINK}
-          params={{ type: item.media_type, source: item.source, id: item.external_id }}
-          className="block"
-        >
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-            <span className="text-accent font-semibold">{item.media_type}</span>
-            {item.release_year ? <span>· {item.release_year}</span> : null}
-            {item.vote_average != null ? (
-              <span className="ml-auto flex items-center gap-1 text-warning">
-                <Star className="h-3 w-3 fill-current" /> {item.vote_average.toFixed(1)}
-              </span>
-            ) : null}
-          </div>
-          <h3 className="mt-1 line-clamp-2 text-sm font-semibold leading-tight">
+        {/* Meta row */}
+        <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground/70">
+          <span className="font-semibold text-primary">{item.media_type}</span>
+          {item.release_year ? <><span>·</span><span>{item.release_year}</span></> : null}
+        </div>
+
+        {/* Title */}
+        <Link to={CARD_LINK} params={{ type: item.media_type, source: item.source, id: item.external_id }} className="block mt-0.5">
+          <h3 className="line-clamp-2 text-sm font-bold leading-tight group-hover:text-primary transition-colors">
             {item.title}
           </h3>
         </Link>
 
-        <div className="mt-3">
-          <MediaActionPanel />
+        {/* Status pill */}
+        <div className="mt-2.5" onClick={(e) => e.stopPropagation()}>
+          {isLoading ? (
+            <div className="h-7 w-28 rounded-lg bg-muted/40 animate-pulse" />
+          ) : (
+            <StatusPill
+              current={status}
+              onChange={handleStatusChange}
+              disabled={isPending}
+              onRemove={handleRemove}
+            />
+          )}
         </div>
       </div>
     </div>
@@ -450,11 +348,13 @@ export function MediaCard({ item }: { item: MediaSummary }) {
 export function MediaGrid({ items }: { items: MediaSummary[] }) {
   if (items.length === 0) {
     return (
-      <p className="py-12 text-center text-sm text-muted-foreground">Nothing here yet.</p>
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <p className="text-sm text-muted-foreground">Nothing here yet.</p>
+      </div>
     );
   }
   return (
-    <div className="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
       {items.map((it, idx) => (
         <MediaCard key={`${it.source}-${it.media_type}-${it.external_id}-${idx}`} item={it} />
       ))}
@@ -462,5 +362,4 @@ export function MediaGrid({ items }: { items: MediaSummary[] }) {
   );
 }
 
-// Re-export context for use in media detail page
 export { MediaEntryProvider, useMediaEntryContext };
