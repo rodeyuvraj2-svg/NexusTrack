@@ -134,10 +134,10 @@ function MediaDetail() {
   });
 
   // ---- Fetch Details (independent of cache) ----
-  const isAnime = (source === "anilist" || source === "jikan") && type !== "manga";
+  const isAnime = source === "anilist" && type !== "manga";
   const isManga = type === "manga";
 
-  // Separate queries for TMDB vs Jikan due to different return types
+  // Separate queries for TMDB vs AniList due to different return types
   const tmdbDetailsQ = useQuery({
     queryKey: ["details", type, id],
     queryFn: () => detailsFn({ data: { type: type as "movie" | "tv", id } }),
@@ -177,7 +177,7 @@ function MediaDetail() {
   // ---- Cache / Media ID (for library features) ----
   const cached = useQuery({
     queryKey: ["cache", type, source, id],
-    queryFn: () => cacheFn({ data: { type: type as "movie" | "tv" | "anime" | "manga", source: source as "tmdb" | "jikan" | "anilist", external_id: id } }),
+    queryFn: () => cacheFn({ data: { type: type as "movie" | "tv" | "anime" | "manga", source: source as "tmdb" | "anilist", external_id: id } }),
     retry: 1,
     staleTime: 60_000,
     // Don't fail the whole page if caching fails — it just means no library features
@@ -297,7 +297,7 @@ function MediaDetail() {
           media:media_id!inner(external_id, source)
         `)
         .eq("user_id", currentUserId!)
-        .in("media.source", ["anilist", "jikan"])
+        .in("media.source", ["anilist"])
         .in("media.external_id", allExternalIds);
       if (error) throw error;
       return data ?? [];

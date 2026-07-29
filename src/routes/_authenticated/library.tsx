@@ -79,7 +79,7 @@ function Library() {
     const rawType = m?.media_type ?? "";
     return {
       external_id: m?.external_id ?? "",
-      source: (rawSource === "tmdb" || rawSource === "anilist" || rawSource === "jikan" ? rawSource : "tmdb") as "tmdb" | "anilist" | "jikan",
+      source: (rawSource === "tmdb" || rawSource === "anilist" ? rawSource : "tmdb") as "tmdb" | "anilist",
       media_type: (rawType === "movie" || rawType === "tv" || rawType === "anime" || rawType === "manga" ? rawType : "movie") as "movie" | "tv" | "anime" | "manga",
       title: m?.title ?? "Unknown",
       overview: null, poster_url: m?.poster_url ?? null, backdrop_url: null,

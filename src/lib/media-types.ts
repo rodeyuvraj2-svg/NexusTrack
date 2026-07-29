@@ -10,7 +10,7 @@ export type WatchStatus =
 
 export interface MediaSummary {
   external_id: string;
-  source: "tmdb" | "jikan" | "anilist";
+  source: "tmdb" | "anilist";
   media_type: MediaType;
   title: string;
   overview?: string | null;

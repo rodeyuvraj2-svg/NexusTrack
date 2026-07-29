@@ -176,10 +176,7 @@ function Brand({ compact = false }: { compact?: boolean }) {
       <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-accent shadow-lg">
         <span className="text-sm font-black text-white">N</span>
       </div>
-      <div className="leading-tight">
-        <div className="text-base font-bold tracking-tight">Nexus<span className="text-primary">Track</span></div>
-        <div className="text-[9px] text-muted-foreground/60 uppercase tracking-widest">one list, every screen</div>
-      </div>
+      <span className="text-base font-bold">Nexus<span className="text-primary">Track</span></span>
     </Link>
   );
 }
