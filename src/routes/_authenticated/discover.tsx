@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { discover, trending, getGenres } from "@/lib/tmdb.functions";
 import { topAnime, topManga } from "@/lib/anilist.functions";
 import { MediaGrid } from "@/components/MediaCard";
@@ -40,7 +40,7 @@ function Discover() {
   const [tab, setTab] = useState<MediaType>("movie");
   const [sort, setSort] = useState<SortMode>("all");
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
-  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const trendingFn = useServerFn(trending);
   const discoverFn = useServerFn(discover);
@@ -99,28 +99,42 @@ function Discover() {
     },
     initialPageParam: 1,
     getNextPageParam: (lastPage, _allPages, lastPageParam) => {
-      if (!lastPage || lastPage.length < 20) return undefined;
-      return (lastPageParam as number) + 1;
+      const page = lastPageParam as number;
+      if (!lastPage || lastPage.length === 0 || page >= 500) return undefined;
+      return page + 1;
     },
     staleTime: 120_000,
     retry: 2,
   });
 
-  // Infinite scroll
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const sentinelRef = (el: HTMLDivElement | null) => {
-    if (observerRef.current) observerRef.current.disconnect();
-    if (!el) return;
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && q.hasNextPage && !q.isFetchingNextPage) q.fetchNextPage();
-      },
-      { rootMargin: "300px" },
-    );
-    observerRef.current.observe(el);
-  };
+  const fetchNextPage = q.fetchNextPage;
+  const hasNextPage = q.hasNextPage;
+  const isFetchingNextPage = q.isFetchingNextPage;
 
-  const items: MediaSummary[] = q.data?.pages.flatMap((p) => p ?? []).filter(Boolean) ?? [];
+  // Infinite scroll observer
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { rootMargin: "600px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const rawItems: MediaSummary[] = q.data?.pages.flatMap((p) => p ?? []).filter(Boolean) ?? [];
+  const seen = new Set<string>();
+  const items = rawItems.filter((item) => {
+    const key = `${item.source}-${item.media_type}-${item.external_id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 
   return (
     <div className="overflow-x-hidden">

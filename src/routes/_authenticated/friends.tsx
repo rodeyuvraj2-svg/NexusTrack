@@ -51,7 +51,17 @@ function Friends() {
 
   const invalidate = () => { qc.invalidateQueries({ queryKey: ["friends"] }); qc.invalidateQueries({ queryKey: ["user-search"] }); };
 
-  const mSend = useMutation({ mutationFn: (id: string) => sendFn({ data: { user_id: id } }), onSuccess: () => { invalidate(); toast.success("Request sent"); } });
+  const mSend = useMutation({
+    mutationFn: (id: string) => sendFn({ data: { user_id: id } }),
+    onSuccess: (res) => {
+      invalidate();
+      const status = res?.status;
+      if (status === "already_friends") toast.info("You're already friends!");
+      else if (status === "pending") toast.info("Request already sent.");
+      else if (status === "accepted") toast.success("Friendship accepted!");
+      else toast.success("Request sent");
+    },
+  });
   const mResp = useMutation({ mutationFn: (v: { id: string; accept: boolean }) => respFn({ data: v }), onSuccess: invalidate });
   const mRm = useMutation({ mutationFn: (id: string) => rmFn({ data: { id } }), onSuccess: invalidate });
 
@@ -68,7 +78,8 @@ function Friends() {
             {search.data.length === 0 ? <p className="text-sm text-muted-foreground">No matches.</p> : null}
             {search.data.map((u) => {
               const isAccepted = friends.data?.accepted?.some((f: any) => (f.profile as any)?.id === u.id);
-              const isIncoming = friends.data?.incoming?.some((f: any) => (f.profile as any)?.id === u.id);
+              const incomingReq = friends.data?.incoming?.find((f: any) => (f.profile as any)?.id === u.id);
+              const isIncoming = !!incomingReq;
               const isOutgoing = friends.data?.outgoing?.some((f: any) => (f.profile as any)?.id === u.id);
               return (
               <li key={u.id} className="flex items-center gap-3 rounded-lg bg-muted/30 p-2.5">
@@ -82,7 +93,22 @@ function Friends() {
                 {isAccepted ? (
                   <span className="text-xs text-muted-foreground shrink-0">Friends</span>
                 ) : isIncoming ? (
-                  <span className="text-xs text-muted-foreground shrink-0">Request sent to you</span>
+                  <div className="flex shrink-0 gap-1.5">
+                    <button
+                      onClick={() => mResp.mutate({ id: incomingReq.id, accept: true })}
+                      className="rounded-lg bg-success/20 text-success p-2 hover:bg-success/30 transition-colors"
+                      title="Accept request"
+                    >
+                      <Check className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => mResp.mutate({ id: incomingReq.id, accept: false })}
+                      className="rounded-lg bg-destructive/20 text-destructive p-2 hover:bg-destructive/30 transition-colors"
+                      title="Decline request"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
                 ) : isOutgoing ? (
                   <span className="text-xs text-muted-foreground shrink-0">Request sent</span>
                 ) : (

@@ -11,7 +11,35 @@ export const listNotifications = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false })
       .limit(50);
     if (error) throw error;
-    return rows ?? [];
+
+    // Resolve friend notification payloads into friendly, human-readable messages.
+    const friendKinds = ["friend_request", "friend_accept"];
+    const fromUserIds = Array.from(new Set(
+      (rows ?? [])
+        .filter((n) => friendKinds.includes(n.kind))
+        .map((n) => ((n.payload as Record<string, string> | null)?.from_user_id ?? ""))
+        .filter(Boolean),
+    ));
+
+    let pmap = new Map<string, { username: string; display_name: string | null }>();
+    if (fromUserIds.length > 0) {
+      const { data: profiles } = await context.supabase
+        .from("profiles")
+        .select("id, username, display_name")
+        .in("id", fromUserIds);
+      pmap = new Map((profiles ?? []).map((p) => [p.id, p]));
+    }
+
+    const enrich = (n: (typeof rows)[number]) => {
+      const payload = (n.payload ?? {}) as Record<string, string | null>;
+      const from = payload.from_user_id ? pmap.get(payload.from_user_id) : undefined;
+      const name = from?.display_name || from?.username || "Someone";
+      if (n.kind === "friend_request") return { ...n, payload: { ...payload, message: `${name} sent you a friend request` } };
+      if (n.kind === "friend_accept") return { ...n, payload: { ...payload, message: `${name} accepted your friend request` } };
+      return { ...n, payload };
+    };
+
+    return (rows ?? []).map(enrich);
   });
 
 export const markNotificationRead = createServerFn({ method: "POST" })

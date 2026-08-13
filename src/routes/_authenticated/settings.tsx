@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { exportLibrary, importLibrary } from "@/lib/import-export.functions";
-import { deleteAccount } from "@/lib/auth.functions";
+import { deleteAccount, getProfile } from "@/lib/auth.functions";
 import { EmptyState } from "@/components/EmptyState";
 import { useGuest } from "@/lib/guest";
 import { toast } from "sonner";
@@ -44,14 +44,16 @@ function Settings() {
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const profileFn = useServerFn(getProfile);
+  const profileQ = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => profileFn(),
+    staleTime: 60_000,
+  });
+
   useEffect(() => {
-    (async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return;
-      const { data } = await supabase.from("profiles").select("*").eq("id", u.user.id).maybeSingle();
-      if (data) setProfile(data);
-    })();
-  }, []);
+    if (profileQ.data) setProfile(profileQ.data);
+  }, [profileQ.data]);
 
   async function saveProfile() {
     if (!profile) return;
@@ -208,6 +210,18 @@ function SettingsSkeleton() {
   return (
     <div className="animate-pulse space-y-6 max-w-2xl">
       <div className="h-9 w-48 rounded bg-muted" />
+      <div className="glass-strong rounded-2xl p-6 space-y-4">
+        <div className="h-6 w-32 rounded bg-muted" />
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="space-y-2">
+              <div className="h-3 w-20 rounded bg-muted/30" />
+              <div className="h-10 w-full rounded bg-muted/20" />
+            </div>
+          ))}
+        </div>
+        <div className="h-10 w-32 rounded bg-muted/30" />
+      </div>
       {Array.from({ length: 2 }).map((_, i) => (
         <div key={i} className="glass-strong rounded-2xl p-6 h-48" />
       ))}

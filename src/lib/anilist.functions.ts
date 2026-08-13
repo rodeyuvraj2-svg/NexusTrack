@@ -146,6 +146,7 @@ async function anilist<T>(query: string, variables: Record<string, unknown> = {}
 
   if (!res.ok) throw new Error(`AniList ${res.status}: ${await res.text()}`);
   const json = (await res.json()) as { data: T; errors?: { message: string }[] };
+  if (!json || !json.data) throw new Error(`AniList API response missing data`);
   if (json.errors?.length) throw new Error(`AniList GraphQL error: ${json.errors[0].message}`);
   return json.data;
 }
@@ -164,7 +165,7 @@ function toSummary(a: AniListMedia): MediaSummary {
     poster_url: poster,
     backdrop_url: a.bannerImage || poster,
     release_year: a.seasonYear ?? null,
-    vote_average: a.averageScore ? a.averageScore / 10 : null,
+    vote_average: (a.averageScore !== null && a.averageScore !== undefined) ? a.averageScore / 10 : null,
     genres: a.genres ?? [],
     runtime: a.duration ?? null,
     season_count: a.episodes ?? null,
@@ -183,7 +184,7 @@ function toMangaSummary(a: AniListMedia): MediaSummary {
     poster_url: a.coverImage?.extraLarge || a.coverImage?.large || null,
     backdrop_url: a.bannerImage || null,
     release_year: a.seasonYear ?? null,
-    vote_average: a.averageScore ? a.averageScore / 10 : null,
+    vote_average: (a.averageScore !== null && a.averageScore !== undefined) ? a.averageScore / 10 : null,
     genres: a.genres ?? [],
     chapter_count: a.chapters ?? null,
     volume_count: a.volumes ?? null,
@@ -401,6 +402,7 @@ export const getAnimeDetails = createServerFn({ method: "GET" })
       );
 
       const a = result.Media;
+      if (!a) throw new Error(`Anime not found (ID: ${data.id})`);
 
       // Build relations — filter to ANIME-format entries only
       const ANIME_FORMATS = new Set(["TV", "TV_SHORT", "MOVIE", "SPECIAL", "OVA", "ONA", "MUSIC"]);
@@ -606,6 +608,7 @@ export const getMangaDetails = createServerFn({ method: "GET" })
         { id: Number(data.id) },
       );
       const a = result.Media;
+      if (!a) throw new Error(`Anime not found (ID: ${data.id})`);
       const MANGA_FORMATS = new Set(["MANGA", "ONE_SHOT", "NOVEL", "DOUJIN"]);
       const relations = (a.relations?.edges ?? [])
         .filter((edge) => MANGA_FORMATS.has(edge.node.format ?? ""))

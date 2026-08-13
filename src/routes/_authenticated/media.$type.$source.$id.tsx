@@ -1,14 +1,14 @@
 import { createFileRoute, useParams, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient, useMutation, type UseQueryResult } from "@tanstack/react-query";
-import { getDetails, cacheMedia, getRecommendations, getCast, reclassifyMedia } from "@/lib/tmdb.functions";
+import { getDetails, cacheMedia, getRecommendations, getCast, reclassifyMedia, getTrailerKey } from "@/lib/tmdb.functions";
 import { getAnimeDetails, getMultipleAnimeDetails, getMangaDetails, getMultipleMangaDetails } from "@/lib/anilist.functions";
 import { getLibraryItem, upsertLibraryItem, removeLibraryItem, listSeasonsWithProgress, setSeasonStatus } from "@/lib/library.functions";
 import { listReviews, upsertReview, deleteReview, toggleReviewLike } from "@/lib/reviews.functions";
 import { STATUS_LABELS, STATUS_COLORS, getStatusLabel, type WatchStatus, type MediaSummary } from "@/lib/media-types";
 import { MediaGrid } from "@/components/MediaCard";
 import { SafeImage } from "@/components/SafeImage";
-import { Star, Heart, Trash2, Check, ThumbsUp, MessageSquare, List, Play, CircleCheck, ArrowLeft, ExternalLink, Globe, BookmarkPlus } from "lucide-react";
+import { Star, Heart, Trash2, Check, ThumbsUp, MessageSquare, List, Play, CircleCheck, ArrowLeft, ExternalLink, Globe, BookmarkPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -276,6 +276,17 @@ function MediaDetail() {
     staleTime: 300_000,
   });
 
+  // ---- Trailer ----
+  const getTrailerFn = useServerFn(getTrailerKey);
+  const trailerQ = useQuery({
+    queryKey: ["trailer", type, id],
+    queryFn: () => getTrailerFn({ data: { type: type as "movie" | "tv", id } }),
+    enabled: isTmdbWithType,
+    staleTime: Infinity,
+  });
+  const [showTrailerModal, setShowTrailerModal] = useState(false);
+  const trailerKey = trailerQ.data;
+
   // ---- Reviews ----
   const reviews = useQuery({
     queryKey: ["reviews", mediaId],
@@ -517,21 +528,24 @@ function MediaDetail() {
 
   return (
     <div className="overflow-x-hidden max-w-full">
-      {/* Hero backdrop (shared) */}
-      <div className="relative -mx-4 md:-mx-8 -mt-6 md:-mt-10 h-48 md:h-80 overflow-hidden mb-4 md:mb-8">
-        {summary.backdrop_url ? (
-          <SafeImage src={summary.backdrop_url} alt="" wrapperClassName="h-full w-full" className="h-full w-full object-cover opacity-30" />
-        ) : <div className="h-full w-full bg-gradient-to-br from-primary/20 to-accent/20" />}
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
+      {/* Hero wrapper — relative so the back button can sit over the photo */}
+      <div className="relative -mx-4 md:-mx-8 -mt-6 md:-mt-10 mb-4 md:mb-8">
+        {/* Backdrop photo */}
+        <div className="h-48 md:h-80 overflow-hidden">
+          {summary.backdrop_url ? (
+            <SafeImage src={summary.backdrop_url} alt="" wrapperClassName="h-full w-full" className="h-full w-full object-cover opacity-30" />
+          ) : <div className="h-full w-full bg-gradient-to-br from-primary/20 to-accent/20" />}
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
+        </div>
 
-        {/* Back button */}
+        {/* Back button — absolute over the photo, offset for negative margins */}
         <button
           onClick={() => window.history.back()}
-          className="absolute top-4 left-4 z-10 flex items-center gap-1.5 rounded-full bg-background/80 backdrop-blur-md px-3 py-2 text-sm font-medium hover:bg-background/90 transition-colors shadow-lg"
+          className="absolute top-4 left-4 md:top-6 md:left-8 z-20 inline-flex items-center gap-2 rounded-full bg-background/70 border border-border/40 backdrop-blur-md px-4 py-2 text-sm font-semibold text-foreground hover:bg-background/90 transition-all shadow-xl"
           title="Go back"
         >
           <ArrowLeft className="h-4 w-4" />
-          <span className="hidden xs:inline">Back</span>
+          <span className="hidden sm:inline">Back</span>
         </button>
       </div>
 
@@ -791,6 +805,14 @@ function MediaDetail() {
             {entry ? (
               <button onClick={handleRemove} disabled={mRemove.isPending} className="rounded-lg px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/10">
                 <Trash2 className="inline h-4 w-4 mr-1" /> Remove
+              </button>
+            ) : null}
+            {trailerKey ? (
+              <button
+                onClick={() => setShowTrailerModal(true)}
+                className="rounded-lg bg-destructive/15 border border-destructive/30 px-4 py-2 text-sm font-semibold text-destructive hover:bg-destructive/25 transition-colors flex items-center gap-1.5"
+              >
+                <Play className="h-4 w-4 fill-current" /> Watch Trailer
               </button>
             ) : null}
           </div>

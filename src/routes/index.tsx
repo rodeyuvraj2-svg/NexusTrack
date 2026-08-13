@@ -56,7 +56,10 @@ function Landing() {
 
         <div className="relative z-10 max-w-4xl mx-auto">
           {/* Badge */}
-          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-border/40 bg-card/50 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur-sm">
+          <div
+            className="mb-8 inline-flex items-center gap-2 rounded-full border border-border/40 bg-card/50 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur-sm animate-hero-fade-in"
+            style={{ animationDelay: '0s' }}
+          >
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
@@ -65,7 +68,10 @@ function Landing() {
           </div>
 
           {/* Heading */}
-          <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black leading-[0.92] tracking-tighter">
+          <h1
+            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black leading-[0.9] tracking-tighter animate-hero-fade-in"
+            style={{ animationDelay: '0.1s' }}
+          >
             Track{" "}
             <span className="text-primary">Movies.</span>
             <br />
@@ -75,11 +81,17 @@ function Landing() {
             All in One Place.
           </h1>
 
-          <p className="mt-6 mx-auto max-w-xl text-base sm:text-lg text-muted-foreground/90 leading-relaxed">
+          <p
+            className="mt-6 mx-auto max-w-xl text-base sm:text-lg text-muted-foreground/90 leading-relaxed animate-hero-fade-in"
+            style={{ animationDelay: '0.2s' }}
+          >
             Stop juggling five apps. Track what you watch, discover what's next, and copy titles straight from your friends. Free, forever.
           </p>
 
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div
+            className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 animate-hero-fade-in"
+            style={{ animationDelay: '0.3s' }}
+          >
             <Link
               to="/auth"
               className="group inline-flex items-center gap-2 rounded-xl bg-gradient-accent px-8 py-4 text-base font-semibold text-white shadow-xl shadow-primary/30 hover:shadow-primary/50 transition-all btn-press"
@@ -89,17 +101,24 @@ function Landing() {
             </Link>
             <a
               href="#features"
-              className="inline-flex items-center gap-2 rounded-xl border border-border/50 bg-card/30 px-8 py-4 text-sm font-medium text-foreground/80 backdrop-blur-sm hover:bg-card/60 transition-colors btn-press"
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-border/50 bg-card/30 px-8 py-4 text-sm font-medium text-foreground/80 backdrop-blur-sm hover:bg-card/60 transition-colors btn-press cursor-pointer"
             >
               See features
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
             </a>
           </div>
         </div>
 
         {/* Mock preview */}
-        <div className="relative z-10 mt-20 w-full max-w-5xl mx-auto">
-          <div className="glass-strong rounded-2xl p-3 md:p-4 shadow-2xl">
+        <div
+          className="relative z-10 mt-20 w-full max-w-5xl mx-auto animate-hero-fade-in"
+          style={{ animationDelay: '0.4s' }}
+        >
+          <div className="glass-strong rounded-2xl p-3 md:p-4 shadow-2xl image-glow-border">
             <div className="flex items-center gap-2 mb-3 px-2">
               <div className="h-2.5 w-2.5 rounded-full bg-destructive/50" />
               <div className="h-2.5 w-2.5 rounded-full bg-warning/50" />
@@ -130,6 +149,21 @@ function Landing() {
               ))}
             </div>
           </div>
+        </div>
+
+        {/* Tailcast-style Shape Divider */}
+        <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-[0]">
+          <svg
+            className="relative block w-full h-[60px] md:h-[120px]"
+            viewBox="0 0 1200 120"
+            preserveAspectRatio="none"
+            fill="currentColor"
+          >
+            <path
+              className="fill-background"
+              d="M1200 0L0 0 598.97 114.72 1200 0z"
+            />
+          </svg>
         </div>
       </section>
 

@@ -13,6 +13,7 @@ export const followUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: { following_id: string }) => data)
   .handler(async ({ context, data }) => {
+    if (data.following_id === context.userId) throw new Error("Cannot follow yourself");
     const { error } = await (context.supabase as any)
       .from("follows")
       .insert({ follower_id: context.userId, following_id: data.following_id });

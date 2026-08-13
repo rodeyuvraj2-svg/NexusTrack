@@ -80,7 +80,7 @@ function useMediaLibraryEntry(item: MediaSummary) {
     queryFn: () => getLibFn({ data: { media_id: mediaId! } }),
     enabled: !!mediaId,
     placeholderData: (prev) => prev,
-    staleTime: 30_000,
+    staleTime: 5 * 60_000,
   });
 
   const upsertMutation = useMutation({
@@ -174,7 +174,7 @@ function StatusPill({ current, onChange, disabled, onRemove }: {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Close on outside click
+  // Close when focus leaves the entire pill+dropdown group
   const handleBlur = useCallback((e: React.FocusEvent) => {
     if (!ref.current?.contains(e.relatedTarget as Node)) {
       setTimeout(() => setOpen(false), 150);
@@ -185,7 +185,7 @@ function StatusPill({ current, onChange, disabled, onRemove }: {
   const Icon = activeOption?.icon ?? BookmarkPlus;
 
   return (
-    <div ref={ref} className="relative" onBlur={handleBlur} onFocus={() => setOpen(true)}>
+    <div ref={ref} className="relative" onBlur={handleBlur}>
       <button
         onClick={() => setOpen(!open)}
         disabled={disabled}
