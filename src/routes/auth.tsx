@@ -48,7 +48,7 @@ function AuthPage() {
     async function init() {
       const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
       const code = params?.get("code");
-      if (code) {
+      if (code && typeof window !== "undefined") {
         await supabase.auth.exchangeCodeForSession(code).catch(() => {});
         window.history.replaceState({}, document.title, window.location.pathname);
       }
@@ -59,7 +59,7 @@ function AuthPage() {
         const { data: userData } = await supabase.auth.getUser();
         if (cancelled) return;
         if (userData?.user) {
-          if (!isRecovering) window.location.replace("/dashboard");
+          if (!isRecovering && typeof window !== "undefined") window.location.replace("/dashboard");
         } else {
           await supabase.auth.signOut();
           setChecking(false);

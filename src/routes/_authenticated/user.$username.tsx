@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getPublicProfile, copyFromFriend } from "@/lib/friends.functions";
 import { STATUS_LABELS, STATUS_COLORS, getStatusLabel, type WatchStatus } from "@/lib/media-types";
-import { Film, Heart, Check, BookmarkIcon, Plus, Users, UserPlus, UserCheck, Clock } from "lucide-react";
+import { Film, Heart, Check, BookmarkIcon, Plus, Users, UserPlus, UserCheck, Clock, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getFollowCounts, getFollowers, getFollowing, isFollowing, followUser, unfollowUser } from "@/lib/follows.functions";
@@ -118,6 +118,16 @@ function FriendProfile() {
 
   return (
     <div>
+      {/* Back button */}
+      <button
+        onClick={() => window.history.back()}
+        className="mb-6 inline-flex items-center gap-2 rounded-full bg-muted border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground transition-all shadow-md"
+        title="Go back"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        <span>Back</span>
+      </button>
+
       {/* Header */}
       <div className="mb-8 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
         {profile.avatar_url ? (
@@ -157,7 +167,7 @@ function FriendProfile() {
             )
           ) : null}
           {isPrivate && (
-            <p className="mt-2 text-xs text-muted-foreground italic">This profile is private. Follow them to see their library.</p>
+            <p className="mt-2 text-xs text-muted-foreground italic">This profile is private. Send a friend request to see their library.</p>
           )}
         </div>
       </div>

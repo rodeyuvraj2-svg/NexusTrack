@@ -1,14 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { listLibrary } from "@/lib/library.functions";
 import { MediaGrid } from "@/components/MediaCard";
 import { EmptyState } from "@/components/EmptyState";
 import { useGuest } from "@/lib/guest";
 import type { WatchStatus, MediaSummary } from "@/lib/media-types";
-import { Film, Eye, BookmarkPlus, CheckCircle2, Heart, Search, Loader2 } from "lucide-react";
+import { Film, Eye, BookmarkPlus, CheckCircle2, Heart, Search, Loader2, ArrowUpDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const STATUSES = [
   { key: "all", label: "All", icon: Film },
@@ -21,6 +28,8 @@ const STATUSES = [
 const TYPES = ["all", "movie", "tv", "anime", "manga"] as const;
 type FilterStatus = (typeof STATUSES)[number]["key"];
 type MediaFilterType = (typeof TYPES)[number];
+type SortOption = "recent" | "title" | "rating" | "year";
+type SortDirection = "asc" | "desc";
 
 export const Route = createFileRoute("/_authenticated/library")({
   head: () => ({
@@ -36,6 +45,9 @@ function Library() {
   const { isGuest } = useGuest();
   const [status, setStatus] = useState<FilterStatus>("all");
   const [type, setType] = useState<MediaFilterType>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<SortOption>("recent");
+  const [sortDir, setSortDir] = useState<SortDirection>("desc");
   const fn = useServerFn(listLibrary);
 
   if (isGuest) {
@@ -70,7 +82,7 @@ function Library() {
   });
 
   const rows = q.data ?? [];
-  const items: MediaSummary[] = rows.map((r) => {
+  const rawItems: MediaSummary[] = rows.map((r) => {
     const m = r.media as unknown as {
       media_type: string; source: string; external_id: string; title: string;
       poster_url: string | null; release_year: number | null; vote_average: number | null;
@@ -87,6 +99,31 @@ function Library() {
       genres: [], runtime: null, season_count: null, status: null,
     };
   }).filter((i) => i.external_id);
+
+  // Client-side search and sorting
+  const items = useMemo(() => {
+    let result = [...rawItems];
+    if (searchQuery.trim()) {
+      const qLower = searchQuery.toLowerCase().trim();
+      result = result.filter((item) => item.title.toLowerCase().includes(qLower));
+    }
+
+    if (sortBy !== "recent") {
+      result.sort((a, b) => {
+        let comparison = 0;
+        if (sortBy === "title") {
+          comparison = a.title.localeCompare(b.title);
+        } else if (sortBy === "rating") {
+          comparison = (a.vote_average ?? 0) - (b.vote_average ?? 0);
+        } else if (sortBy === "year") {
+          comparison = (a.release_year ?? 0) - (b.release_year ?? 0);
+        }
+
+        return sortDir === "asc" ? comparison : -comparison;
+      });
+    }
+    return result;
+  }, [rawItems, searchQuery, sortBy, sortDir]);
 
   return (
     <div>
@@ -116,6 +153,51 @@ function Library() {
             </button>
           );
         })}
+      </div>
+
+      {/* Search & Sort bar */}
+      <div className="mb-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        {/* Search input */}
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search saved titles..."
+            className="w-full rounded-xl border border-border/40 bg-card/40 pl-9 pr-8 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Sort dropdown */}
+        <div className="flex items-center gap-2 shrink-0">
+          <div
+            onClick={() => setSortDir(prev => prev === "asc" ? "desc" : "asc")}
+            className="p-2 rounded-lg glass cursor-pointer hover:bg-muted/40 transition-colors text-muted-foreground hover:text-foreground"
+            title={`Sort ${sortDir === "asc" ? "Ascending" : "Descending"}`}
+          >
+            <ArrowUpDown className={cn("h-4 w-4 transition-transform", sortDir === "desc" && "-rotate-180")} />
+          </div>
+          <Select value={sortBy} onValueChange={(val) => setSortBy(val as SortOption)}>
+            <SelectTrigger className="w-full max-w-[180px] rounded-xl border border-border/40 bg-card/40 px-3 py-2 text-sm font-medium text-foreground focus:border-primary/50 focus:outline-none cursor-pointer">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl bg-card/90 backdrop-blur-xl border-border/40">
+              <SelectItem value="recent">Recently Added</SelectItem>
+              <SelectItem value="title">Title</SelectItem>
+              <SelectItem value="rating">Rating</SelectItem>
+              <SelectItem value="year">Release Year</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Type filter pills */}

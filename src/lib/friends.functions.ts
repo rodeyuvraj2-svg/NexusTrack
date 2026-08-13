@@ -79,6 +79,32 @@ export const sendFriendRequest = createServerFn({ method: "POST" })
   .validator((input) => z.object({ user_id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     if (data.user_id === context.userId) throw new Error("Cannot friend yourself");
+
+    // Check for an existing friendship in EITHER direction.
+    // The unique constraint is directional, so sending a request to someone
+    // who already requested you would otherwise create a duplicate row.
+    const { data: existing } = await context.supabase
+      .from("friendships")
+      .select("id, status, requester_id, addressee_id")
+      .or(`and(requester_id.eq.${context.userId},addressee_id.eq.${data.user_id}),and(requester_id.eq.${data.user_id},addressee_id.eq.${context.userId})`)
+      .maybeSingle();
+
+    if (existing) {
+      // Already friends — nothing to do.
+      if (existing.status === "accepted") return { ok: true, status: "already_friends" };
+      // I already sent a pending request — nothing to do.
+      if (existing.requester_id === context.userId) return { ok: true, status: "pending" };
+      // They requested me first — auto-accept instead of creating a duplicate.
+      // (The DB trigger then creates the mutual follows.)
+      const { error: acceptError } = await context.supabase
+        .from("friendships")
+        .update({ status: "accepted" })
+        .eq("id", existing.id)
+        .eq("addressee_id", context.userId);
+      if (acceptError) throw acceptError;
+      return { ok: true, status: "accepted" };
+    }
+
     const { error } = await context.supabase.from("friendships").insert({
       requester_id: context.userId,
       addressee_id: data.user_id,
@@ -86,7 +112,7 @@ export const sendFriendRequest = createServerFn({ method: "POST" })
     });
     // 23505 = unique constraint violation (duplicate friendship request)
     if (error && error.code !== "23505") throw error;
-    return { ok: true };
+    return { ok: true, status: "sent" };
   });
 
 export const respondFriendRequest = createServerFn({ method: "POST" })

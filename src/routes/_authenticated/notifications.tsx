@@ -14,6 +14,7 @@ export const Route = createFileRoute("/_authenticated/notifications")({
 
 const KIND_ICONS: Record<string, typeof Bell> = {
   friend_request: UserPlus,
+  friend_accept: Users,
   friend_accepted: Users,
   copied: Heart,
   new_season: Film,
@@ -70,8 +71,14 @@ function Notifications() {
 
       {q.isLoading ? (
         <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="glass rounded-xl p-4 h-16 animate-pulse" />
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="glass rounded-xl p-4 h-20 animate-pulse flex gap-3">
+              <div className="h-9 w-9 shrink-0 rounded-lg bg-muted/40" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-3/4 rounded bg-muted/30" />
+                <div className="h-3 w-1/4 rounded bg-muted/20" />
+              </div>
+            </div>
           ))}
         </div>
       ) : (q.data?.length ?? 0) === 0 ? (

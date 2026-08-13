@@ -4,11 +4,17 @@ import { supabase } from "@/integrations/supabase/client";
 const GUEST_KEY = "nt_guest";
 const GUEST_ID_KEY = "nt_guest_id";
 
+function isClient() {
+  return typeof window !== "undefined";
+}
+
 function generateGuestId(): string {
+  if (!isClient()) return "";
   return crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
 function loadGuestState(): boolean {
+  if (!isClient()) return false;
   try {
     return localStorage.getItem(GUEST_KEY) === "true";
   } catch {
@@ -17,6 +23,7 @@ function loadGuestState(): boolean {
 }
 
 function saveGuestState(isGuest: boolean) {
+  if (!isClient()) return;
   try {
     if (isGuest) {
       localStorage.setItem(GUEST_KEY, "true");
@@ -33,6 +40,7 @@ function saveGuestState(isGuest: boolean) {
 }
 
 export function getGuestId(): string | null {
+  if (!isClient()) return null;
   try {
     return localStorage.getItem(GUEST_ID_KEY);
   } catch {
@@ -73,12 +81,18 @@ interface GuestContextValue {
 const GuestContext = createContext<GuestContextValue | null>(null);
 
 export function GuestProvider({ children }: { children: ReactNode }) {
-  const [isGuest, setIsGuest] = useState<boolean>(() => loadGuestState());
-  const [guestId] = useState<string | null>(() => getGuestId());
+  const [isGuest, setIsGuest] = useState<boolean>(false);
+  const [guestId, setGuestId] = useState<string | null>(null);
   const [restrictedAction, setRestrictedAction] = useState<RestrictedAction | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   // Auto-disable guest mode when a real user signs in
   useEffect(() => {
+    setMounted(true);
+    // Sync guest state from localStorage on mount (client-side only)
+    setIsGuest(loadGuestState());
+    setGuestId(getGuestId());
+
     // Check on mount if there's already a session
     supabase.auth.getSession().then(({ data }) => {
       if (data?.session) {
@@ -125,7 +139,7 @@ export function GuestProvider({ children }: { children: ReactNode }) {
     <GuestContext.Provider
       value={{ isGuest, guestId, enableGuest, disableGuest, restrictedAction, setRestrictedAction, requireAuth }}
     >
-      {children}
+      {!mounted ? <div style={{ visibility: "hidden" }}>{children}</div> : children}
     </GuestContext.Provider>
   );
 }

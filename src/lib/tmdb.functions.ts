@@ -82,7 +82,7 @@ async function tmdb<T>(path: string, params: Record<string, string | number | un
   }
 }
 
-function imgUrl(path: string | null | undefined, size = "w500") {
+function imgUrl(path: string | null | undefined, size = "w342") {
   return path ? `${IMG}/${size}${path}` : null;
 }
 
@@ -535,6 +535,25 @@ export const getGenres = createServerFn({ method: "GET" })
       return res.genres ?? [];
     } catch {
       return [] as Genre[];
+    }
+  });
+
+// ----- Video / Trailer helper -----
+
+export const getTrailerKey = createServerFn({ method: "GET" })
+  .validator((input) => z.object({ type: z.enum(["movie", "tv"]), id: z.string() }).parse(input))
+  .handler(async ({ data }) => {
+    try {
+      const res = await tmdb<{ results: Array<{ key: string; site: string; type: string; official?: boolean }> }>(
+        `/${data.type}/${data.id}/videos`,
+      );
+      const videos = res.results ?? [];
+      const trailer = videos.find((v) => v.site === "YouTube" && v.type === "Trailer" && v.official)
+        ?? videos.find((v) => v.site === "YouTube" && v.type === "Trailer")
+        ?? videos.find((v) => v.site === "YouTube");
+      return trailer?.key ?? null;
+    } catch {
+      return null;
     }
   });
 

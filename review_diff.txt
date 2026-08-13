@@ -1,0 +1,1522 @@
+diff --git a/package-lock.json b/package-lock.json
+index ef09407..fd9d7d4 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -3893,23 +3893,6 @@
+         "acorn": "^6.0.0 || ^7.0.0 || ^8.0.0"
+       }
+     },
+-    "node_modules/ajv": {
+-      "version": "8.20.0",
+-      "resolved": "https://registry.npmjs.org/ajv/-/ajv-8.20.0.tgz",
+-      "integrity": "sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA==",
+-      "extraneous": true,
+-      "license": "MIT",
+-      "dependencies": {
+-        "fast-deep-equal": "^3.1.3",
+-        "fast-uri": "^3.0.1",
+-        "json-schema-traverse": "^1.0.0",
+-        "require-from-string": "^2.0.2"
+-      },
+-      "funding": {
+-        "type": "github",
+-        "url": "https://github.com/sponsors/epoberezkin"
+-      }
+-    },
+     "node_modules/ansi-styles": {
+       "version": "4.3.0",
+       "resolved": "https://registry.npmjs.org/ansi-styles/-/ansi-styles-4.3.0.tgz",
+@@ -4850,23 +4833,6 @@
+       "dev": true,
+       "license": "MIT"
+     },
+-    "node_modules/fast-uri": {
+-      "version": "3.1.4",
+-      "resolved": "https://registry.npmjs.org/fast-uri/-/fast-uri-3.1.4.tgz",
+-      "integrity": "sha512-8JnbkQ4juDyvYs4mgFGQqg4yCYtFDtUtmp2QIQq11ZZe5CFQ5wcqm1rqDgAh/QdMySuBnPzMUiJUNZG5N/AiQw==",
+-      "extraneous": true,
+-      "funding": [
+-        {
+-          "type": "github",
+-          "url": "https://github.com/sponsors/fastify"
+-        },
+-        {
+-          "type": "opencollective",
+-          "url": "https://opencollective.com/fastify"
+-        }
+-      ],
+-      "license": "BSD-3-Clause"
+-    },
+     "node_modules/fdir": {
+       "version": "6.5.0",
+       "resolved": "https://registry.npmjs.org/fdir/-/fdir-6.5.0.tgz",
+@@ -5292,13 +5258,6 @@
+       "dev": true,
+       "license": "MIT"
+     },
+-    "node_modules/json-schema-traverse": {
+-      "version": "1.0.0",
+-      "resolved": "https://registry.npmjs.org/json-schema-traverse/-/json-schema-traverse-1.0.0.tgz",
+-      "integrity": "sha512-NM8/P9n3XjXhIZn1lLhkFaACTOURQXjWhV4BA/RnOv8xvgqtqpAX9IO4mRQxSx1Rlo4tqzeqb0sOlruaOy3dug==",
+-      "extraneous": true,
+-      "license": "MIT"
+-    },
+     "node_modules/json-stable-stringify-without-jsonify": {
+       "version": "1.0.1",
+       "resolved": "https://registry.npmjs.org/json-stable-stringify-without-jsonify/-/json-stable-stringify-without-jsonify-1.0.1.tgz",
+@@ -5828,16 +5787,6 @@
+         }
+       }
+     },
+-    "node_modules/nitro/node_modules/lru-cache": {
+-      "version": "11.5.2",
+-      "resolved": "https://registry.npmjs.org/lru-cache/-/lru-cache-11.5.2.tgz",
+-      "integrity": "sha512-4pfM1Ff0x50o0tQwb5ucw/RzNyD0/YJME6IVcStalZuMWxdt3sR3huStTtxz4PUmvZfRguvDejasvQ2kifR11g==",
+-      "extraneous": true,
+-      "license": "BlueOak-1.0.0",
+-      "engines": {
+-        "node": "20 || >=22"
+-      }
+-    },
+     "node_modules/nitro/node_modules/unstorage": {
+       "version": "2.0.0-alpha.7",
+       "resolved": "https://registry.npmjs.org/unstorage/-/unstorage-2.0.0-alpha.7.tgz",
+@@ -6414,16 +6363,6 @@
+         "decimal.js-light": "^2.4.1"
+       }
+     },
+-    "node_modules/require-from-string": {
+-      "version": "2.0.2",
+-      "resolved": "https://registry.npmjs.org/require-from-string/-/require-from-string-2.0.2.tgz",
+-      "integrity": "sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==",
+-      "extraneous": true,
+-      "license": "MIT",
+-      "engines": {
+-        "node": ">=0.10.0"
+-      }
+-    },
+     "node_modules/resolve-from": {
+       "version": "4.0.0",
+       "resolved": "https://registry.npmjs.org/resolve-from/-/resolve-from-4.0.0.tgz",
+diff --git a/src/components/MediaCard.tsx b/src/components/MediaCard.tsx
+index df1d797..d80c395 100644
+--- a/src/components/MediaCard.tsx
++++ b/src/components/MediaCard.tsx
+@@ -80,7 +80,7 @@ function useMediaLibraryEntry(item: MediaSummary) {
+     queryFn: () => getLibFn({ data: { media_id: mediaId! } }),
+     enabled: !!mediaId,
+     placeholderData: (prev) => prev,
+-    staleTime: 30_000,
++    staleTime: 5 * 60_000,
+   });
+ 
+   const upsertMutation = useMutation({
+@@ -174,7 +174,7 @@ function StatusPill({ current, onChange, disabled, onRemove }: {
+   const [open, setOpen] = useState(false);
+   const ref = useRef<HTMLDivElement>(null);
+ 
+-  // Close on outside click
++  // Close when focus leaves the entire pill+dropdown group
+   const handleBlur = useCallback((e: React.FocusEvent) => {
+     if (!ref.current?.contains(e.relatedTarget as Node)) {
+       setTimeout(() => setOpen(false), 150);
+@@ -185,7 +185,7 @@ function StatusPill({ current, onChange, disabled, onRemove }: {
+   const Icon = activeOption?.icon ?? BookmarkPlus;
+ 
+   return (
+-    <div ref={ref} className="relative" onBlur={handleBlur} onFocus={() => setOpen(true)}>
++    <div ref={ref} className="relative" onBlur={handleBlur}>
+       <button
+         onClick={() => setOpen(!open)}
+         disabled={disabled}
+diff --git a/src/lib/anilist.functions.ts b/src/lib/anilist.functions.ts
+index 54c5e6b..a7e4e5d 100644
+--- a/src/lib/anilist.functions.ts
++++ b/src/lib/anilist.functions.ts
+@@ -146,6 +146,7 @@ async function anilist<T>(query: string, variables: Record<string, unknown> = {}
+ 
+   if (!res.ok) throw new Error(`AniList ${res.status}: ${await res.text()}`);
+   const json = (await res.json()) as { data: T; errors?: { message: string }[] };
++  if (!json || !json.data) throw new Error(`AniList API response missing data`);
+   if (json.errors?.length) throw new Error(`AniList GraphQL error: ${json.errors[0].message}`);
+   return json.data;
+ }
+@@ -164,7 +165,7 @@ function toSummary(a: AniListMedia): MediaSummary {
+     poster_url: poster,
+     backdrop_url: a.bannerImage || poster,
+     release_year: a.seasonYear ?? null,
+-    vote_average: a.averageScore ? a.averageScore / 10 : null,
++    vote_average: (a.averageScore !== null && a.averageScore !== undefined) ? a.averageScore / 10 : null,
+     genres: a.genres ?? [],
+     runtime: a.duration ?? null,
+     season_count: a.episodes ?? null,
+@@ -183,7 +184,7 @@ function toMangaSummary(a: AniListMedia): MediaSummary {
+     poster_url: a.coverImage?.extraLarge || a.coverImage?.large || null,
+     backdrop_url: a.bannerImage || null,
+     release_year: a.seasonYear ?? null,
+-    vote_average: a.averageScore ? a.averageScore / 10 : null,
++    vote_average: (a.averageScore !== null && a.averageScore !== undefined) ? a.averageScore / 10 : null,
+     genres: a.genres ?? [],
+     chapter_count: a.chapters ?? null,
+     volume_count: a.volumes ?? null,
+@@ -401,6 +402,7 @@ export const getAnimeDetails = createServerFn({ method: "GET" })
+       );
+ 
+       const a = result.Media;
++      if (!a) throw new Error(`Anime not found (ID: ${data.id})`);
+ 
+       // Build relations — filter to ANIME-format entries only
+       const ANIME_FORMATS = new Set(["TV", "TV_SHORT", "MOVIE", "SPECIAL", "OVA", "ONA", "MUSIC"]);
+@@ -606,6 +608,7 @@ export const getMangaDetails = createServerFn({ method: "GET" })
+         { id: Number(data.id) },
+       );
+       const a = result.Media;
++      if (!a) throw new Error(`Anime not found (ID: ${data.id})`);
+       const MANGA_FORMATS = new Set(["MANGA", "ONE_SHOT", "NOVEL", "DOUJIN"]);
+       const relations = (a.relations?.edges ?? [])
+         .filter((edge) => MANGA_FORMATS.has(edge.node.format ?? ""))
+diff --git a/src/lib/auth.functions.ts b/src/lib/auth.functions.ts
+index a54e7ab..3cc084f 100644
+--- a/src/lib/auth.functions.ts
++++ b/src/lib/auth.functions.ts
+@@ -1,6 +1,18 @@
+ import { createServerFn } from "@tanstack/react-start";
+ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+ 
++export const getProfile = createServerFn({ method: "GET" })
++  .middleware([requireSupabaseAuth])
++  .handler(async ({ context }) => {
++    const { data, error } = await context.supabase
++      .from("profiles")
++      .select("*")
++      .eq("id", context.userId)
++      .maybeSingle();
++    if (error) throw error;
++    return data;
++  });
++
+ export const deleteAccount = createServerFn({ method: "POST" })
+   .middleware([requireSupabaseAuth])
+   .handler(async ({ context }) => {
+@@ -11,6 +23,9 @@ export const deleteAccount = createServerFn({ method: "POST" })
+         "Get it from your Supabase dashboard: Settings → API → service_role key"
+       );
+     }
++    if (!context.userId) {
++      throw new Error("User identity not found. Please sign in again.");
++    }
+     const { error } = await supabaseAdmin.auth.admin.deleteUser(context.userId);
+     if (error) throw error;
+     return { ok: true };
+diff --git a/src/lib/follows.functions.ts b/src/lib/follows.functions.ts
+index b4115c9..fb95082 100644
+--- a/src/lib/follows.functions.ts
++++ b/src/lib/follows.functions.ts
+@@ -13,6 +13,7 @@ export const followUser = createServerFn({ method: "POST" })
+   .middleware([requireSupabaseAuth])
+   .validator((data: { following_id: string }) => data)
+   .handler(async ({ context, data }) => {
++    if (data.following_id === context.userId) throw new Error("Cannot follow yourself");
+     const { error } = await (context.supabase as any)
+       .from("follows")
+       .insert({ follower_id: context.userId, following_id: data.following_id });
+diff --git a/src/lib/friends.functions.ts b/src/lib/friends.functions.ts
+index c7285ef..6b7a73b 100644
+--- a/src/lib/friends.functions.ts
++++ b/src/lib/friends.functions.ts
+@@ -79,6 +79,32 @@ export const sendFriendRequest = createServerFn({ method: "POST" })
+   .validator((input) => z.object({ user_id: z.string().uuid() }).parse(input))
+   .handler(async ({ data, context }) => {
+     if (data.user_id === context.userId) throw new Error("Cannot friend yourself");
++
++    // Check for an existing friendship in EITHER direction.
++    // The unique constraint is directional, so sending a request to someone
++    // who already requested you would otherwise create a duplicate row.
++    const { data: existing } = await context.supabase
++      .from("friendships")
++      .select("id, status, requester_id, addressee_id")
++      .or(`and(requester_id.eq.${context.userId},addressee_id.eq.${data.user_id}),and(requester_id.eq.${data.user_id},addressee_id.eq.${context.userId})`)
++      .maybeSingle();
++
++    if (existing) {
++      // Already friends — nothing to do.
++      if (existing.status === "accepted") return { ok: true, status: "already_friends" };
++      // I already sent a pending request — nothing to do.
++      if (existing.requester_id === context.userId) return { ok: true, status: "pending" };
++      // They requested me first — auto-accept instead of creating a duplicate.
++      // (The DB trigger then creates the mutual follows.)
++      const { error: acceptError } = await context.supabase
++        .from("friendships")
++        .update({ status: "accepted" })
++        .eq("id", existing.id)
++        .eq("addressee_id", context.userId);
++      if (acceptError) throw acceptError;
++      return { ok: true, status: "accepted" };
++    }
++
+     const { error } = await context.supabase.from("friendships").insert({
+       requester_id: context.userId,
+       addressee_id: data.user_id,
+@@ -86,7 +112,7 @@ export const sendFriendRequest = createServerFn({ method: "POST" })
+     });
+     // 23505 = unique constraint violation (duplicate friendship request)
+     if (error && error.code !== "23505") throw error;
+-    return { ok: true };
++    return { ok: true, status: "sent" };
+   });
+ 
+ export const respondFriendRequest = createServerFn({ method: "POST" })
+diff --git a/src/lib/guest.tsx b/src/lib/guest.tsx
+index c68000d..f413c9e 100644
+--- a/src/lib/guest.tsx
++++ b/src/lib/guest.tsx
+@@ -4,11 +4,17 @@ import { supabase } from "@/integrations/supabase/client";
+ const GUEST_KEY = "nt_guest";
+ const GUEST_ID_KEY = "nt_guest_id";
+ 
++function isClient() {
++  return typeof window !== "undefined";
++}
++
+ function generateGuestId(): string {
++  if (!isClient()) return "";
+   return crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+ }
+ 
+ function loadGuestState(): boolean {
++  if (!isClient()) return false;
+   try {
+     return localStorage.getItem(GUEST_KEY) === "true";
+   } catch {
+@@ -17,6 +23,7 @@ function loadGuestState(): boolean {
+ }
+ 
+ function saveGuestState(isGuest: boolean) {
++  if (!isClient()) return;
+   try {
+     if (isGuest) {
+       localStorage.setItem(GUEST_KEY, "true");
+@@ -33,6 +40,7 @@ function saveGuestState(isGuest: boolean) {
+ }
+ 
+ export function getGuestId(): string | null {
++  if (!isClient()) return null;
+   try {
+     return localStorage.getItem(GUEST_ID_KEY);
+   } catch {
+@@ -73,12 +81,18 @@ interface GuestContextValue {
+ const GuestContext = createContext<GuestContextValue | null>(null);
+ 
+ export function GuestProvider({ children }: { children: ReactNode }) {
+-  const [isGuest, setIsGuest] = useState<boolean>(() => loadGuestState());
+-  const [guestId] = useState<string | null>(() => getGuestId());
++  const [isGuest, setIsGuest] = useState<boolean>(false);
++  const [guestId, setGuestId] = useState<string | null>(null);
+   const [restrictedAction, setRestrictedAction] = useState<RestrictedAction | null>(null);
++  const [mounted, setMounted] = useState(false);
+ 
+   // Auto-disable guest mode when a real user signs in
+   useEffect(() => {
++    setMounted(true);
++    // Sync guest state from localStorage on mount (client-side only)
++    setIsGuest(loadGuestState());
++    setGuestId(getGuestId());
++
+     // Check on mount if there's already a session
+     supabase.auth.getSession().then(({ data }) => {
+       if (data?.session) {
+@@ -125,7 +139,7 @@ export function GuestProvider({ children }: { children: ReactNode }) {
+     <GuestContext.Provider
+       value={{ isGuest, guestId, enableGuest, disableGuest, restrictedAction, setRestrictedAction, requireAuth }}
+     >
+-      {children}
++      {!mounted ? <div style={{ visibility: "hidden" }}>{children}</div> : children}
+     </GuestContext.Provider>
+   );
+ }
+diff --git a/src/lib/notifications.functions.ts b/src/lib/notifications.functions.ts
+index f083d3a..39b767a 100644
+--- a/src/lib/notifications.functions.ts
++++ b/src/lib/notifications.functions.ts
+@@ -11,7 +11,35 @@ export const listNotifications = createServerFn({ method: "GET" })
+       .order("created_at", { ascending: false })
+       .limit(50);
+     if (error) throw error;
+-    return rows ?? [];
++
++    // Resolve friend notification payloads into friendly, human-readable messages.
++    const friendKinds = ["friend_request", "friend_accept"];
++    const fromUserIds = Array.from(new Set(
++      (rows ?? [])
++        .filter((n) => friendKinds.includes(n.kind))
++        .map((n) => ((n.payload as Record<string, string> | null)?.from_user_id ?? ""))
++        .filter(Boolean),
++    ));
++
++    let pmap = new Map<string, { username: string; display_name: string | null }>();
++    if (fromUserIds.length > 0) {
++      const { data: profiles } = await context.supabase
++        .from("profiles")
++        .select("id, username, display_name")
++        .in("id", fromUserIds);
++      pmap = new Map((profiles ?? []).map((p) => [p.id, p]));
++    }
++
++    const enrich = (n: (typeof rows)[number]) => {
++      const payload = (n.payload ?? {}) as Record<string, string | null>;
++      const from = payload.from_user_id ? pmap.get(payload.from_user_id) : undefined;
++      const name = from?.display_name || from?.username || "Someone";
++      if (n.kind === "friend_request") return { ...n, payload: { ...payload, message: `${name} sent you a friend request` } };
++      if (n.kind === "friend_accept") return { ...n, payload: { ...payload, message: `${name} accepted your friend request` } };
++      return { ...n, payload };
++    };
++
++    return (rows ?? []).map(enrich);
+   });
+ 
+ export const markNotificationRead = createServerFn({ method: "POST" })
+diff --git a/src/lib/tmdb.functions.ts b/src/lib/tmdb.functions.ts
+index 450f637..18d9e47 100644
+--- a/src/lib/tmdb.functions.ts
++++ b/src/lib/tmdb.functions.ts
+@@ -82,7 +82,7 @@ async function tmdb<T>(path: string, params: Record<string, string | number | un
+   }
+ }
+ 
+-function imgUrl(path: string | null | undefined, size = "w500") {
++function imgUrl(path: string | null | undefined, size = "w342") {
+   return path ? `${IMG}/${size}${path}` : null;
+ }
+ 
+@@ -538,6 +538,25 @@ export const getGenres = createServerFn({ method: "GET" })
+     }
+   });
+ 
++// ----- Video / Trailer helper -----
++
++export const getTrailerKey = createServerFn({ method: "GET" })
++  .validator((input) => z.object({ type: z.enum(["movie", "tv"]), id: z.string() }).parse(input))
++  .handler(async ({ data }) => {
++    try {
++      const res = await tmdb<{ results: Array<{ key: string; site: string; type: string; official?: boolean }> }>(
++        `/${data.type}/${data.id}/videos`,
++      );
++      const videos = res.results ?? [];
++      const trailer = videos.find((v) => v.site === "YouTube" && v.type === "Trailer" && v.official)
++        ?? videos.find((v) => v.site === "YouTube" && v.type === "Trailer")
++        ?? videos.find((v) => v.site === "YouTube");
++      return trailer?.key ?? null;
++    } catch {
++      return null;
++    }
++  });
++
+ // ----- Export helpers -----
+ 
+ export const getMediaByIds = createServerFn({ method: "GET" })
+diff --git a/src/router.tsx b/src/router.tsx
+index c676865..8ed5da5 100644
+--- a/src/router.tsx
++++ b/src/router.tsx
+@@ -10,9 +10,9 @@ export function getQueryClient(): QueryClient {
+     _queryClient = new QueryClient({
+       defaultOptions: {
+         queries: {
+-          staleTime: 60_000,       // 1 min — don't refetch immediately on mount
+-          gcTime: 10 * 60_000,     // 10 min — keep unused data in cache longer
+-          retry: 2,                // retry twice on failure before error state
++          staleTime: 5 * 60_000,   // 5 min — avoid redundant refetches when navigating between pages
++          gcTime: 30 * 60_000,     // 30 min — keep cached metadata in memory longer
++          retry: 1,                // fail fast on broken requests
+           retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000), // exponential backoff
+           refetchOnWindowFocus: false,
+           refetchOnReconnect: false,
+@@ -33,7 +33,8 @@ export const getRouter = () => {
+     routeTree,
+     context: { queryClient },
+     scrollRestoration: true,
+-    defaultPreloadStaleTime: 0,
++    defaultPreload: "intent",
++    defaultPreloadStaleTime: 60_000,
+   });
+ 
+   return router;
+diff --git a/src/routes/__root.tsx b/src/routes/__root.tsx
+index d5c6709..a16492a 100644
+--- a/src/routes/__root.tsx
++++ b/src/routes/__root.tsx
+@@ -84,6 +84,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
+     ],
+     links: [
+       { rel: "stylesheet", href: appCss },
++      { rel: "preconnect", href: "https://image.tmdb.org" },
++      { rel: "preconnect", href: "https://s4.anilist.co" },
+       { rel: "preconnect", href: "https://fonts.googleapis.com" },
+       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" },
+diff --git a/src/routes/_authenticated/discover.tsx b/src/routes/_authenticated/discover.tsx
+index 96dcab4..415c2eb 100644
+--- a/src/routes/_authenticated/discover.tsx
++++ b/src/routes/_authenticated/discover.tsx
+@@ -1,7 +1,7 @@
+ import { createFileRoute } from "@tanstack/react-router";
+ import { useServerFn } from "@tanstack/react-start";
+ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+-import { useRef, useState } from "react";
++import { useEffect, useRef, useState } from "react";
+ import { discover, trending, getGenres } from "@/lib/tmdb.functions";
+ import { topAnime, topManga } from "@/lib/anilist.functions";
+ import { MediaGrid } from "@/components/MediaCard";
+@@ -40,7 +40,7 @@ function Discover() {
+   const [tab, setTab] = useState<MediaType>("movie");
+   const [sort, setSort] = useState<SortMode>("all");
+   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+-  const loadMoreRef = useRef<HTMLDivElement>(null);
++  const sentinelRef = useRef<HTMLDivElement>(null);
+ 
+   const trendingFn = useServerFn(trending);
+   const discoverFn = useServerFn(discover);
+@@ -99,28 +99,42 @@ function Discover() {
+     },
+     initialPageParam: 1,
+     getNextPageParam: (lastPage, _allPages, lastPageParam) => {
+-      if (!lastPage || lastPage.length < 20) return undefined;
+-      return (lastPageParam as number) + 1;
++      const page = lastPageParam as number;
++      if (!lastPage || lastPage.length === 0 || page >= 500) return undefined;
++      return page + 1;
+     },
+     staleTime: 120_000,
+     retry: 2,
+   });
+ 
+-  // Infinite scroll
+-  const observerRef = useRef<IntersectionObserver | null>(null);
+-  const sentinelRef = (el: HTMLDivElement | null) => {
+-    if (observerRef.current) observerRef.current.disconnect();
++  const fetchNextPage = q.fetchNextPage;
++  const hasNextPage = q.hasNextPage;
++  const isFetchingNextPage = q.isFetchingNextPage;
++
++  // Infinite scroll observer
++  useEffect(() => {
++    const el = sentinelRef.current;
+     if (!el) return;
+-    observerRef.current = new IntersectionObserver(
++    const observer = new IntersectionObserver(
+       (entries) => {
+-        if (entries[0].isIntersecting && q.hasNextPage && !q.isFetchingNextPage) q.fetchNextPage();
++        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
++          fetchNextPage();
++        }
+       },
+-      { rootMargin: "300px" },
++      { rootMargin: "600px" },
+     );
+-    observerRef.current.observe(el);
+-  };
+-
+-  const items: MediaSummary[] = q.data?.pages.flatMap((p) => p ?? []).filter(Boolean) ?? [];
++    observer.observe(el);
++    return () => observer.disconnect();
++  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
++
++  const rawItems: MediaSummary[] = q.data?.pages.flatMap((p) => p ?? []).filter(Boolean) ?? [];
++  const seen = new Set<string>();
++  const items = rawItems.filter((item) => {
++    const key = `${item.source}-${item.media_type}-${item.external_id}`;
++    if (seen.has(key)) return false;
++    seen.add(key);
++    return true;
++  });
+ 
+   return (
+     <div className="overflow-x-hidden">
+diff --git a/src/routes/_authenticated/friends.tsx b/src/routes/_authenticated/friends.tsx
+index 98fe416..8e45989 100644
+--- a/src/routes/_authenticated/friends.tsx
++++ b/src/routes/_authenticated/friends.tsx
+@@ -51,7 +51,17 @@ function Friends() {
+ 
+   const invalidate = () => { qc.invalidateQueries({ queryKey: ["friends"] }); qc.invalidateQueries({ queryKey: ["user-search"] }); };
+ 
+-  const mSend = useMutation({ mutationFn: (id: string) => sendFn({ data: { user_id: id } }), onSuccess: () => { invalidate(); toast.success("Request sent"); } });
++  const mSend = useMutation({
++    mutationFn: (id: string) => sendFn({ data: { user_id: id } }),
++    onSuccess: (res) => {
++      invalidate();
++      const status = res?.status;
++      if (status === "already_friends") toast.info("You're already friends!");
++      else if (status === "pending") toast.info("Request already sent.");
++      else if (status === "accepted") toast.success("Friendship accepted!");
++      else toast.success("Request sent");
++    },
++  });
+   const mResp = useMutation({ mutationFn: (v: { id: string; accept: boolean }) => respFn({ data: v }), onSuccess: invalidate });
+   const mRm = useMutation({ mutationFn: (id: string) => rmFn({ data: { id } }), onSuccess: invalidate });
+ 
+@@ -68,7 +78,8 @@ function Friends() {
+             {search.data.length === 0 ? <p className="text-sm text-muted-foreground">No matches.</p> : null}
+             {search.data.map((u) => {
+               const isAccepted = friends.data?.accepted?.some((f: any) => (f.profile as any)?.id === u.id);
+-              const isIncoming = friends.data?.incoming?.some((f: any) => (f.profile as any)?.id === u.id);
++              const incomingReq = friends.data?.incoming?.find((f: any) => (f.profile as any)?.id === u.id);
++              const isIncoming = !!incomingReq;
+               const isOutgoing = friends.data?.outgoing?.some((f: any) => (f.profile as any)?.id === u.id);
+               return (
+               <li key={u.id} className="flex items-center gap-3 rounded-lg bg-muted/30 p-2.5">
+@@ -82,7 +93,22 @@ function Friends() {
+                 {isAccepted ? (
+                   <span className="text-xs text-muted-foreground shrink-0">Friends</span>
+                 ) : isIncoming ? (
+-                  <span className="text-xs text-muted-foreground shrink-0">Request sent to you</span>
++                  <div className="flex shrink-0 gap-1.5">
++                    <button
++                      onClick={() => mResp.mutate({ id: incomingReq.id, accept: true })}
++                      className="rounded-lg bg-success/20 text-success p-2 hover:bg-success/30 transition-colors"
++                      title="Accept request"
++                    >
++                      <Check className="h-4 w-4" />
++                    </button>
++                    <button
++                      onClick={() => mResp.mutate({ id: incomingReq.id, accept: false })}
++                      className="rounded-lg bg-destructive/20 text-destructive p-2 hover:bg-destructive/30 transition-colors"
++                      title="Decline request"
++                    >
++                      <X className="h-4 w-4" />
++                    </button>
++                  </div>
+                 ) : isOutgoing ? (
+                   <span className="text-xs text-muted-foreground shrink-0">Request sent</span>
+                 ) : (
+diff --git a/src/routes/_authenticated/library.tsx b/src/routes/_authenticated/library.tsx
+index 7669126..c96dba6 100644
+--- a/src/routes/_authenticated/library.tsx
++++ b/src/routes/_authenticated/library.tsx
+@@ -1,14 +1,21 @@
+ import { createFileRoute, Link } from "@tanstack/react-router";
+ import { useServerFn } from "@tanstack/react-start";
+ import { useQuery } from "@tanstack/react-query";
+-import { useState } from "react";
++import { useState, useMemo } from "react";
+ import { listLibrary } from "@/lib/library.functions";
+ import { MediaGrid } from "@/components/MediaCard";
+ import { EmptyState } from "@/components/EmptyState";
+ import { useGuest } from "@/lib/guest";
+ import type { WatchStatus, MediaSummary } from "@/lib/media-types";
+-import { Film, Eye, BookmarkPlus, CheckCircle2, Heart, Search, Loader2 } from "lucide-react";
++import { Film, Eye, BookmarkPlus, CheckCircle2, Heart, Search, Loader2, ArrowUpDown, X } from "lucide-react";
+ import { cn } from "@/lib/utils";
++import {
++  Select,
++  SelectContent,
++  SelectItem,
++  SelectTrigger,
++  SelectValue,
++} from "@/components/ui/select";
+ 
+ const STATUSES = [
+   { key: "all", label: "All", icon: Film },
+@@ -21,6 +28,8 @@ const STATUSES = [
+ const TYPES = ["all", "movie", "tv", "anime", "manga"] as const;
+ type FilterStatus = (typeof STATUSES)[number]["key"];
+ type MediaFilterType = (typeof TYPES)[number];
++type SortOption = "recent" | "title" | "rating" | "year";
++type SortDirection = "asc" | "desc";
+ 
+ export const Route = createFileRoute("/_authenticated/library")({
+   head: () => ({
+@@ -36,6 +45,9 @@ function Library() {
+   const { isGuest } = useGuest();
+   const [status, setStatus] = useState<FilterStatus>("all");
+   const [type, setType] = useState<MediaFilterType>("all");
++  const [searchQuery, setSearchQuery] = useState("");
++  const [sortBy, setSortBy] = useState<SortOption>("recent");
++  const [sortDir, setSortDir] = useState<SortDirection>("desc");
+   const fn = useServerFn(listLibrary);
+ 
+   if (isGuest) {
+@@ -70,7 +82,7 @@ function Library() {
+   });
+ 
+   const rows = q.data ?? [];
+-  const items: MediaSummary[] = rows.map((r) => {
++  const rawItems: MediaSummary[] = rows.map((r) => {
+     const m = r.media as unknown as {
+       media_type: string; source: string; external_id: string; title: string;
+       poster_url: string | null; release_year: number | null; vote_average: number | null;
+@@ -88,6 +100,31 @@ function Library() {
+     };
+   }).filter((i) => i.external_id);
+ 
++  // Client-side search and sorting
++  const items = useMemo(() => {
++    let result = [...rawItems];
++    if (searchQuery.trim()) {
++      const qLower = searchQuery.toLowerCase().trim();
++      result = result.filter((item) => item.title.toLowerCase().includes(qLower));
++    }
++
++    if (sortBy !== "recent") {
++      result.sort((a, b) => {
++        let comparison = 0;
++        if (sortBy === "title") {
++          comparison = a.title.localeCompare(b.title);
++        } else if (sortBy === "rating") {
++          comparison = (a.vote_average ?? 0) - (b.vote_average ?? 0);
++        } else if (sortBy === "year") {
++          comparison = (a.release_year ?? 0) - (b.release_year ?? 0);
++        }
++
++        return sortDir === "asc" ? comparison : -comparison;
++      });
++    }
++    return result;
++  }, [rawItems, searchQuery, sortBy, sortDir]);
++
+   return (
+     <div>
+       {/* Header */}
+@@ -118,6 +155,51 @@ function Library() {
+         })}
+       </div>
+ 
++      {/* Search & Sort bar */}
++      <div className="mb-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
++        {/* Search input */}
++        <div className="relative flex-1">
++          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
++          <input
++            type="text"
++            value={searchQuery}
++            onChange={(e) => setSearchQuery(e.target.value)}
++            placeholder="Search saved titles..."
++            className="w-full rounded-xl border border-border/40 bg-card/40 pl-9 pr-8 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
++          />
++          {searchQuery && (
++            <button
++              onClick={() => setSearchQuery("")}
++              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
++            >
++              <X className="h-4 w-4" />
++            </button>
++          )}
++        </div>
++
++        {/* Sort dropdown */}
++        <div className="flex items-center gap-2 shrink-0">
++          <div
++            onClick={() => setSortDir(prev => prev === "asc" ? "desc" : "asc")}
++            className="p-2 rounded-lg glass cursor-pointer hover:bg-muted/40 transition-colors text-muted-foreground hover:text-foreground"
++            title={`Sort ${sortDir === "asc" ? "Ascending" : "Descending"}`}
++          >
++            <ArrowUpDown className={cn("h-4 w-4 transition-transform", sortDir === "desc" && "-rotate-180")} />
++          </div>
++          <Select value={sortBy} onValueChange={(val) => setSortBy(val as SortOption)}>
++            <SelectTrigger className="w-[180px] rounded-xl border border-border/40 bg-card/40 px-3 py-2 text-sm font-medium text-foreground focus:border-primary/50 focus:outline-none cursor-pointer">
++              <SelectValue />
++            </SelectTrigger>
++            <SelectContent className="rounded-xl bg-card/90 backdrop-blur-xl border-border/40">
++              <SelectItem value="recent">Recently Added</SelectItem>
++              <SelectItem value="title">Title</SelectItem>
++              <SelectItem value="rating">Rating</SelectItem>
++              <SelectItem value="year">Release Year</SelectItem>
++            </SelectContent>
++          </Select>
++        </div>
++      </div>
++
+       {/* Type filter pills */}
+       <div className="mb-8 flex flex-wrap gap-1.5">
+         {TYPES.map((t) => (
+diff --git a/src/routes/_authenticated/media.$type.$source.$id.tsx b/src/routes/_authenticated/media.$type.$source.$id.tsx
+index 2b27849..dbebc95 100644
+--- a/src/routes/_authenticated/media.$type.$source.$id.tsx
++++ b/src/routes/_authenticated/media.$type.$source.$id.tsx
+@@ -1,14 +1,14 @@
+ import { createFileRoute, useParams, Link } from "@tanstack/react-router";
+ import { useServerFn } from "@tanstack/react-start";
+ import { useQuery, useQueryClient, useMutation, type UseQueryResult } from "@tanstack/react-query";
+-import { getDetails, cacheMedia, getRecommendations, getCast, reclassifyMedia } from "@/lib/tmdb.functions";
++import { getDetails, cacheMedia, getRecommendations, getCast, reclassifyMedia, getTrailerKey } from "@/lib/tmdb.functions";
+ import { getAnimeDetails, getMultipleAnimeDetails, getMangaDetails, getMultipleMangaDetails } from "@/lib/anilist.functions";
+ import { getLibraryItem, upsertLibraryItem, removeLibraryItem, listSeasonsWithProgress, setSeasonStatus } from "@/lib/library.functions";
+ import { listReviews, upsertReview, deleteReview, toggleReviewLike } from "@/lib/reviews.functions";
+ import { STATUS_LABELS, STATUS_COLORS, getStatusLabel, type WatchStatus, type MediaSummary } from "@/lib/media-types";
+ import { MediaGrid } from "@/components/MediaCard";
+ import { SafeImage } from "@/components/SafeImage";
+-import { Star, Heart, Trash2, Check, ThumbsUp, MessageSquare, List, Play, CircleCheck, ArrowLeft, ExternalLink, Globe, BookmarkPlus } from "lucide-react";
++import { Star, Heart, Trash2, Check, ThumbsUp, MessageSquare, List, Play, CircleCheck, ArrowLeft, ExternalLink, Globe, BookmarkPlus, X } from "lucide-react";
+ import { toast } from "sonner";
+ import { useEffect, useMemo, useState, useCallback } from "react";
+ import { supabase } from "@/integrations/supabase/client";
+@@ -276,6 +276,17 @@ function MediaDetail() {
+     staleTime: 300_000,
+   });
+ 
++  // ---- Trailer ----
++  const getTrailerFn = useServerFn(getTrailerKey);
++  const trailerQ = useQuery({
++    queryKey: ["trailer", type, id],
++    queryFn: () => getTrailerFn({ data: { type: type as "movie" | "tv", id } }),
++    enabled: isTmdbWithType,
++    staleTime: Infinity,
++  });
++  const [showTrailerModal, setShowTrailerModal] = useState(false);
++  const trailerKey = trailerQ.data;
++
+   // ---- Reviews ----
+   const reviews = useQuery({
+     queryKey: ["reviews", mediaId],
+@@ -517,21 +528,24 @@ function MediaDetail() {
+ 
+   return (
+     <div className="overflow-x-hidden max-w-full">
+-      {/* Hero backdrop (shared) */}
+-      <div className="relative -mx-4 md:-mx-8 -mt-6 md:-mt-10 h-48 md:h-80 overflow-hidden mb-4 md:mb-8">
+-        {summary.backdrop_url ? (
+-          <SafeImage src={summary.backdrop_url} alt="" wrapperClassName="h-full w-full" className="h-full w-full object-cover opacity-30" />
+-        ) : <div className="h-full w-full bg-gradient-to-br from-primary/20 to-accent/20" />}
+-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
+-
+-        {/* Back button */}
++      {/* Hero wrapper — relative so the back button can sit over the photo */}
++      <div className="relative -mx-4 md:-mx-8 -mt-6 md:-mt-10 mb-4 md:mb-8">
++        {/* Backdrop photo */}
++        <div className="h-48 md:h-80 overflow-hidden">
++          {summary.backdrop_url ? (
++            <SafeImage src={summary.backdrop_url} alt="" wrapperClassName="h-full w-full" className="h-full w-full object-cover opacity-30" />
++          ) : <div className="h-full w-full bg-gradient-to-br from-primary/20 to-accent/20" />}
++          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
++        </div>
++
++        {/* Back button — absolute over the photo, offset for negative margins */}
+         <button
+           onClick={() => window.history.back()}
+-          className="absolute top-4 left-4 z-10 flex items-center gap-1.5 rounded-full bg-background/80 backdrop-blur-md px-3 py-2 text-sm font-medium hover:bg-background/90 transition-colors shadow-lg"
++          className="absolute top-10 left-8 md:top-14 md:left-12 z-20 inline-flex items-center gap-2 rounded-full bg-black/70 border border-white/20 backdrop-blur-md px-4 py-2 text-sm font-semibold text-white hover:bg-black/90 hover:border-white/40 transition-all shadow-xl"
+           title="Go back"
+         >
+           <ArrowLeft className="h-4 w-4" />
+-          <span className="hidden xs:inline">Back</span>
++          <span>Back</span>
+         </button>
+       </div>
+ 
+@@ -793,6 +807,14 @@ function MediaDetail() {
+                 <Trash2 className="inline h-4 w-4 mr-1" /> Remove
+               </button>
+             ) : null}
++            {trailerKey ? (
++              <button
++                onClick={() => setShowTrailerModal(true)}
++                className="rounded-lg bg-destructive/15 border border-destructive/30 px-4 py-2 text-sm font-semibold text-destructive hover:bg-destructive/25 transition-colors flex items-center gap-1.5"
++              >
++                <Play className="h-4 w-4 fill-current" /> Watch Trailer
++              </button>
++            ) : null}
+           </div>
+ 
+           {/* No mediaId message */}
+diff --git a/src/routes/_authenticated/notifications.tsx b/src/routes/_authenticated/notifications.tsx
+index df7e75e..a4c9c3e 100644
+--- a/src/routes/_authenticated/notifications.tsx
++++ b/src/routes/_authenticated/notifications.tsx
+@@ -14,6 +14,7 @@ export const Route = createFileRoute("/_authenticated/notifications")({
+ 
+ const KIND_ICONS: Record<string, typeof Bell> = {
+   friend_request: UserPlus,
++  friend_accept: Users,
+   friend_accepted: Users,
+   copied: Heart,
+   new_season: Film,
+@@ -70,8 +71,14 @@ function Notifications() {
+ 
+       {q.isLoading ? (
+         <div className="space-y-2">
+-          {Array.from({ length: 4 }).map((_, i) => (
+-            <div key={i} className="glass rounded-xl p-4 h-16 animate-pulse" />
++          {Array.from({ length: 6 }).map((_, i) => (
++            <div key={i} className="glass rounded-xl p-4 h-20 animate-pulse flex gap-3">
++              <div className="h-9 w-9 shrink-0 rounded-lg bg-muted/40" />
++              <div className="flex-1 space-y-2">
++                <div className="h-4 w-3/4 rounded bg-muted/30" />
++                <div className="h-3 w-1/4 rounded bg-muted/20" />
++              </div>
++            </div>
+           ))}
+         </div>
+       ) : (q.data?.length ?? 0) === 0 ? (
+diff --git a/src/routes/_authenticated/profile.tsx b/src/routes/_authenticated/profile.tsx
+index 2e3eaae..24d2627 100644
+--- a/src/routes/_authenticated/profile.tsx
++++ b/src/routes/_authenticated/profile.tsx
+@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+ import { useEffect, useState } from "react";
+ import { supabase } from "@/integrations/supabase/client";
+ import { getStats, listLibrary } from "@/lib/library.functions";
++import { getProfile } from "@/lib/auth.functions";
+ import { getStatusLabel, type WatchStatus } from "@/lib/media-types";
+ import { Star, Clock, Flame, TrendingUp, CheckCircle2, Film, Tv, Sparkles, Heart, Edit3, Save, Users, BookmarkPlus, Eye } from "lucide-react";
+ import { cn } from "@/lib/utils";
+@@ -35,8 +36,14 @@ function Profile() {
+   const qc = useQueryClient();
+   const statsFn = useServerFn(getStats);
+   const libFn = useServerFn(listLibrary);
++  const profileFn = useServerFn(getProfile);
++
++  const profileQ = useQuery({
++    queryKey: ["profile"],
++    queryFn: () => profileFn(),
++    staleTime: 60_000
++  });
+ 
+-  const [profile, setProfile] = useState<{ id: string; username: string; display_name: string | null; bio: string | null; avatar_url: string | null; is_public: boolean } | null>(null);
+   const [editing, setEditing] = useState(false);
+   const [displayName, setDisplayName] = useState("");
+   const [bio, setBio] = useState("");
+@@ -57,15 +64,7 @@ function Profile() {
+     );
+   }
+ 
+-  useEffect(() => {
+-    (async () => {
+-      const { data: u } = await supabase.auth.getUser();
+-      if (!u.user) return;
+-      const { data } = await supabase.from("profiles").select("*").eq("id", u.user.id).maybeSingle();
+-      if (data) { setProfile(data); setDisplayName(data.display_name ?? ""); setBio(data.bio ?? ""); }
+-    })();
+-  }, []);
+-
++  const profile = profileQ.data;
+   const statsQ = useQuery({ queryKey: ["stats"], queryFn: () => statsFn() });
+   const libQ = useQuery({ queryKey: ["library", "profile"], queryFn: () => libFn() });
+   const countFn = useServerFn(getFollowCounts);
+@@ -96,7 +95,12 @@ function Profile() {
+     const { error } = await supabase.from("profiles").update({ display_name: displayName, bio }).eq("id", profile.id);
+     setBusy(false);
+     if (error) toast.error(error.message);
+-    else { toast.success("Profile updated"); setEditing(false); setProfile({ ...profile, display_name: displayName, bio }); qc.invalidateQueries({ queryKey: ["public-profile"] }); }
++    else {
++      toast.success("Profile updated");
++      setEditing(false);
++      qc.invalidateQueries({ queryKey: ["profile"] });
++      qc.invalidateQueries({ queryKey: ["public-profile"] });
++    }
+   }
+ 
+   if (!profile) return <ProfileSkeleton />;
+@@ -149,7 +153,11 @@ function Profile() {
+                 </button>
+               </div>
+ 
+-              <button onClick={() => setEditing(true)}
++              <button onClick={() => {
++                setDisplayName(profile.display_name ?? "");
++                setBio(profile.bio ?? "");
++                setEditing(true);
++              }}
+                 className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+                 <Edit3 className="h-3.5 w-3.5" /> Edit profile
+               </button>
+@@ -370,18 +378,40 @@ function LevelRow({ label, completed, icon }: { label: string; completed: number
+ function ProfileSkeleton() {
+   return (
+     <div className="animate-pulse space-y-8">
+-      <div className="flex items-center gap-4">
++      {/* Header */}
++      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
+         <div className="h-20 w-20 rounded-full bg-muted/40" />
+-        <div className="flex-1 space-y-2">
+-          <div className="h-7 w-48 rounded bg-muted/30" />
+-          <div className="h-4 w-32 rounded bg-muted/20" />
++        <div className="flex-1 text-center sm:text-left space-y-2">
++          <div className="h-8 w-48 rounded bg-muted/30 mx-auto sm:mx-0" />
++          <div className="h-4 w-32 rounded bg-muted/20 mx-auto sm:mx-0" />
++          <div className="h-4 w-64 rounded bg-muted/20 mx-auto sm:mx-0 mt-2" />
+         </div>
+       </div>
++
++      {/* Stats */}
+       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+         {Array.from({ length: 5 }).map((_, i) => (
+           <div key={i} className="glass rounded-xl p-4 h-24" />
+         ))}
+       </div>
++
++      {/* Completion & Levels */}
++      <div className="grid gap-4 md:grid-cols-2">
++        <div className="glass-strong rounded-2xl p-5 h-32" />
++        <div className="glass-strong rounded-2xl p-5 h-32" />
++      </div>
++
++      {/* Media Sections (3 sections) */}
++      {[1, 2, 3].map((i) => (
++        <div key={i} className="space-y-4">
++          <div className="h-6 w-32 rounded bg-muted/30" />
++          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
++            {Array.from({ length: 6 }).map((_, j) => (
++              <div key={j} className="aspect-[2/3] rounded-xl bg-muted/20" />
++            ))}
++          </div>
++        </div>
++      ))}
+     </div>
+   );
+ }
+diff --git a/src/routes/_authenticated/route.tsx b/src/routes/_authenticated/route.tsx
+index 0e97abc..7fdcc95 100644
+--- a/src/routes/_authenticated/route.tsx
++++ b/src/routes/_authenticated/route.tsx
+@@ -5,19 +5,24 @@ import { AppShell } from "@/components/AppShell";
+ export const Route = createFileRoute("/_authenticated")({
+   ssr: false,
+   beforeLoad: async () => {
+-    const { data, error } = await supabase.auth.getUser();
+-    if (error || !data.user) {
++    // Use getSession() (reads local storage, no network) instead of getUser()
++    // (which makes a live Supabase request and can stall indefinitely locally).
++    // Server-side route functions validate tokens independently via requireSupabaseAuth.
++    const { data, error } = await supabase.auth.getSession();
++    if (error || !data.session) {
+       // Check if guest mode is active before redirecting
+       try {
+-        const isGuest = localStorage.getItem("nt_guest") === "true";
+-        if (isGuest) return { user: null, isGuest: true };
++        if (typeof window !== "undefined") {
++          const isGuest = localStorage.getItem("nt_guest") === "true";
++          if (isGuest) return { user: null, isGuest: true };
++        }
+       } catch {
+         // localStorage unavailable — redirect to auth
+       }
+       await supabase.auth.signOut();
+       throw redirect({ to: "/auth" });
+     }
+-    return { user: data.user, isGuest: false };
++    return { user: data.session.user, isGuest: false };
+   },
+   component: AppShell,
+ });
+diff --git a/src/routes/_authenticated/search.tsx b/src/routes/_authenticated/search.tsx
+index 5bae603..621862a 100644
+--- a/src/routes/_authenticated/search.tsx
++++ b/src/routes/_authenticated/search.tsx
+@@ -1,43 +1,71 @@
+-import { createFileRoute } from "@tanstack/react-router";
++import { createFileRoute, useNavigate } from "@tanstack/react-router";
+ import { useServerFn } from "@tanstack/react-start";
+ import { useQuery } from "@tanstack/react-query";
+-import { useEffect, useRef, useState } from "react";
++import { useEffect, useRef } from "react";
+ import { searchAll } from "@/lib/tmdb.functions";
+ import { searchAnime, searchManga } from "@/lib/anilist.functions";
+ import { MediaGrid } from "@/components/MediaCard";
+-import { Search as SearchIcon, Loader2, AlertCircle, Film, Tv, Sparkles, BookmarkIcon } from "lucide-react";
++import { Search as SearchIcon, Loader2, AlertCircle, Film, Tv, Sparkles, BookmarkIcon, Layers } from "lucide-react";
++import { z } from "zod";
++
++// ── URL search params schema ──────────────────────────────────────────────────
++// Storing `q` and `type` in the URL preserves query and active category filter on Back navigation.
++const searchParamsSchema = z.object({
++  q: z.string().optional().default(""),
++  type: z.enum(["all", "movie", "tv", "anime", "manga"]).optional().default("all"),
++});
++
++const CATEGORY_TABS: { id: "all" | "movie" | "tv" | "anime" | "manga"; label: string; Icon: typeof Layers }[] = [
++  { id: "all", label: "All Types", Icon: Layers },
++  { id: "movie", label: "Movies", Icon: Film },
++  { id: "tv", label: "Series / TV", Icon: Tv },
++  { id: "anime", label: "Anime", Icon: Sparkles },
++  { id: "manga", label: "Manga", Icon: BookmarkIcon },
++];
+ 
+ export const Route = createFileRoute("/_authenticated/search")({
+   head: () => ({ meta: [{ title: "Search — NexusTrack" }, { name: "description", content: "Search movies, TV, and anime from one place." }] }),
++  validateSearch: searchParamsSchema,
+   component: SearchPage,
+ });
+ 
+ function SearchPage() {
+-  const [q, setQ] = useState("");
+-  const [debounced, setDebounced] = useState("");
+-  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
++  const navigate = useNavigate({ from: "/search" });
++  const { q, type: activeType } = Route.useSearch();
+   const inputRef = useRef<HTMLInputElement>(null);
++  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+ 
+   const tmdbFn = useServerFn(searchAll);
+   const anilistFn = useServerFn(searchAnime);
+   const mangaFn = useServerFn(searchManga);
+ 
+-  // Debounce input: wait 400ms after the user stops typing
+-  useEffect(() => {
++  // Debounce URL update so we don't push a history entry on every keystroke
++  function handleChange(value: string) {
+     if (timerRef.current) clearTimeout(timerRef.current);
+-    const trimmed = q.trim();
+-    if (trimmed.length < 2) {
+-      setDebounced("");
+-      return;
+-    }
+-    timerRef.current = setTimeout(() => setDebounced(trimmed), 400);
+-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+-  }, [q]);
++    timerRef.current = setTimeout(() => {
++      navigate({
++        search: (prev) => ({ ...prev, q: value }),
++        replace: true,
++      });
++    }, 400);
++  }
++
++  function handleTypeChange(newType: "all" | "movie" | "tv" | "anime" | "manga") {
++    navigate({
++      search: (prev) => ({ ...prev, type: newType }),
++      replace: true,
++    });
++  }
++
++  // Focus input on mount
++  useEffect(() => { inputRef.current?.focus(); }, []);
++
++  const debounced = q.trim();
++  const isIdle = debounced.length < 2;
+ 
+   const query = useQuery({
+     queryKey: ["search", debounced],
+     queryFn: async () => {
+-      // Run searches in parallel — each handles its own errors internally
+       const [tmdb, anime, manga] = await Promise.allSettled([
+         tmdbFn({ data: { q: debounced } }),
+         anilistFn({ data: { q: debounced } }),
+@@ -46,7 +74,6 @@ function SearchPage() {
+       const tmdbData = tmdb.status === "fulfilled" ? tmdb.value : { movies: [], tv: [] };
+       const animeData = anime.status === "fulfilled" ? anime.value : [];
+       const mangaData = manga.status === "fulfilled" ? manga.value : [];
+-
+       let errorMsg = null;
+       if (tmdb.status === "rejected") {
+         errorMsg = tmdb.reason instanceof Error ? tmdb.reason.message : String(tmdb.reason);
+@@ -59,40 +86,68 @@ function SearchPage() {
+     staleTime: 60_000,
+   });
+ 
+-  // Focus input on mount
+-  useEffect(() => { inputRef.current?.focus(); }, []);
+-
+-  const isIdle = debounced.length < 2;
+   const isLoading = query.isLoading;
+   const isFetching = query.isFetching && !query.isLoading;
+   const hasError = query.isError;
+   const data = query.data;
+-  const hasResults = data && (data.movies.length > 0 || data.tv.length > 0 || data.anime.length > 0 || data.manga.length > 0);
++
++  const showMovies = (activeType === "all" || activeType === "movie") && (data?.movies.length ?? 0) > 0;
++  const showTv = (activeType === "all" || activeType === "tv") && (data?.tv.length ?? 0) > 0;
++  const showAnime = (activeType === "all" || activeType === "anime") && (data?.anime.length ?? 0) > 0;
++  const showManga = (activeType === "all" || activeType === "manga") && (data?.manga.length ?? 0) > 0;
++  const hasResults = showMovies || showTv || showAnime || showManga;
+ 
+   return (
+     <div>
+       <h1 className="text-3xl md:text-4xl font-bold mb-6 animate-fade-in">Search</h1>
+ 
+       {/* Search bar */}
+-      <div className="glass-strong rounded-2xl p-2 flex items-center gap-2 mb-8 animate-fade-in">
++      <div className="glass-strong rounded-2xl p-2 flex items-center gap-2 mb-4 animate-fade-in">
+         <SearchIcon className="ml-3 h-5 w-5 text-muted-foreground shrink-0" />
+         <input
+           ref={inputRef}
+-          value={q}
+-          onChange={(e) => setQ(e.target.value)}
++          defaultValue={q}
++          onChange={(e) => handleChange(e.target.value)}
+           placeholder="The Bear, Frieren, Inception…"
+           className="flex-1 bg-transparent px-2 py-2 text-base outline-none placeholder:text-muted-foreground"
+         />
+         {(isLoading || isFetching) ? (
+           <Loader2 className="mr-3 h-5 w-5 animate-spin text-muted-foreground shrink-0" />
+         ) : q.length > 0 ? (
+-          <button onClick={() => { setQ(""); setDebounced(""); inputRef.current?.focus(); }}
+-            className="mr-2 text-muted-foreground hover:text-foreground text-xs btn-press">
++          <button
++            onClick={() => {
++              navigate({ search: (prev) => ({ ...prev, q: "" }), replace: true });
++              if (inputRef.current) inputRef.current.value = "";
++              inputRef.current?.focus();
++            }}
++            className="mr-2 text-muted-foreground hover:text-foreground text-xs btn-press"
++          >
+             Clear
+           </button>
+         ) : null}
+       </div>
+ 
++      {/* Category filter tabs */}
++      <div className="mb-8 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
++        {CATEGORY_TABS.map((tab) => {
++          const isActive = activeType === tab.id;
++          return (
++            <button
++              key={tab.id}
++              onClick={() => handleTypeChange(tab.id)}
++              className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-all btn-press shrink-0 ${
++                isActive
++                  ? "bg-gradient-accent text-white shadow-md"
++                  : "glass text-muted-foreground hover:bg-muted/40 hover:text-foreground"
++              }`}
++            >
++              <tab.Icon className="h-3.5 w-3.5" />
++              <span>{tab.label}</span>
++            </button>
++          );
++        })}
++      </div>
++
+       {/* API Key Warning Banner */}
+       {data?.errorMsg && (
+         <div className="mb-6 rounded-xl border border-warning/30 bg-warning/10 p-4 text-warning flex items-start gap-3 animate-fade-in">
+@@ -111,7 +166,7 @@ function SearchPage() {
+         <div className="glass rounded-2xl p-12 text-center animate-fade-in">
+           <SearchIcon className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+           <p className="text-sm text-muted-foreground">Type at least 2 characters to search.</p>
+-          <p className="mt-1 text-xs text-muted-foreground">Movies, TV shows, and anime — all at once.</p>
++          <p className="mt-1 text-xs text-muted-foreground">Movies, TV shows, anime, and manga — filterable in one place.</p>
+         </div>
+       ) : null}
+ 
+@@ -143,7 +198,7 @@ function SearchPage() {
+       {!isLoading && !isIdle && data && !hasError ? (
+         hasResults ? (
+           <div className="space-y-10">
+-            {data.movies.length > 0 ? (
++            {showMovies ? (
+               <section>
+                 <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
+                   <Film className="h-5 w-5 text-primary" /> Movies ({data.movies.length})
+@@ -151,7 +206,7 @@ function SearchPage() {
+                 <MediaGrid items={data.movies} />
+               </section>
+             ) : null}
+-            {data.tv.length > 0 ? (
++            {showTv ? (
+               <section>
+                 <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
+                   <Tv className="h-5 w-5 text-accent" /> TV Shows ({data.tv.length})
+@@ -159,7 +214,7 @@ function SearchPage() {
+                 <MediaGrid items={data.tv} />
+               </section>
+             ) : null}
+-            {data.anime.length > 0 ? (
++            {showAnime ? (
+               <section>
+                 <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
+                   <Sparkles className="h-5 w-5 text-warning" /> Anime ({data.anime.length})
+@@ -167,7 +222,7 @@ function SearchPage() {
+                 <MediaGrid items={data.anime} />
+               </section>
+             ) : null}
+-            {data.manga.length > 0 ? (
++            {showManga ? (
+               <section>
+                 <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
+                   <BookmarkIcon className="h-5 w-5 text-primary" /> Manga ({data.manga.length})
+@@ -179,8 +234,8 @@ function SearchPage() {
+         ) : (
+           <div className="glass rounded-2xl p-12 text-center animate-fade-in">
+             <SearchIcon className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+-            <p className="text-muted-foreground">No results for "{debounced}"</p>
+-            <p className="mt-1 text-sm text-muted-foreground">Try a different search term or check your spelling.</p>
++            <p className="text-muted-foreground">No results for "{debounced}" {activeType !== "all" ? `in ${activeType}` : ""}</p>
++            <p className="mt-1 text-sm text-muted-foreground">Try selecting "All Types" or a different search term.</p>
+           </div>
+         )
+       ) : null}
+diff --git a/src/routes/_authenticated/settings.tsx b/src/routes/_authenticated/settings.tsx
+index b4a1cb2..61f2353 100644
+--- a/src/routes/_authenticated/settings.tsx
++++ b/src/routes/_authenticated/settings.tsx
+@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+ import { useEffect, useRef, useState } from "react";
+ import { supabase } from "@/integrations/supabase/client";
+ import { exportLibrary, importLibrary } from "@/lib/import-export.functions";
+-import { deleteAccount } from "@/lib/auth.functions";
++import { deleteAccount, getProfile } from "@/lib/auth.functions";
+ import { EmptyState } from "@/components/EmptyState";
+ import { useGuest } from "@/lib/guest";
+ import { toast } from "sonner";
+@@ -44,14 +44,16 @@ function Settings() {
+   const [busy, setBusy] = useState(false);
+   const fileRef = useRef<HTMLInputElement>(null);
+ 
++  const profileFn = useServerFn(getProfile);
++  const profileQ = useQuery({
++    queryKey: ["profile"],
++    queryFn: () => profileFn(),
++    staleTime: 60_000,
++  });
++
+   useEffect(() => {
+-    (async () => {
+-      const { data: u } = await supabase.auth.getUser();
+-      if (!u.user) return;
+-      const { data } = await supabase.from("profiles").select("*").eq("id", u.user.id).maybeSingle();
+-      if (data) setProfile(data);
+-    })();
+-  }, []);
++    if (profileQ.data) setProfile(profileQ.data);
++  }, [profileQ.data]);
+ 
+   async function saveProfile() {
+     if (!profile) return;
+@@ -208,6 +210,18 @@ function SettingsSkeleton() {
+   return (
+     <div className="animate-pulse space-y-6 max-w-2xl">
+       <div className="h-9 w-48 rounded bg-muted" />
++      <div className="glass-strong rounded-2xl p-6 space-y-4">
++        <div className="h-6 w-32 rounded bg-muted" />
++        <div className="space-y-3">
++          {Array.from({ length: 3 }).map((_, i) => (
++            <div key={i} className="space-y-2">
++              <div className="h-3 w-20 rounded bg-muted/30" />
++              <div className="h-10 w-full rounded bg-muted/20" />
++            </div>
++          ))}
++        </div>
++        <div className="h-10 w-32 rounded bg-muted/30" />
++      </div>
+       {Array.from({ length: 2 }).map((_, i) => (
+         <div key={i} className="glass-strong rounded-2xl p-6 h-48" />
+       ))}
+diff --git a/src/routes/_authenticated/user.$username.tsx b/src/routes/_authenticated/user.$username.tsx
+index 86954f2..18bf98d 100644
+--- a/src/routes/_authenticated/user.$username.tsx
++++ b/src/routes/_authenticated/user.$username.tsx
+@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
+ import { supabase } from "@/integrations/supabase/client";
+ import { getPublicProfile, copyFromFriend } from "@/lib/friends.functions";
+ import { STATUS_LABELS, STATUS_COLORS, getStatusLabel, type WatchStatus } from "@/lib/media-types";
+-import { Film, Heart, Check, BookmarkIcon, Plus, Users, UserPlus, UserCheck, Clock } from "lucide-react";
++import { Film, Heart, Check, BookmarkIcon, Plus, Users, UserPlus, UserCheck, Clock, ArrowLeft } from "lucide-react";
+ import { toast } from "sonner";
+ import { cn } from "@/lib/utils";
+ import { getFollowCounts, getFollowers, getFollowing, isFollowing, followUser, unfollowUser } from "@/lib/follows.functions";
+@@ -118,6 +118,16 @@ function FriendProfile() {
+ 
+   return (
+     <div>
++      {/* Back button */}
++      <button
++        onClick={() => window.history.back()}
++        className="mb-6 inline-flex items-center gap-2 rounded-full bg-muted border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground transition-all shadow-md"
++        title="Go back"
++      >
++        <ArrowLeft className="h-4 w-4" />
++        <span>Back</span>
++      </button>
++
+       {/* Header */}
+       <div className="mb-8 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+         {profile.avatar_url ? (
+@@ -157,7 +167,7 @@ function FriendProfile() {
+             )
+           ) : null}
+           {isPrivate && (
+-            <p className="mt-2 text-xs text-muted-foreground italic">This profile is private. Follow them to see their library.</p>
++            <p className="mt-2 text-xs text-muted-foreground italic">This profile is private. Send a friend request to see their library.</p>
+           )}
+         </div>
+       </div>
+diff --git a/src/routes/auth.tsx b/src/routes/auth.tsx
+index c4decf1..d793973 100644
+--- a/src/routes/auth.tsx
++++ b/src/routes/auth.tsx
+@@ -48,7 +48,7 @@ function AuthPage() {
+     async function init() {
+       const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+       const code = params?.get("code");
+-      if (code) {
++      if (code && typeof window !== "undefined") {
+         await supabase.auth.exchangeCodeForSession(code).catch(() => {});
+         window.history.replaceState({}, document.title, window.location.pathname);
+       }
+@@ -59,7 +59,7 @@ function AuthPage() {
+         const { data: userData } = await supabase.auth.getUser();
+         if (cancelled) return;
+         if (userData?.user) {
+-          if (!isRecovering) window.location.replace("/dashboard");
++          if (!isRecovering && typeof window !== "undefined") window.location.replace("/dashboard");
+         } else {
+           await supabase.auth.signOut();
+           setChecking(false);
+diff --git a/src/routes/index.tsx b/src/routes/index.tsx
+index 8e7f56f..4fa6b45 100644
+--- a/src/routes/index.tsx
++++ b/src/routes/index.tsx
+@@ -56,7 +56,10 @@ function Landing() {
+ 
+         <div className="relative z-10 max-w-4xl mx-auto">
+           {/* Badge */}
+-          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-border/40 bg-card/50 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur-sm">
++          <div
++            className="mb-8 inline-flex items-center gap-2 rounded-full border border-border/40 bg-card/50 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur-sm animate-hero-fade-in"
++            style={{ animationDelay: '0s' }}
++          >
+             <span className="relative flex h-2 w-2">
+               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
+               <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+@@ -65,7 +68,10 @@ function Landing() {
+           </div>
+ 
+           {/* Heading */}
+-          <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black leading-[0.92] tracking-tighter">
++          <h1
++            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black leading-[0.9] tracking-tighter animate-hero-fade-in"
++            style={{ animationDelay: '0.1s' }}
++          >
+             Track{" "}
+             <span className="text-primary">Movies.</span>
+             <br />
+@@ -75,11 +81,17 @@ function Landing() {
+             All in One Place.
+           </h1>
+ 
+-          <p className="mt-6 mx-auto max-w-xl text-base sm:text-lg text-muted-foreground/90 leading-relaxed">
++          <p
++            className="mt-6 mx-auto max-w-xl text-base sm:text-lg text-muted-foreground/90 leading-relaxed animate-hero-fade-in"
++            style={{ animationDelay: '0.2s' }}
++          >
+             Stop juggling five apps. Track what you watch, discover what's next, and copy titles straight from your friends. Free, forever.
+           </p>
+ 
+-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
++          <div
++            className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 animate-hero-fade-in"
++            style={{ animationDelay: '0.3s' }}
++          >
+             <Link
+               to="/auth"
+               className="group inline-flex items-center gap-2 rounded-xl bg-gradient-accent px-8 py-4 text-base font-semibold text-white shadow-xl shadow-primary/30 hover:shadow-primary/50 transition-all btn-press"
+@@ -89,17 +101,24 @@ function Landing() {
+             </Link>
+             <a
+               href="#features"
+-              className="inline-flex items-center gap-2 rounded-xl border border-border/50 bg-card/30 px-8 py-4 text-sm font-medium text-foreground/80 backdrop-blur-sm hover:bg-card/60 transition-colors btn-press"
++              onClick={(e) => {
++                e.preventDefault();
++                document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
++              }}
++              className="inline-flex items-center gap-2 rounded-xl border border-border/50 bg-card/30 px-8 py-4 text-sm font-medium text-foreground/80 backdrop-blur-sm hover:bg-card/60 transition-colors btn-press cursor-pointer"
+             >
+               See features
+-              <ChevronDown className="h-4 w-4" />
++              <ChevronDown className="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
+             </a>
+           </div>
+         </div>
+ 
+         {/* Mock preview */}
+-        <div className="relative z-10 mt-20 w-full max-w-5xl mx-auto">
+-          <div className="glass-strong rounded-2xl p-3 md:p-4 shadow-2xl">
++        <div
++          className="relative z-10 mt-20 w-full max-w-5xl mx-auto animate-hero-fade-in"
++          style={{ animationDelay: '0.4s' }}
++        >
++          <div className="glass-strong rounded-2xl p-3 md:p-4 shadow-2xl image-glow-border">
+             <div className="flex items-center gap-2 mb-3 px-2">
+               <div className="h-2.5 w-2.5 rounded-full bg-destructive/50" />
+               <div className="h-2.5 w-2.5 rounded-full bg-warning/50" />
+@@ -131,6 +150,21 @@ function Landing() {
+             </div>
+           </div>
+         </div>
++
++        {/* Tailcast-style Shape Divider */}
++        <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-[0]">
++          <svg
++            className="relative block w-full h-[60px] md:h-[120px]"
++            viewBox="0 0 1200 120"
++            preserveAspectRatio="none"
++            fill="currentColor"
++          >
++            <path
++              className="fill-background"
++              d="M1200 0L0 0 598.97 114.72 1200 0z"
++            />
++          </svg>
++        </div>
+       </section>
+ 
+       {/* ── FEATURES ── */}
+diff --git a/src/styles.css b/src/styles.css
+index 5ba5174..6544801 100644
+--- a/src/styles.css
++++ b/src/styles.css
+@@ -36,6 +36,10 @@
+   --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
+ }
+ 
++html {
++  scroll-behavior: smooth;
++}
++
+ :root {
+   --radius: 0.75rem;
+ 
+@@ -126,6 +130,38 @@
+   box-shadow: 0 12px 48px -12px oklch(0 0 0 / 0.6);
+ }
+ 
++/* Tailcast Image Glow Effect */
++.image-glow-border {
++  position: relative;
++}
++.image-glow-border::before {
++  content: '';
++  position: absolute;
++  inset: 0;
++  border-radius: inherit;
++  padding: 1px;
++  background: radial-gradient(circle at 0% 0%, oklch(0.62 0.21 265 / 0.4), transparent 50%),
++              radial-gradient(circle at 100% 100%, oklch(0.62 0.21 265 / 0.4), transparent 50%);
++  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
++  -webkit-mask-composite: xor;
++  mask-composite: exclude;
++  pointer-events: none;
++  z-index: 2;
++}
++.image-glow-border::after {
++  content: '';
++  position: absolute;
++  inset: -2px;
++  border-radius: inherit;
++  pointer-events: none;
++  z-index: 1;
++  background: linear-gradient(to right, oklch(0.62 0.21 265 / 0.3), transparent 50%) top / 100% 8px no-repeat,
++              linear-gradient(to bottom, oklch(0.62 0.21 265 / 0.3), transparent 50%) left / 8px 100% no-repeat,
++              linear-gradient(to left, oklch(0.62 0.21 265 / 0.3), transparent 50%) bottom / 100% 8px no-repeat,
++              linear-gradient(to top, oklch(0.62 0.21 265 / 0.3), transparent 50%) right / 8px 100% no-repeat;
++  filter: blur(8px);
++}
++
+ @utility text-accent {
+   color: var(--color-primary);
+ }
+@@ -168,10 +204,11 @@
+   animation: fade-in 0.3s ease-out both;
+ }
+ 
+-@keyframes slide-up {
+-  from { opacity: 0; transform: translateY(12px); }
++@keyframes hero-fade-in {
++  from { opacity: 0; transform: translateY(10px); }
+   to { opacity: 1; transform: translateY(0); }
+ }
+-.animate-slide-up {
+-  animation: slide-up 0.35s ease-out both;
++.animate-hero-fade-in {
++  opacity: 0;
++  animation: hero-fade-in 0.5s ease forwards;
+ }

@@ -10,9 +10,9 @@ export function getQueryClient(): QueryClient {
     _queryClient = new QueryClient({
       defaultOptions: {
         queries: {
-          staleTime: 60_000,       // 1 min — don't refetch immediately on mount
-          gcTime: 10 * 60_000,     // 10 min — keep unused data in cache longer
-          retry: 2,                // retry twice on failure before error state
+          staleTime: 5 * 60_000,   // 5 min — avoid redundant refetches when navigating between pages
+          gcTime: 30 * 60_000,     // 30 min — keep cached metadata in memory longer
+          retry: 1,                // fail fast on broken requests
           retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000), // exponential backoff
           refetchOnWindowFocus: false,
           refetchOnReconnect: false,
@@ -33,7 +33,8 @@ export const getRouter = () => {
     routeTree,
     context: { queryClient },
     scrollRestoration: true,
-    defaultPreloadStaleTime: 0,
+    defaultPreload: "intent",
+    defaultPreloadStaleTime: 60_000,
   });
 
   return router;

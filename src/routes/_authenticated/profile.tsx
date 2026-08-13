@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getStats, listLibrary } from "@/lib/library.functions";
+import { getProfile } from "@/lib/auth.functions";
 import { getStatusLabel, type WatchStatus } from "@/lib/media-types";
 import { Star, Clock, Flame, TrendingUp, CheckCircle2, Film, Tv, Sparkles, Heart, Edit3, Save, Users, BookmarkPlus, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -35,8 +36,14 @@ function Profile() {
   const qc = useQueryClient();
   const statsFn = useServerFn(getStats);
   const libFn = useServerFn(listLibrary);
+  const profileFn = useServerFn(getProfile);
 
-  const [profile, setProfile] = useState<{ id: string; username: string; display_name: string | null; bio: string | null; avatar_url: string | null; is_public: boolean } | null>(null);
+  const profileQ = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => profileFn(),
+    staleTime: 60_000
+  });
+
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
@@ -57,15 +64,7 @@ function Profile() {
     );
   }
 
-  useEffect(() => {
-    (async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return;
-      const { data } = await supabase.from("profiles").select("*").eq("id", u.user.id).maybeSingle();
-      if (data) { setProfile(data); setDisplayName(data.display_name ?? ""); setBio(data.bio ?? ""); }
-    })();
-  }, []);
-
+  const profile = profileQ.data;
   const statsQ = useQuery({ queryKey: ["stats"], queryFn: () => statsFn() });
   const libQ = useQuery({ queryKey: ["library", "profile"], queryFn: () => libFn() });
   const countFn = useServerFn(getFollowCounts);
@@ -96,7 +95,12 @@ function Profile() {
     const { error } = await supabase.from("profiles").update({ display_name: displayName, bio }).eq("id", profile.id);
     setBusy(false);
     if (error) toast.error(error.message);
-    else { toast.success("Profile updated"); setEditing(false); setProfile({ ...profile, display_name: displayName, bio }); qc.invalidateQueries({ queryKey: ["public-profile"] }); }
+    else {
+      toast.success("Profile updated");
+      setEditing(false);
+      qc.invalidateQueries({ queryKey: ["profile"] });
+      qc.invalidateQueries({ queryKey: ["public-profile"] });
+    }
   }
 
   if (!profile) return <ProfileSkeleton />;
@@ -149,7 +153,11 @@ function Profile() {
                 </button>
               </div>
 
-              <button onClick={() => setEditing(true)}
+              <button onClick={() => {
+                setDisplayName(profile.display_name ?? "");
+                setBio(profile.bio ?? "");
+                setEditing(true);
+              }}
                 className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
                 <Edit3 className="h-3.5 w-3.5" /> Edit profile
               </button>
@@ -370,18 +378,40 @@ function LevelRow({ label, completed, icon }: { label: string; completed: number
 function ProfileSkeleton() {
   return (
     <div className="animate-pulse space-y-8">
-      <div className="flex items-center gap-4">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
         <div className="h-20 w-20 rounded-full bg-muted/40" />
-        <div className="flex-1 space-y-2">
-          <div className="h-7 w-48 rounded bg-muted/30" />
-          <div className="h-4 w-32 rounded bg-muted/20" />
+        <div className="flex-1 text-center sm:text-left space-y-2">
+          <div className="h-8 w-48 rounded bg-muted/30 mx-auto sm:mx-0" />
+          <div className="h-4 w-32 rounded bg-muted/20 mx-auto sm:mx-0" />
+          <div className="h-4 w-64 rounded bg-muted/20 mx-auto sm:mx-0 mt-2" />
         </div>
       </div>
+
+      {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="glass rounded-xl p-4 h-24" />
         ))}
       </div>
+
+      {/* Completion & Levels */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="glass-strong rounded-2xl p-5 h-32" />
+        <div className="glass-strong rounded-2xl p-5 h-32" />
+      </div>
+
+      {/* Media Sections (3 sections) */}
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="space-y-4">
+          <div className="h-6 w-32 rounded bg-muted/30" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+            {Array.from({ length: 6 }).map((_, j) => (
+              <div key={j} className="aspect-[2/3] rounded-xl bg-muted/20" />
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
