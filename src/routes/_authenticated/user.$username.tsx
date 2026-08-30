@@ -1,7 +1,7 @@
-import { createFileRoute, useParams, Link } from "@tanstack/react-router";
+import { createFileRoute, useParams, Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getPublicProfile, copyFromFriend } from "@/lib/friends.functions";
 import { STATUS_LABELS, STATUS_COLORS, getStatusLabel, type WatchStatus } from "@/lib/media-types";
@@ -28,10 +28,18 @@ export const Route = createFileRoute("/_authenticated/user/$username")({
 function FriendProfile() {
   const { username } = useParams({ from: "/_authenticated/user/$username" });
   const qc = useQueryClient();
+  const navigate = useNavigate();
+  const router = useRouter();
   const profileFn = useServerFn(getPublicProfile);
   const copyFn = useServerFn(copyFromFriend);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+
+  // SPA back when there is in-app history; friends page when opened directly
+  const goBack = useCallback(() => {
+    if (router.history.canGoBack()) router.history.back();
+    else navigate({ to: "/friends" });
+  }, [router, navigate]);
 
   const q = useQuery({ queryKey: ["public-profile", username], queryFn: () => profileFn({ data: { username } }), placeholderData: (prev) => prev });
 
@@ -120,7 +128,7 @@ function FriendProfile() {
     <div>
       {/* Back button */}
       <button
-        onClick={() => window.history.back()}
+        onClick={goBack}
         className="mb-6 inline-flex items-center gap-2 rounded-full bg-muted border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground transition-all shadow-md"
         title="Go back"
       >
@@ -173,7 +181,7 @@ function FriendProfile() {
       </div>
 
       {/* Stats */}
-      <div className="mb-8 grid grid-cols-5 gap-3">
+      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
         {[
           { label: "In library", value: library.length, Icon: Film },
           { label: "Planned", value: planned.length, Icon: Clock },
@@ -183,8 +191,8 @@ function FriendProfile() {
         ].map((s) => (
           <div key={s.label} className="glass rounded-xl p-4 text-center">
             <s.Icon className="mx-auto mb-1 h-4 w-4 text-muted-foreground" />
-            <div className="text-2xl font-bold text-accent">{s.value}</div>
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">{s.label}</div>
+            <div className="text-xl md:text-2xl font-bold text-accent">{s.value}</div>
+            <div className="text-[10px] md:text-xs uppercase tracking-wider text-muted-foreground">{s.label}</div>
           </div>
         ))}
       </div>
@@ -292,7 +300,7 @@ function FriendGrid({ items, profileId, mCopy }: {
             <button
               onClick={() => mCopy.mutate({ media_id: m.id, source_user_id: profileId })}
               disabled={mCopy.isPending}
-              className="absolute right-2 top-2 rounded-lg bg-gradient-accent p-1.5 text-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
+              className="absolute right-2 top-2 rounded-lg bg-gradient-accent p-1.5 text-white shadow-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity hover:scale-110"
               title="Add to my watchlist"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -314,7 +322,7 @@ function FriendProfileSkeleton() {
           <div className="h-4 w-32 rounded bg-muted" />
         </div>
       </div>
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="glass rounded-xl p-4 h-24" />
         ))}

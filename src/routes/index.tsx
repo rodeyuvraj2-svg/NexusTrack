@@ -26,20 +26,20 @@ function Landing() {
   return (
     <div className="relative">
       {/* ── NAV ── */}
-      <header className="fixed top-0 inset-x-0 z-50 flex items-center justify-between px-6 py-4 bg-background/80 backdrop-blur-lg border-b border-border/30">
+      <header className="fixed top-0 inset-x-0 z-50 flex items-center justify-between px-4 sm:px-6 py-4 bg-background/80 backdrop-blur-lg border-b border-border/30">
         <Link to="/" className="flex items-center gap-2.5">
           <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-accent shadow-lg">
             <span className="text-sm font-black text-white">N</span>
           </div>
           <span className="text-lg font-bold">Nexus<span className="text-primary">Track</span></span>
         </Link>
-        <div className="flex items-center gap-3">
-          <Link to="/auth" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Link to="/auth" className="hidden sm:inline-block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5">
             Sign in
           </Link>
           <Link
             to="/auth"
-            className="rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-shadow btn-press"
+            className="rounded-lg bg-gradient-accent px-4 sm:px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-shadow btn-press"
           >
             Start tracking
           </Link>
@@ -69,7 +69,7 @@ function Landing() {
 
           {/* Heading */}
           <h1
-            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black leading-[0.9] tracking-tighter animate-hero-fade-in"
+            className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black leading-[1.05] sm:leading-[0.9] tracking-tighter animate-hero-fade-in"
             style={{ animationDelay: '0.1s' }}
           >
             Track{" "}
@@ -89,12 +89,12 @@ function Landing() {
           </p>
 
           <div
-            className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 animate-hero-fade-in"
+            className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 animate-hero-fade-in"
             style={{ animationDelay: '0.3s' }}
           >
             <Link
               to="/auth"
-              className="group inline-flex items-center gap-2 rounded-xl bg-gradient-accent px-8 py-4 text-base font-semibold text-white shadow-xl shadow-primary/30 hover:shadow-primary/50 transition-all btn-press"
+              className="group inline-flex items-center justify-center gap-2 w-full sm:w-auto rounded-xl bg-gradient-accent px-8 py-4 text-base font-semibold text-white shadow-xl shadow-primary/30 hover:shadow-primary/50 transition-all btn-press"
             >
               Start tracking free
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -105,17 +105,17 @@ function Landing() {
                 e.preventDefault();
                 document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
               }}
-              className="inline-flex items-center gap-2 rounded-xl border border-border/50 bg-card/30 px-8 py-4 text-sm font-medium text-foreground/80 backdrop-blur-sm hover:bg-card/60 transition-colors btn-press cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 w-full sm:w-auto rounded-xl border border-border/50 bg-card/30 px-8 py-4 text-sm font-medium text-foreground/80 backdrop-blur-sm hover:bg-card/60 transition-colors btn-press cursor-pointer"
             >
               See features
-              <ChevronDown className="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
+              <ChevronDown className="h-4 w-4" />
             </a>
           </div>
         </div>
 
         {/* Mock preview */}
         <div
-          className="relative z-10 mt-20 w-full max-w-5xl mx-auto animate-hero-fade-in"
+          className="relative z-10 mt-10 sm:mt-20 w-full max-w-5xl mx-auto animate-hero-fade-in"
           style={{ animationDelay: '0.4s' }}
         >
           <div className="glass-strong rounded-2xl p-3 md:p-4 shadow-2xl image-glow-border">

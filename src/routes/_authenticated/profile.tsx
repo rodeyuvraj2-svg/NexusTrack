@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getStats, listLibrary } from "@/lib/library.functions";
 import { getProfile } from "@/lib/auth.functions";
 import { getStatusLabel, type WatchStatus } from "@/lib/media-types";
-import { Star, Clock, Flame, TrendingUp, CheckCircle2, Film, Tv, Sparkles, Heart, Edit3, Save, Users, BookmarkPlus, Eye } from "lucide-react";
+import { Star, CheckCircle2, Film, Sparkles, Heart, Edit3, Save, Search, Users, BookmarkPlus, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useGuest } from "@/lib/guest";
@@ -24,12 +24,12 @@ export const Route = createFileRoute("/_authenticated/profile")({
   component: Profile,
 });
 
-const STAT_CARDS: { key: string; label: string; Icon: typeof Film; suffix?: string | ((v: number) => string) }[] = [
+const STAT_CARDS: { key: string; label: string; Icon: typeof Film }[] = [
   { key: "total", label: "In Library", Icon: Film },
-  { key: "completed", label: "Completed", Icon: CheckCircle2 },
+  { key: "planned", label: "Planned", Icon: BookmarkPlus },
   { key: "watching", label: "Watching", Icon: Eye },
-  { key: "hoursWatched", label: "Hours", Icon: Clock, suffix: "h" },
-  { key: "currentStreak", label: "Streak", Icon: Flame, suffix: (v: number) => `${v}${v === 1 ? " day" : " days"}` },
+  { key: "completed", label: "Completed", Icon: CheckCircle2 },
+  { key: "favorites", label: "Favorites", Icon: Heart },
 ];
 
 function Profile() {
@@ -50,23 +50,11 @@ function Profile() {
   const [busy, setBusy] = useState(false);
   const { isGuest } = useGuest();
 
-  if (isGuest) {
-    return (
-      <div>
-        <h1 className="text-2xl font-bold mb-6">Profile</h1>
-        <EmptyState
-          icon={Users}
-          title="Sign in to see your profile"
-          description="Track your stats, manage your favorites, and keep your watch history."
-          action={<Link to="/auth" className="inline-block rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white">Sign in</Link>}
-        />
-      </div>
-    );
-  }
-
   const profile = profileQ.data;
   const statsQ = useQuery({ queryKey: ["stats"], queryFn: () => statsFn() });
-  const libQ = useQuery({ queryKey: ["library", "profile"], queryFn: () => libFn() });
+  // Same cache key as the shared library map (warmed at app start) — no
+  // duplicate full-library fetch, favorites/recent render instantly
+  const libQ = useQuery({ queryKey: ["library", "all"], queryFn: () => libFn(), staleTime: 30_000 });
   const countFn = useServerFn(getFollowCounts);
   const followCountsQ = useQuery({
     queryKey: ["follow-counts", profile?.id],
@@ -89,6 +77,20 @@ function Profile() {
     enabled: listMode === "following" && !!profile?.id,
   });
 
+  if (isGuest) {
+    return (
+      <div>
+        <h1 className="text-2xl font-bold mb-6">Profile</h1>
+        <EmptyState
+          icon={Users}
+          title="Sign in to see your profile"
+          description="Track your stats, manage your favorites, and keep your watch history."
+          action={<Link to="/auth" className="inline-block rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white">Sign in</Link>}
+        />
+      </div>
+    );
+  }
+
   async function saveProfile() {
     if (!profile) return;
     setBusy(true);
@@ -105,8 +107,10 @@ function Profile() {
 
   if (!profile) return <ProfileSkeleton />;
   const s = statsQ.data;
-  const favorites = (libQ.data ?? []).filter((r) => r.favorite).slice(0, 6);
-  const recentlyAdded = [...(libQ.data ?? [])].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 6);
+  const libRows = (libQ.data ?? []).filter((r) => !r.hidden);
+  const libraryEmpty = !libQ.isLoading && libRows.length === 0;
+  const favorites = libRows.filter((r) => r.favorite).slice(0, 6);
+  const recentlyAdded = [...libRows].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 6);
 
   return (
     <div className="space-y-8">
@@ -168,22 +172,37 @@ function Profile() {
 
       {/* ── Stats ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {STAT_CARDS.map(({ key, label, Icon, suffix }) => {
+        {STAT_CARDS.map(({ key, label, Icon }) => {
           const raw = s?.[key as keyof typeof s];
           const value = typeof raw === "number" ? raw : 0;
-          const display = typeof suffix === "function" ? suffix(value) : suffix ? `${value}${suffix}` : value;
           return (
             <div key={key} className="glass rounded-xl p-4 text-center card-hover">
               <Icon className="mx-auto mb-1.5 h-4 w-4 text-muted-foreground/60" />
-              <div className="text-xl font-black text-foreground">{display}</div>
+              <div className="text-xl font-black text-foreground">{value}</div>
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">{label}</div>
             </div>
           );
         })}
       </div>
 
-      {/* ── Completion ring + Levels ── */}
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* ── Empty library CTA ── */}
+      {libraryEmpty ? (
+        <div className="glass rounded-2xl p-10 md:p-14 text-center">
+          <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-muted/40">
+            <Film className="h-7 w-7 text-muted-foreground/60" />
+          </div>
+          <p className="text-base md:text-lg font-semibold text-foreground/90">Your library is empty</p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground/80">
+            Add your first movie, show, or anime — your stats, levels, and favorites will light up here.
+          </p>
+          <Link to="/search" className="mt-5 inline-flex items-center gap-2 rounded-lg bg-gradient-accent px-5 py-2.5 text-sm font-semibold text-white shadow-lg btn-press">
+            <Search className="h-4 w-4" /> Find something to watch
+          </Link>
+        </div>
+      ) : (
+        <>
+          {/* ── Completion ring + Levels ── */}
+          <div className="grid gap-4 md:grid-cols-2">
         <div className="glass-strong rounded-2xl p-5">
           <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground/70 mb-4">Completion</h3>
           <div className="flex items-center gap-5">
@@ -216,6 +235,8 @@ function Profile() {
           </div>
         </div>
       </div>
+        </>
+      )}
 
       {/* ── Top Rated ── */}
       {s?.topRatings && s.topRatings.length > 0 && (

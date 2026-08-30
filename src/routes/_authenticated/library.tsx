@@ -6,7 +6,7 @@ import { listLibrary } from "@/lib/library.functions";
 import { MediaGrid } from "@/components/MediaCard";
 import { EmptyState } from "@/components/EmptyState";
 import { useGuest } from "@/lib/guest";
-import type { WatchStatus, MediaSummary } from "@/lib/media-types";
+import type { MediaSummary } from "@/lib/media-types";
 import { Film, Eye, BookmarkPlus, CheckCircle2, Heart, Search, Loader2, ArrowUpDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -50,6 +50,70 @@ function Library() {
   const [sortDir, setSortDir] = useState<SortDirection>("desc");
   const fn = useServerFn(listLibrary);
 
+  // Fetch the whole library once and filter client-side — the dataset is one
+  // user's entries, so pill clicks are instant instead of costing a server
+  // round trip per filter. Same cache key as the dashboard's library query.
+  const q = useQuery({
+    queryKey: ["library", "all"],
+    queryFn: () => fn({ data: {} }),
+    placeholderData: (prev) => prev,
+    staleTime: 30_000,
+  });
+
+  const rows = q.data ?? [];
+
+  // Client-side status/type filtering, search, and sorting
+  const items = useMemo(() => {
+    // Hidden items stay out of the library view entirely
+    let filtered = rows.filter((r) => !r.hidden);
+    if (status === "favorites") filtered = filtered.filter((r) => r.favorite);
+    else if (status !== "all") filtered = filtered.filter((r) => r.status === status);
+    if (type !== "all") {
+      filtered = filtered.filter((r) => (r.media as unknown as { media_type?: string } | null)?.media_type === type);
+    }
+
+    const mapped: MediaSummary[] = filtered.map((r) => {
+      const m = r.media as unknown as {
+        media_type: string; source: string; external_id: string; title: string;
+        poster_url: string | null; release_year: number | null; vote_average: number | null;
+      } | null;
+      const rawSource = m?.source ?? "";
+      const rawType = m?.media_type ?? "";
+      return {
+        external_id: m?.external_id ?? "",
+        source: (rawSource === "tmdb" || rawSource === "anilist" ? rawSource : "tmdb") as "tmdb" | "anilist",
+        media_type: (rawType === "movie" || rawType === "tv" || rawType === "anime" || rawType === "manga" ? rawType : "movie") as "movie" | "tv" | "anime" | "manga",
+        title: m?.title ?? "Unknown",
+        overview: null, poster_url: m?.poster_url ?? null, backdrop_url: null,
+        release_year: m?.release_year ?? null, vote_average: m?.vote_average ?? null,
+        genres: [], runtime: null, season_count: null, status: null,
+      };
+    }).filter((i) => i.external_id);
+
+    let result = mapped;
+    if (searchQuery.trim()) {
+      const qLower = searchQuery.toLowerCase().trim();
+      result = result.filter((item) => item.title.toLowerCase().includes(qLower));
+    }
+
+    if (sortBy !== "recent") {
+      // "recent" = updated_at desc — already the server's ordering, leave as-is
+      result = [...result].sort((a, b) => {
+        let comparison = 0;
+        if (sortBy === "title") {
+          comparison = a.title.localeCompare(b.title);
+        } else if (sortBy === "rating") {
+          comparison = (a.vote_average ?? 0) - (b.vote_average ?? 0);
+        } else if (sortBy === "year") {
+          comparison = (a.release_year ?? 0) - (b.release_year ?? 0);
+        }
+
+        return sortDir === "asc" ? comparison : -comparison;
+      });
+    }
+    return result;
+  }, [rows, status, type, searchQuery, sortBy, sortDir]);
+
   if (isGuest) {
     return (
       <div>
@@ -67,63 +131,6 @@ function Library() {
       </div>
     );
   }
-
-  const q = useQuery({
-    queryKey: ["library", status, type],
-    queryFn: () => fn({
-      data: {
-        status: status !== "all" && status !== "favorites" ? (status as WatchStatus) : undefined,
-        type: type !== "all" ? type : undefined,
-        favorite: status === "favorites" ? true : undefined,
-      },
-    }),
-    placeholderData: (prev) => prev,
-    staleTime: 30_000,
-  });
-
-  const rows = q.data ?? [];
-  const rawItems: MediaSummary[] = rows.map((r) => {
-    const m = r.media as unknown as {
-      media_type: string; source: string; external_id: string; title: string;
-      poster_url: string | null; release_year: number | null; vote_average: number | null;
-    } | null;
-    const rawSource = m?.source ?? "";
-    const rawType = m?.media_type ?? "";
-    return {
-      external_id: m?.external_id ?? "",
-      source: (rawSource === "tmdb" || rawSource === "anilist" ? rawSource : "tmdb") as "tmdb" | "anilist",
-      media_type: (rawType === "movie" || rawType === "tv" || rawType === "anime" || rawType === "manga" ? rawType : "movie") as "movie" | "tv" | "anime" | "manga",
-      title: m?.title ?? "Unknown",
-      overview: null, poster_url: m?.poster_url ?? null, backdrop_url: null,
-      release_year: m?.release_year ?? null, vote_average: m?.vote_average ?? null,
-      genres: [], runtime: null, season_count: null, status: null,
-    };
-  }).filter((i) => i.external_id);
-
-  // Client-side search and sorting
-  const items = useMemo(() => {
-    let result = [...rawItems];
-    if (searchQuery.trim()) {
-      const qLower = searchQuery.toLowerCase().trim();
-      result = result.filter((item) => item.title.toLowerCase().includes(qLower));
-    }
-
-    if (sortBy !== "recent") {
-      result.sort((a, b) => {
-        let comparison = 0;
-        if (sortBy === "title") {
-          comparison = a.title.localeCompare(b.title);
-        } else if (sortBy === "rating") {
-          comparison = (a.vote_average ?? 0) - (b.vote_average ?? 0);
-        } else if (sortBy === "year") {
-          comparison = (a.release_year ?? 0) - (b.release_year ?? 0);
-        }
-
-        return sortDir === "asc" ? comparison : -comparison;
-      });
-    }
-    return result;
-  }, [rawItems, searchQuery, sortBy, sortDir]);
 
   return (
     <div>

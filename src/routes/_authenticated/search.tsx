@@ -47,7 +47,7 @@ function SearchPage() {
         search: (prev) => ({ ...prev, q: value }),
         replace: true,
       });
-    }, 400);
+    }, 250);
   }
 
   function handleTypeChange(newType: "all" | "movie" | "tv" | "anime" | "manga") {
@@ -64,18 +64,23 @@ function SearchPage() {
   const isIdle = debounced.length < 2;
 
   const query = useQuery({
-    queryKey: ["search", debounced],
+    // Keyed by type so each filter has its own cache — switching back and
+    // forth doesn't refetch, and we only hit the APIs the filter needs.
+    queryKey: ["search", debounced, activeType],
     queryFn: async () => {
+      const wants = (t: "movie" | "tv" | "anime" | "manga") => activeType === "all" || activeType === t;
+      const wantsTmdb = wants("movie") || wants("tv");
+      const emptyTmdb = { movies: [], tv: [] };
       const [tmdb, anime, manga] = await Promise.allSettled([
-        tmdbFn({ data: { q: debounced } }),
-        anilistFn({ data: { q: debounced } }),
-        mangaFn({ data: { q: debounced } }),
+        wantsTmdb ? tmdbFn({ data: { q: debounced } }) : Promise.resolve(emptyTmdb),
+        wants("anime") ? anilistFn({ data: { q: debounced } }) : Promise.resolve([]),
+        wants("manga") ? mangaFn({ data: { q: debounced } }) : Promise.resolve([]),
       ]);
-      const tmdbData = tmdb.status === "fulfilled" ? tmdb.value : { movies: [], tv: [] };
+      const tmdbData = tmdb.status === "fulfilled" ? tmdb.value : emptyTmdb;
       const animeData = anime.status === "fulfilled" ? anime.value : [];
       const mangaData = manga.status === "fulfilled" ? manga.value : [];
       let errorMsg = null;
-      if (tmdb.status === "rejected") {
+      if (wantsTmdb && tmdb.status === "rejected") {
         errorMsg = tmdb.reason instanceof Error ? tmdb.reason.message : String(tmdb.reason);
       }
       return { ...tmdbData, anime: animeData, manga: mangaData, errorMsg };

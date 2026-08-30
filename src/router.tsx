@@ -1,6 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
+import { RoutePending } from "./components/RoutePending";
 
 // Singleton QueryClient — avoids creating a new one on every render/call
 let _queryClient: QueryClient | undefined;
@@ -35,6 +36,10 @@ export const getRouter = () => {
     scrollRestoration: true,
     defaultPreload: "intent",
     defaultPreloadStaleTime: 60_000,
+    // Show a slim top progress bar once a transition takes longer than a
+    // moment — without this a slow route load looks like a frozen app.
+    defaultPendingMs: 300,
+    defaultPendingComponent: RoutePending,
   });
 
   return router;

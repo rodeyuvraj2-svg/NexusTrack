@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { cached } from "./api-cache";
 import type { MediaSummary } from "./media-types";
 
 // ---- AniList GraphQL endpoint ----
@@ -109,46 +110,50 @@ interface AniListMedia {
 }
 
 const ANILIST_TIMEOUT = 3_000; // 3 seconds — fallback kicks in fast if AniList is slow
+const ANILIST_CACHE_TTL = 5 * 60_000; // 5 min — lists/details rarely change faster
 
 // ---- GraphQL helper ----
 
 async function anilist<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
-  async function fetchWithTimeout(url: string, opts: RequestInit, ms: number): Promise<Response> {
-    const ctrl = new AbortController();
-    const id = setTimeout(() => ctrl.abort(), ms);
-    try {
-      const res = await fetch(url, { ...opts, signal: ctrl.signal });
-      return res;
-    } finally {
-      clearTimeout(id);
+  const key = `anilist:${JSON.stringify({ query, variables })}`;
+  return cached(key, ANILIST_CACHE_TTL, async () => {
+    async function fetchWithTimeout(url: string, opts: RequestInit, ms: number): Promise<Response> {
+      const ctrl = new AbortController();
+      const id = setTimeout(() => ctrl.abort(), ms);
+      try {
+        const res = await fetch(url, { ...opts, signal: ctrl.signal });
+        return res;
+      } finally {
+        clearTimeout(id);
+      }
     }
-  }
 
-  const res = await fetchWithTimeout(ANILIST_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ query, variables }),
-  }, ANILIST_TIMEOUT);
-
-  if (res.status === 429) {
-    const retryAfter = Number(res.headers.get("Retry-After") ?? 1);
-    await new Promise((r) => setTimeout(r, Math.min(retryAfter, 3) * 1000));
-    const retry = await fetchWithTimeout(ANILIST_URL, {
+    const res = await fetchWithTimeout(ANILIST_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ query, variables }),
     }, ANILIST_TIMEOUT);
-    if (!retry.ok) throw new Error(`AniList rate limited: ${retry.status}`);
-    const json = (await retry.json()) as { data: T; errors?: { message: string }[] };
+
+    if (res.status === 429) {
+      const retryAfter = Number(res.headers.get("Retry-After") ?? 1);
+      await new Promise((r) => setTimeout(r, Math.min(retryAfter, 3) * 1000));
+      const retry = await fetchWithTimeout(ANILIST_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ query, variables }),
+      }, ANILIST_TIMEOUT);
+      if (!retry.ok) throw new Error(`AniList rate limited: ${retry.status}`);
+      const json = (await retry.json()) as { data: T; errors?: { message: string }[] };
+      if (json.errors?.length) throw new Error(`AniList GraphQL error: ${json.errors[0].message}`);
+      return json.data;
+    }
+
+    if (!res.ok) throw new Error(`AniList ${res.status}: ${await res.text()}`);
+    const json = (await res.json()) as { data: T; errors?: { message: string }[] };
+    if (!json || !json.data) throw new Error(`AniList API response missing data`);
     if (json.errors?.length) throw new Error(`AniList GraphQL error: ${json.errors[0].message}`);
     return json.data;
-  }
-
-  if (!res.ok) throw new Error(`AniList ${res.status}: ${await res.text()}`);
-  const json = (await res.json()) as { data: T; errors?: { message: string }[] };
-  if (!json || !json.data) throw new Error(`AniList API response missing data`);
-  if (json.errors?.length) throw new Error(`AniList GraphQL error: ${json.errors[0].message}`);
-  return json.data;
+  });
 }
 
 // ---- Helpers ----
@@ -633,24 +638,35 @@ export const getMangaDetails = createServerFn({ method: "GET" })
     }
   });
 
+interface MangaLite {
+  mal_id: number;
+  title: string;
+  year: number | null;
+  images: { jpg: { large_image_url: string | null; image_url: string | null } } | null;
+}
+
 export const getMultipleMangaDetails = createServerFn({ method: "GET" })
   .validator((input) => z.object({ ids: z.array(z.number()) }).parse(input))
   .handler(async ({ data }) => {
-    const results: Array<{ mal_id: number; title: string; year: number | null; images: { jpg: { large_image_url: string | null; image_url: string | null } } | null; relation?: string }> = [];
-    for (const mid of data.ids.slice(0, 8)) {
-      try {
-        const r = await anilist<{ Media: AniListMedia }>(
+    // Fetch all requested IDs concurrently — a sequential loop costs
+    // one AniList round trip per ID (several seconds for 8 entries).
+    const settled = await Promise.allSettled(
+      data.ids.slice(0, 8).map((mid) =>
+        anilist<{ Media: AniListMedia }>(
           `query ($id: Int) { Media(id: $id, type: MANGA) { id title { romaji english } coverImage { extraLarge large } seasonYear format } }`,
           { id: mid },
-        );
-        const a = r.Media;
-        results.push({
-          mal_id: a.id,
-          title: a.title.english || a.title.romaji || "",
-          year: a.seasonYear ?? null,
-          images: { jpg: { large_image_url: a.coverImage?.extraLarge ?? null, image_url: a.coverImage?.large ?? null } },
-        });
-      } catch { /* skip failed */ }
-    }
-    return results;
+        ).then((r): MangaLite => {
+          const a = r.Media;
+          return {
+            mal_id: a.id,
+            title: a.title.english || a.title.romaji || "",
+            year: a.seasonYear ?? null,
+            images: { jpg: { large_image_url: a.coverImage?.extraLarge ?? null, image_url: a.coverImage?.large ?? null } },
+          };
+        }),
+      ),
+    );
+    return settled
+      .filter((s): s is PromiseFulfilledResult<MangaLite> => s.status === "fulfilled")
+      .map((s) => s.value);
   });
