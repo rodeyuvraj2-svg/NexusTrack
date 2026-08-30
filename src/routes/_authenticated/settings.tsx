@@ -19,23 +19,6 @@ function Settings() {
   const { isGuest } = useGuest();
   const qc = useQueryClient();
 
-  if (isGuest) {
-    return (
-      <div className="max-w-2xl">
-        <h1 className="mb-8 text-3xl md:text-4xl font-bold">Settings</h1>
-        <EmptyState
-          icon={SettingsIcon}
-          title="Sign in to manage settings"
-          description="Customize your profile, manage your data, and control your privacy."
-          action={
-            <Link to="/auth" className="inline-block rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white">
-              Sign in
-            </Link>
-          }
-        />
-      </div>
-    );
-  }
   const exportFn = useServerFn(exportLibrary);
   const importFn = useServerFn(importLibrary);
   const deleteFn = useServerFn(deleteAccount);
@@ -102,6 +85,24 @@ function Settings() {
     },
     onError: (e) => toast.error(e.message),
   });
+
+  if (isGuest) {
+    return (
+      <div className="max-w-2xl">
+        <h1 className="mb-8 text-3xl md:text-4xl font-bold">Settings</h1>
+        <EmptyState
+          icon={SettingsIcon}
+          title="Sign in to manage settings"
+          description="Customize your profile, manage your data, and control your privacy."
+          action={
+            <Link to="/auth" className="inline-block rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white">
+              Sign in
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
 
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];

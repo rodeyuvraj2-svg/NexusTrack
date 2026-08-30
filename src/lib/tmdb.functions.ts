@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { cached } from "./api-cache";
 import type { MediaSummary, MediaType } from "./media-types";
+
+const TMDB_CACHE_TTL = 5 * 60_000; // 5 min — TMDB data (trending/details) barely changes faster
 
 const TMDB_BASE = "https://api.themoviedb.org/3";
 const IMG = "https://image.tmdb.org/t/p";
@@ -54,32 +57,35 @@ function tmdbUrl(path: string, params: Record<string, string | number | undefine
 }
 
 async function tmdb<T>(path: string, params: Record<string, string | number | undefined> = {}): Promise<T> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => { try { controller.abort(); } catch {} }, TMDB_TIMEOUT);
-  try {
-    const res = await fetch(tmdbUrl(path, params), { headers: tmdbHeaders(), signal: controller.signal });
-    clearTimeout(timeout);
-    if (res.status === 429) {
-      await new Promise((r) => setTimeout(r, 1000));
-      // Create a new controller for the retry with its own timeout
-      const retryController = new AbortController();
-      const retryTimeout = setTimeout(() => { try { retryController.abort(); } catch {} }, TMDB_TIMEOUT);
-      try {
-        const retry = await fetch(tmdbUrl(path, params), { headers: tmdbHeaders(), signal: retryController.signal });
-        clearTimeout(retryTimeout);
-        if (!retry.ok) throw new Error(`TMDB ${retry.status}: ${await retry.text()}`);
-        return retry.json() as Promise<T>;
-      } catch (retryErr) {
-        clearTimeout(retryTimeout);
-        throw retryErr;
+  const key = `tmdb:${path}?${JSON.stringify(params)}`;
+  return cached(key, TMDB_CACHE_TTL, async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => { try { controller.abort(); } catch {} }, TMDB_TIMEOUT);
+    try {
+      const res = await fetch(tmdbUrl(path, params), { headers: tmdbHeaders(), signal: controller.signal });
+      clearTimeout(timeout);
+      if (res.status === 429) {
+        await new Promise((r) => setTimeout(r, 1000));
+        // Create a new controller for the retry with its own timeout
+        const retryController = new AbortController();
+        const retryTimeout = setTimeout(() => { try { retryController.abort(); } catch {} }, TMDB_TIMEOUT);
+        try {
+          const retry = await fetch(tmdbUrl(path, params), { headers: tmdbHeaders(), signal: retryController.signal });
+          clearTimeout(retryTimeout);
+          if (!retry.ok) throw new Error(`TMDB ${retry.status}: ${await retry.text()}`);
+          return retry.json() as Promise<T>;
+        } catch (retryErr) {
+          clearTimeout(retryTimeout);
+          throw retryErr;
+        }
       }
+      if (!res.ok) throw new Error(`TMDB ${res.status}: ${await res.text()}`);
+      return res.json() as Promise<T>;
+    } catch (err) {
+      clearTimeout(timeout);
+      throw err;
     }
-    if (!res.ok) throw new Error(`TMDB ${res.status}: ${await res.text()}`);
-    return res.json() as Promise<T>;
-  } catch (err) {
-    clearTimeout(timeout);
-    throw err;
-  }
+  });
 }
 
 function imgUrl(path: string | null | undefined, size = "w342") {
@@ -263,7 +269,17 @@ export const cacheMedia = createServerFn({ method: "POST" })
       .eq("source", data.source)
       .eq("external_id", data.external_id)
       .maybeSingle();
-    if (existing.data) return { id: existing.data.id };
+    if (existing.data) {
+      // If the row was created as a placeholder (e.g. by the grid batch
+      // lookup), TV shows may have no seasons yet — fall through to fetch
+      // and fill them.
+      if (!(data.source === "tmdb" && data.type === "tv")) return { id: existing.data.id };
+      const { count } = await context.supabase
+        .from("seasons")
+        .select("id", { count: "exact", head: true })
+        .eq("media_id", existing.data.id);
+      if (count && count > 0) return { id: existing.data.id };
+    }
 
     // Fetch media details from the source API
     let summary: MediaSummary;

@@ -5,10 +5,23 @@ import { AppShell } from "@/components/AppShell";
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
-    // Use getSession() (reads local storage, no network) instead of getUser()
-    // (which makes a live Supabase request and can stall indefinitely locally).
-    // Server-side route functions validate tokens independently via requireSupabaseAuth.
-    const { data, error } = await supabase.auth.getSession();
+    // getSession() normally resolves instantly from local storage. But while
+    // supabase-js refreshes an expired access token it holds the navigator
+    // lock — if that refresh hangs, getSession blocks forever and every
+    // navigation would hang with it. Race it with a timeout so route
+    // transitions always proceed; server functions validate tokens
+    // independently, so rendering with a null user is safe.
+    const session = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+    ]);
+
+    if (!session) {
+      // Timed out (stuck token refresh) — let the page render
+      return { user: null, isGuest: false };
+    }
+
+    const { data, error } = session;
     if (error || !data.session) {
       // Check if guest mode is active before redirecting
       try {

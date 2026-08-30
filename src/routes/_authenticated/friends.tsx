@@ -20,23 +20,6 @@ function Friends() {
   const { isGuest } = useGuest();
   const qc = useQueryClient();
 
-  if (isGuest) {
-    return (
-      <div>
-        <h1 className="text-3xl md:text-4xl font-bold mb-6">Friends</h1>
-        <EmptyState
-          icon={UsersIcon}
-          title="Sign in to connect with friends"
-          description="See what friends are watching, share recommendations, and never watch alone."
-          action={
-            <Link to="/auth" className="inline-block rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white">
-              Sign in
-            </Link>
-          }
-        />
-      </div>
-    );
-  }
   const listFn = useServerFn(listFriends);
   const searchFn = useServerFn(searchUsers);
   const sendFn = useServerFn(sendFriendRequest);
@@ -64,6 +47,24 @@ function Friends() {
   });
   const mResp = useMutation({ mutationFn: (v: { id: string; accept: boolean }) => respFn({ data: v }), onSuccess: invalidate });
   const mRm = useMutation({ mutationFn: (id: string) => rmFn({ data: { id } }), onSuccess: invalidate });
+
+  if (isGuest) {
+    return (
+      <div>
+        <h1 className="text-3xl md:text-4xl font-bold mb-6">Friends</h1>
+        <EmptyState
+          icon={UsersIcon}
+          title="Sign in to connect with friends"
+          description="See what friends are watching, share recommendations, and never watch alone."
+          action={
+            <Link to="/auth" className="inline-block rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white">
+              Sign in
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
 
   return (
     <div>

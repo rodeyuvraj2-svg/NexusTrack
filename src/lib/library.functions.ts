@@ -1,8 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const StatusEnum = z.enum(["watching", "completed", "planned", "paused", "dropped", "skipped", "rewatching"]);
+type WatchStatusValue = z.infer<typeof StatusEnum>;
 
 export const listLibrary = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -29,6 +31,99 @@ export const listLibrary = createServerFn({ method: "GET" })
     return rows;
   });
 
+// Shared upsert used by both upsertLibraryItem (by media id) and
+// saveLibraryEntryByExternal (by source + external id).
+async function applyLibraryUpsert(
+  supabase: SupabaseClient,
+  userId: string,
+  mediaId: string,
+  data: {
+    status?: WatchStatusValue;
+    rating?: number | null;
+    favorite?: boolean;
+    hidden?: boolean;
+    notes?: string | null;
+  },
+) {
+  // Fetch full existing record to compare all fields
+  const { data: existing } = await supabase
+    .from("user_media")
+    .select("id, status, favorite")
+    .eq("user_id", userId)
+    .eq("media_id", mediaId)
+    .maybeSingle();
+
+  if (existing) {
+    const patch: {
+      status?: typeof data.status;
+      rating?: typeof data.rating;
+      favorite?: boolean;
+      hidden?: boolean;
+      notes?: string | null;
+    } = {};
+    if (data.status !== undefined) patch.status = data.status;
+    if (data.rating !== undefined) patch.rating = data.rating;
+    if (data.favorite !== undefined) patch.favorite = data.favorite;
+    if (data.hidden !== undefined) patch.hidden = data.hidden;
+    if (data.notes !== undefined) patch.notes = data.notes;
+
+    const { data: row, error } = await supabase
+      .from("user_media")
+      .update(patch)
+      .eq("id", existing.id)
+      .select("*")
+      .single();
+    if (error) throw error;
+
+    // Log activity (non-critical — wrapped in try/catch)
+    try {
+      if (data.status === "completed" && existing.status !== "completed") {
+        await supabase.from("activity").insert({
+          user_id: userId, kind: "completed", media_id: mediaId,
+        }).maybeSingle();
+      }
+      if (data.status === "watching" && existing.status !== "watching") {
+        await supabase.from("activity").insert({
+          user_id: userId, kind: "started", media_id: mediaId,
+        }).maybeSingle();
+      }
+      if (data.favorite === true && !existing.favorite) {
+        await supabase.from("activity").insert({
+          user_id: userId, kind: "favorited", media_id: mediaId,
+        }).maybeSingle();
+      }
+    } catch { /* activity logging is non-critical */ }
+
+    return row;
+  }
+
+  const { data: row, error } = await supabase
+    .from("user_media")
+    .insert({
+      user_id: userId,
+      media_id: mediaId,
+      status: data.status ?? "planned",
+      rating: data.rating ?? null,
+      favorite: data.favorite ?? false,
+      hidden: data.hidden ?? false,
+      notes: data.notes ?? null,
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+
+  // Log "added" for new entries (non-critical)
+  try {
+    await supabase.from("activity").insert({
+      user_id: userId,
+      kind: data.favorite ? "favorited" : "added",
+      media_id: mediaId,
+    }).maybeSingle();
+  } catch { /* activity logging is non-critical */ }
+
+  return row;
+}
+
 export const upsertLibraryItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) =>
@@ -43,84 +138,78 @@ export const upsertLibraryItem = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
+  .handler(async ({ data, context }) =>
+    applyLibraryUpsert(context.supabase, context.userId, data.media_id, data),
+  );
+
+const MediaRefSchema = z.object({
+  source: z.enum(["tmdb", "anilist"]),
+  media_type: z.enum(["movie", "tv", "anime", "manga"]),
+  external_id: z.string().min(1),
+  title: z.string().min(1),
+  poster_url: z.string().nullable().optional(),
+  release_year: z.number().nullable().optional(),
+  vote_average: z.number().nullable().optional(),
+});
+
+/**
+ * Save a library change addressed by the media's external identity
+ * (source + external id) instead of the internal media id. The media row
+ * is created on demand from the client-provided summary — only when the
+ * user actually saves something, never for items they merely browse.
+ */
+export const saveLibraryEntryByExternal = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) =>
+    z
+      .object({
+        item: MediaRefSchema,
+        status: StatusEnum.optional(),
+        rating: z.number().int().min(0).max(10).nullable().optional(),
+        favorite: z.boolean().optional(),
+        notes: z.string().max(1000).nullable().optional(),
+      })
+      .parse(input),
+  )
   .handler(async ({ data, context }) => {
-    // Fetch full existing record to compare all fields
+    // 1. Ensure the media row exists (read-first; insert only when missing)
     const { data: existing } = await context.supabase
-      .from("user_media")
-      .select("id, status, favorite")
-      .eq("user_id", context.userId)
-      .eq("media_id", data.media_id)
+      .from("media")
+      .select("id")
+      .eq("media_type", data.item.media_type)
+      .eq("source", data.item.source)
+      .eq("external_id", data.item.external_id)
       .maybeSingle();
 
-    if (existing) {
-      const patch: {
-        status?: typeof data.status;
-        rating?: typeof data.rating;
-        favorite?: boolean;
-        hidden?: boolean;
-        notes?: string | null;
-      } = {};
-      if (data.status !== undefined) patch.status = data.status;
-      if (data.rating !== undefined) patch.rating = data.rating;
-      if (data.favorite !== undefined) patch.favorite = data.favorite;
-      if (data.hidden !== undefined) patch.hidden = data.hidden;
-      if (data.notes !== undefined) patch.notes = data.notes;
-
-      const { data: row, error } = await context.supabase
-        .from("user_media")
-        .update(patch)
-        .eq("id", existing.id)
-        .select("*")
+    let mediaId = existing?.id as string | undefined;
+    if (!mediaId) {
+      // Media metadata is global and must only be written by the trusted server client.
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      if (!supabaseAdmin?.from) {
+        throw new Error("Media caching is unavailable: SUPABASE_SERVICE_ROLE_KEY is not configured.");
+      }
+      const { data: mediaRow, error: mediaError } = await supabaseAdmin
+        .from("media")
+        .upsert(
+          {
+            media_type: data.item.media_type,
+            source: data.item.source,
+            external_id: data.item.external_id,
+            title: data.item.title,
+            poster_url: data.item.poster_url ?? null,
+            release_year: data.item.release_year ?? null,
+            vote_average: data.item.vote_average ?? null,
+          },
+          { onConflict: "media_type,source,external_id" },
+        )
+        .select("id")
         .single();
-      if (error) throw error;
-
-      // Log activity (non-critical — wrapped in try/catch)
-      try {
-        if (data.status === "completed" && existing.status !== "completed") {
-          await context.supabase.from("activity").insert({
-            user_id: context.userId, kind: "completed", media_id: data.media_id,
-          }).maybeSingle();
-        }
-        if (data.status === "watching" && existing.status !== "watching") {
-          await context.supabase.from("activity").insert({
-            user_id: context.userId, kind: "started", media_id: data.media_id,
-          }).maybeSingle();
-        }
-        if (data.favorite === true && !existing.favorite) {
-          await context.supabase.from("activity").insert({
-            user_id: context.userId, kind: "favorited", media_id: data.media_id,
-          }).maybeSingle();
-        }
-      } catch { /* activity logging is non-critical */ }
-
-      return row;
+      if (mediaError || !mediaRow) throw mediaError ?? new Error("Could not save media metadata.");
+      mediaId = mediaRow.id as string;
     }
 
-    const { data: row, error } = await context.supabase
-      .from("user_media")
-      .insert({
-        user_id: context.userId,
-        media_id: data.media_id,
-        status: data.status ?? "planned",
-        rating: data.rating ?? null,
-        favorite: data.favorite ?? false,
-        hidden: data.hidden ?? false,
-        notes: data.notes ?? null,
-      })
-      .select("*")
-      .single();
-    if (error) throw error;
-
-    // Log "added" for new entries (non-critical)
-    try {
-      await context.supabase.from("activity").insert({
-        user_id: context.userId,
-        kind: data.favorite ? "favorited" : "added",
-        media_id: data.media_id,
-      }).maybeSingle();
-    } catch { /* activity logging is non-critical */ }
-
-    return row;
+    // 2. Apply the library change (same path as upsertLibraryItem)
+    return applyLibraryUpsert(context.supabase, context.userId, mediaId, data);
   });
 
 export const removeLibraryItem = createServerFn({ method: "POST" })
@@ -281,6 +370,7 @@ export interface ProfileStats {
   completed: number;
   watching: number;
   planned: number;
+  favorites: number;
   movies: number;
   tv: number;
   anime: number;
@@ -300,7 +390,7 @@ export interface ProfileStats {
 export const getStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const um = context.supabase.from("user_media").select("status, rating, media:media_id(id, media_type, runtime, title, poster_url, source, external_id, genres, season_count)").eq("user_id", context.userId);
+    const um = context.supabase.from("user_media").select("status, rating, favorite, media:media_id(id, media_type, runtime, title, poster_url, source, external_id, genres, season_count)").eq("user_id", context.userId);
     const [umResult] = await Promise.all([
       // Fetch all needed data in parallel
       Promise.all([
@@ -324,6 +414,7 @@ export const getStats = createServerFn({ method: "GET" })
     const completed = list.filter((r) => r.status === "completed").length;
     const watching = list.filter((r) => r.status === "watching" || r.status === "rewatching").length;
     const planned = list.filter((r) => r.status === "planned").length;
+    const favorites = list.filter((r) => r.favorite).length;
     const movies = list.filter((r) => (r.media as { media_type: string } | null)?.media_type === "movie").length;
     const tv = list.filter((r) => (r.media as { media_type: string } | null)?.media_type === "tv").length;
     const anime = list.filter((r) => (r.media as { media_type: string } | null)?.media_type === "anime").length;
@@ -403,5 +494,5 @@ export const getStats = createServerFn({ method: "GET" })
       longestStreak = Math.max(longestStreak, currentStreak, sortedDates.length > 0 ? 1 : 0);
     }
 
-    return { total, completed, watching, planned, movies, tv, anime, manga, completedMovies, completedTv, completedAnime, completedManga, completionPct, hoursWatched, favoriteGenres, topRatings, currentStreak, longestStreak } as ProfileStats;
+    return { total, completed, watching, planned, favorites, movies, tv, anime, manga, completedMovies, completedTv, completedAnime, completedManga, completionPct, hoursWatched, favoriteGenres, topRatings, currentStreak, longestStreak } as ProfileStats;
   });

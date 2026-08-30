@@ -1,4 +1,4 @@
-import { createFileRoute, useParams, Link } from "@tanstack/react-router";
+import { createFileRoute, useParams, Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient, useMutation, type UseQueryResult } from "@tanstack/react-query";
 import { getDetails, cacheMedia, getRecommendations, getCast, reclassifyMedia, getTrailerKey } from "@/lib/tmdb.functions";
@@ -8,6 +8,7 @@ import { listReviews, upsertReview, deleteReview, toggleReviewLike } from "@/lib
 import { STATUS_LABELS, STATUS_COLORS, getStatusLabel, type WatchStatus, type MediaSummary } from "@/lib/media-types";
 import { MediaGrid } from "@/components/MediaCard";
 import { SafeImage } from "@/components/SafeImage";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Star, Heart, Trash2, Check, ThumbsUp, MessageSquare, List, Play, CircleCheck, ArrowLeft, ExternalLink, Globe, BookmarkPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { useEffect, useMemo, useState, useCallback } from "react";
@@ -93,6 +94,16 @@ interface RelatedItem {
 
 function MediaDetail() {
   const { type, source, id } = useParams({ from: "/_authenticated/media/$type/$source/$id" });
+  const navigate = useNavigate();
+  const router = useRouter();
+
+  // True SPA back when there is in-app history (no reload — preserves the
+  // previous page and its scroll position); dashboard only when the page was
+  // opened directly in a fresh tab with nothing to go back to.
+  const goBack = useCallback(() => {
+    if (router.history.canGoBack()) router.history.back();
+    else navigate({ to: "/dashboard" });
+  }, [router, navigate]);
   const qc = useQueryClient();
 
   // ---- Server Function Bindings ----
@@ -527,26 +538,38 @@ function MediaDetail() {
   };
 
   return (
-    <div className="overflow-x-hidden max-w-full">
-      {/* Hero wrapper — relative so the back button can sit over the photo */}
-      <div className="relative -mx-4 md:-mx-8 -mt-6 md:-mt-10 mb-4 md:mb-8">
-        {/* Backdrop photo */}
-        <div className="h-48 md:h-80 overflow-hidden">
+    <div className="max-w-full">
+      {/* Back button — a plain in-flow child of the content container, aligned
+          to its padding gutter (px-4/px-8). It cannot be clipped or slide
+          under the sidebar at any width because it never leaves the content
+          box — no negative margins, no absolute positioning. */}
+      <div className="relative z-20 mb-2">
+        <button
+          onClick={goBack}
+          className="inline-flex items-center gap-2 rounded-full bg-background/70 border border-border/40 backdrop-blur-md px-4 py-2 text-sm font-semibold text-foreground hover:bg-background/90 transition-all shadow-xl"
+          title="Go back"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Back</span>
+        </button>
+      </div>
+
+      {/* Hero — full-bleed backdrop pulled up UNDER the button row (the button
+          floats over its top-left, matching the original design). The -mt is
+          sized so the hero never rises above the main content box, so nothing
+          here can be clipped by ancestors. Spacer keeps the original hero
+          height so the poster overlap below is unchanged. */}
+      <div className="relative -mx-4 md:-mx-8 -mt-16 mb-4 md:mb-8">
+        {/* Backdrop photo (background layer) */}
+        <div className="absolute inset-0 overflow-hidden">
           {summary.backdrop_url ? (
             <SafeImage src={summary.backdrop_url} alt="" wrapperClassName="h-full w-full" className="h-full w-full object-cover opacity-30" />
           ) : <div className="h-full w-full bg-gradient-to-br from-primary/20 to-accent/20" />}
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
         </div>
 
-        {/* Back button — absolute over the photo, offset for negative margins */}
-        <button
-          onClick={() => window.history.back()}
-          className="absolute top-4 left-4 md:top-6 md:left-8 z-20 inline-flex items-center gap-2 rounded-full bg-background/70 border border-border/40 backdrop-blur-md px-4 py-2 text-sm font-semibold text-foreground hover:bg-background/90 transition-all shadow-xl"
-          title="Go back"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span className="hidden sm:inline">Back</span>
-        </button>
+        {/* Spacer preserving the hero height (button row sits over the top) */}
+        <div className="h-[180px] md:h-[300px]" />
       </div>
 
       {/* === MOBILE LAYOUT (< md) === */}
@@ -676,6 +699,18 @@ function MediaDetail() {
             </>
           )}
         </div>
+
+        {/* Trailer (mobile) */}
+        {trailerKey ? (
+          <div className="px-4 mt-4">
+            <button
+              onClick={() => setShowTrailerModal(true)}
+              className="w-full min-h-[44px] rounded-lg bg-destructive/15 border border-destructive/30 px-4 py-2 text-sm font-semibold text-destructive hover:bg-destructive/25 transition-colors flex items-center justify-center gap-1.5"
+            >
+              <Play className="h-4 w-4 fill-current" /> Watch Trailer
+            </button>
+          </div>
+        ) : null}
 
         {/* No mediaId message */}
         {!mediaId && !cached.isLoading ? (
@@ -1106,6 +1141,24 @@ function MediaDetail() {
           requireAuth={requireAuth}
         />
       ) : null}
+
+      {/* ---- Trailer modal ---- */}
+      <Dialog open={showTrailerModal} onOpenChange={setShowTrailerModal}>
+        <DialogContent className="max-w-3xl overflow-hidden p-0">
+          <DialogTitle className="sr-only">Trailer</DialogTitle>
+          <div className="aspect-video w-full bg-black">
+            {trailerKey ? (
+              <iframe
+                src={`https://www.youtube.com/embed/${trailerKey}?autoplay=1`}
+                title={`${summary.title} trailer`}
+                className="h-full w-full"
+                allow="autoplay; encrypted-media; picture-in-picture"
+                allowFullScreen
+              />
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1214,7 +1267,12 @@ function ReviewsSection({ mediaId, reviews, upsertFn, deleteFn, likeFn, qc, curr
 function DetailSkeleton() {
   return (
     <div className="animate-pulse">
-      <div className="h-48 md:h-80 bg-muted rounded-xl mb-4 md:mb-8" />
+      {/* Back button skeleton */}
+      <div className="mb-2 h-9 w-24 rounded-full bg-muted" />
+      {/* Hero skeleton (full-bleed, same geometry as the loaded page) */}
+      <div className="-mx-4 md:-mx-8 -mt-16 mb-4 md:mb-8">
+        <div className="h-[180px] md:h-[300px] bg-muted" />
+      </div>
       {/* Mobile skeleton */}
       <div className="flex flex-col items-center px-4 md:hidden">
         <div className="w-[50vw] max-w-[220px] aspect-[2/3] rounded-xl bg-muted -mt-20 relative z-10" />

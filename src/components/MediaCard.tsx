@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery, useMutation, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { MediaSummary, MediaType, WatchStatus } from "@/lib/media-types";
 import { STATUS_LABELS, getStatusLabel } from "@/lib/media-types";
 import {
@@ -14,8 +14,7 @@ import {
   Trash2,
   Plus,
 } from "lucide-react";
-import { cacheMedia } from "@/lib/tmdb.functions";
-import { getLibraryItem, upsertLibraryItem, removeLibraryItem } from "@/lib/library.functions";
+import { listLibrary, saveLibraryEntryByExternal, removeLibraryItem } from "@/lib/library.functions";
 import { cn } from "@/lib/utils";
 import { useState, useCallback, useRef, createContext, useContext, useMemo, memo } from "react";
 import { toast } from "sonner";
@@ -52,77 +51,178 @@ function useMediaEntryContext() {
   return ctx;
 }
 
+// ─── Library map ──────────────────────────────────────────────────────────────
+// One app-wide query (["library", "all"]) holds the user's entire library —
+// small by nature — and cards look up their entry locally. The map is warmed
+// once at app start (AppShell) and shares its cache entry with the dashboard
+// and library pages, so pills render in the same wave as posters instead of
+// popping in a beat later.
+
+export interface LibraryMapEntry {
+  mediaId: string;
+  entry: LibraryEntry;
+}
+
+interface LibraryMapState {
+  status: "loading" | "ready" | "disabled";
+  map: Map<string, LibraryMapEntry>;
+}
+
+const LibraryMapContext = createContext<LibraryMapState | null>(null);
+
+function entryKey(source: string, external_id: string) {
+  return `${source}:${external_id}`;
+}
+
+interface LibraryRowShape {
+  id: string;
+  status: WatchStatus;
+  favorite: boolean;
+  rating: number | null;
+  notes: string | null;
+  hidden: boolean;
+  created_at: string;
+  updated_at: string;
+  media: {
+    id: string; media_type: string; source: string; external_id: string;
+    title: string; poster_url: string | null; release_year: number | null; vote_average: number | null;
+  } | null;
+}
+
+/** Fetch the whole library once and expose it as a lookup map. */
+export function useLibraryMap() {
+  const listFn = useServerFn(listLibrary);
+  const { isGuest } = useGuest();
+  const q = useQuery({
+    queryKey: ["library", "all"],
+    queryFn: () => listFn({ data: {} }),
+    enabled: !isGuest,
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
+  });
+
+  const map = useMemo(() => {
+    const m = new Map<string, LibraryMapEntry>();
+    for (const row of (q.data ?? []) as LibraryRowShape[]) {
+      const media = row.media;
+      if (!media?.external_id) continue;
+      m.set(entryKey(media.source, media.external_id), {
+        mediaId: media.id,
+        entry: { id: row.id, status: row.status, favorite: row.favorite, rating: row.rating, notes: row.notes },
+      });
+    }
+    return m;
+  }, [q.data]);
+
+  const status: LibraryMapState["status"] = isGuest
+    ? "disabled"
+    : q.isLoading && !q.data
+      ? "loading"
+      : "ready";
+  return { status, map };
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 function useMediaLibraryEntry(item: MediaSummary) {
   const qc = useQueryClient();
-  const cacheFn = useServerFn(cacheMedia);
-  const getLibFn = useServerFn(getLibraryItem);
-  const upsertFn = useServerFn(upsertLibraryItem);
+  const saveFn = useServerFn(saveLibraryEntryByExternal);
   const removeFn = useServerFn(removeLibraryItem);
 
-  const cacheQ = useQuery({
-    queryKey: ["media-cache", item.source, item.media_type, item.external_id],
-    queryFn: () => cacheFn({ data: { type: item.media_type, external_id: item.external_id, source: item.source } }),
-    placeholderData: (prev) => prev,
-    staleTime: Infinity,
-  }) as UseQueryResult<{ id: string | null }, unknown>;
+  // Read from the shared library map — no per-card requests at all
+  const ctx = useContext(LibraryMapContext);
+  const mapEntry = ctx?.map.get(entryKey(item.source, item.external_id));
+  const entry: LibraryEntry | null = mapEntry?.entry ?? null;
+  const mediaId = mapEntry?.mediaId ?? null;
+  const isLoading = ctx ? ctx.status === "loading" : false;
 
-  const mediaId = cacheQ.data?.id;
-  const cacheFailed = cacheQ.isError;
-  const cacheErrorMsg = cacheQ.error
-    ? typeof cacheQ.error === "string" ? cacheQ.error
-    : (cacheQ.error as { message?: string })?.message || "Title couldn't be cached"
-    : null;
+  // Optimistic update against the shared library list, so the pill (and every
+  // other consumer of ["library", …]) reflects the change instantly.
+  const applyOptimistic = useCallback((change: { status?: WatchStatus; favorite?: boolean; remove?: boolean }) => {
+    qc.setQueryData<LibraryRowShape[]>(["library", "all"], (old) => {
+      if (!old) return old;
+      const key = entryKey(item.source, item.external_id);
+      const idx = old.findIndex((r) => r.media && entryKey(r.media.source, r.media.external_id) === key);
 
-  const entryQ = useQuery<LibraryEntry | null>({
-    queryKey: ["library-entry", mediaId],
-    queryFn: () => getLibFn({ data: { media_id: mediaId! } }),
-    enabled: !!mediaId,
-    placeholderData: (prev) => prev,
-    staleTime: 5 * 60_000,
-  });
+      if (change.remove) {
+        return idx === -1 ? old : old.filter((_, i) => i !== idx);
+      }
+      if (idx >= 0) {
+        const row = { ...old[idx] };
+        if (change.status !== undefined) row.status = change.status;
+        if (change.favorite !== undefined) row.favorite = change.favorite;
+        return [...old.slice(0, idx), row, ...old.slice(idx + 1)];
+      }
+      // Not in the library yet — append a synthetic row so the pill flips instantly
+      return [...old, {
+        id: "optimistic",
+        status: change.status ?? "planned",
+        rating: null,
+        favorite: change.favorite ?? false,
+        hidden: false,
+        notes: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        media: {
+          id: "optimistic",
+          media_type: item.media_type,
+          source: item.source,
+          external_id: item.external_id,
+          title: item.title,
+          poster_url: item.poster_url,
+          release_year: item.release_year,
+          vote_average: item.vote_average,
+        },
+      }];
+    });
+  }, [qc, item]);
 
   const upsertMutation = useMutation({
-    mutationFn: async (data: { status?: WatchStatus; favorite?: boolean }) => {
-      if (!mediaId) throw new Error(cacheFailed && cacheErrorMsg ? cacheErrorMsg : "Media not yet ready");
-      return upsertFn({ data: { media_id: mediaId, ...data } });
-    },
+    mutationFn: (data: { status?: WatchStatus; favorite?: boolean }) =>
+      saveFn({
+        data: {
+          item: {
+            source: item.source,
+            media_type: item.media_type,
+            external_id: item.external_id,
+            title: item.title,
+            poster_url: item.poster_url,
+            release_year: item.release_year,
+            vote_average: item.vote_average,
+          },
+          ...data,
+        },
+      }),
     onMutate: async (data) => {
-      await qc.cancelQueries({ queryKey: ["library-entry", mediaId] });
-      const previousEntry = qc.getQueryData<LibraryEntry | null>(["library-entry", mediaId]);
-      qc.setQueryData(["library-entry", mediaId], (old: LibraryEntry | null | undefined) => {
-        const base = old ?? { id: "", status: "planned" as WatchStatus, favorite: false, rating: null, notes: null };
-        return { ...base, favorite: data.favorite !== undefined ? data.favorite : base.favorite, status: data.status !== undefined ? data.status : base.status };
-      });
-      return { previousEntry };
+      await qc.cancelQueries({ queryKey: ["library", "all"] });
+      const previous = qc.getQueryData(["library", "all"]);
+      applyOptimistic(data);
+      return { previous };
     },
-    onError: (err, _vars, context) => {
-      qc.setQueryData(["library-entry", mediaId], context?.previousEntry ?? null);
+    onError: (_err, _vars, context) => {
+      if (context?.previous !== undefined) qc.setQueryData(["library", "all"], context.previous);
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: ["library-entry", mediaId] });
       qc.invalidateQueries({ queryKey: ["library"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
     },
   });
 
   const removeMutation = useMutation({
-    mutationFn: async () => {
-      if (!mediaId) throw new Error(cacheFailed && cacheErrorMsg ? cacheErrorMsg : "Media not ready yet");
+    mutationFn: () => {
+      if (!mediaId) throw new Error("Not in your library yet");
       return removeFn({ data: { media_id: mediaId } });
     },
     onMutate: async () => {
-      await qc.cancelQueries({ queryKey: ["library-entry", mediaId] });
-      const previousEntry = qc.getQueryData<LibraryEntry | null>(["library-entry", mediaId]);
-      qc.setQueryData(["library-entry", mediaId], null);
-      return { previousEntry };
+      await qc.cancelQueries({ queryKey: ["library", "all"] });
+      const previous = qc.getQueryData(["library", "all"]);
+      applyOptimistic({ remove: true });
+      return { previous };
     },
     onError: (_err, _vars, context) => {
-      qc.setQueryData(["library-entry", mediaId], context?.previousEntry ?? null);
+      if (context?.previous !== undefined) qc.setQueryData(["library", "all"], context.previous);
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: ["library-entry", mediaId] });
       qc.invalidateQueries({ queryKey: ["library"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
     },
@@ -142,12 +242,12 @@ function useMediaLibraryEntry(item: MediaSummary) {
 
   return useMemo(() => ({
     mediaId,
-    entry: entryQ.data,
-    isLoading: cacheQ.isLoading || entryQ.isLoading,
+    entry,
+    isLoading,
     isPending,
     upsert,
     remove,
-  }), [mediaId, entryQ.data, cacheQ.isLoading, entryQ.isLoading, isPending, upsert, remove]);
+  }), [mediaId, entry, isLoading, isPending, upsert, remove]);
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
@@ -295,7 +395,8 @@ const MediaCardInner = memo(function MediaCardInner({ item }: { item: MediaSumma
               "absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full transition-all duration-200",
               isFavorite
                 ? "bg-accent/90 text-white scale-100 opacity-100"
-                : "bg-black/40 text-white/70 opacity-0 group-hover:opacity-100 hover:scale-110",
+                // Always visible on touch devices (no hover); hover-reveal on desktop
+                : "bg-black/40 text-white/70 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:scale-110",
             )}
           >
             <Heart className={cn("h-3.5 w-3.5", isFavorite && "fill-current")} />
@@ -346,6 +447,10 @@ export function MediaCard({ item }: { item: MediaSummary }) {
 // ─── MediaGrid ────────────────────────────────────────────────────────────────
 
 export function MediaGrid({ items }: { items: MediaSummary[] }) {
+  // The whole-library map is warmed by the AppShell and shared with the
+  // dashboard/library pages — zero per-grid requests for pill state.
+  const { status, map } = useLibraryMap();
+
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -354,11 +459,13 @@ export function MediaGrid({ items }: { items: MediaSummary[] }) {
     );
   }
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-      {items.map((it, idx) => (
-        <MediaCard key={`${it.source}-${it.media_type}-${it.external_id}-${idx}`} item={it} />
-      ))}
-    </div>
+    <LibraryMapContext.Provider value={{ status, map }}>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+        {items.map((it, idx) => (
+          <MediaCard key={`${it.source}-${it.media_type}-${it.external_id}-${idx}`} item={it} />
+        ))}
+      </div>
+    </LibraryMapContext.Provider>
   );
 }
 

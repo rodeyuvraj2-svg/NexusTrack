@@ -1,13 +1,14 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
 import { trending, discover } from "@/lib/tmdb.functions";
 import { topAnime, topManga } from "@/lib/anilist.functions";
 import { listActivity } from "@/lib/activity.functions";
 import { getStats, listLibrary } from "@/lib/library.functions";
 import { MediaGrid } from "@/components/MediaCard";
 import type { MediaSummary } from "@/lib/media-types";
-import { AlertCircle, Film, Tv, Sparkles, TrendingUp, Clock, CheckCircle2, BookmarkIcon, Heart, Flame } from "lucide-react";
+import { AlertCircle, Film, Tv, TrendingUp, CheckCircle2, BookmarkIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,11 @@ const TYPE_FILTERS: { key: MediaType; label: string }[] = [
   { key: "manga", label: "Manga" },
 ];
 
+const KIND_TEXT: Record<string, string> = {
+  started: "started watching", completed: "completed", added: "added to watchlist",
+  favorited: "favorited", rated: "rated", friend_joined: "joined NexusTrack",
+};
+
 function Section({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="mb-10">
@@ -39,6 +45,7 @@ function Section({ title, action, children }: { title: string; action?: React.Re
 }
 
 function Dashboard() {
+  const { user } = useRouteContext({ from: "/_authenticated" });
   const [userName, setUserName] = useState<string | null>(null);
   const [trendingType, setTrendingType] = useState<MediaType>("all");
   const [popularType, setPopularType] = useState<MediaType>("all");
@@ -117,13 +124,13 @@ function Dashboard() {
 
   const stats = [
     { label: "In library", value: statsQ.data?.total, icon: Film },
-    { label: "Completed", value: statsQ.data?.completed, icon: CheckCircle2 },
+    { label: "Planned", value: statsQ.data?.planned, icon: BookmarkIcon },
     { label: "Watching", value: statsQ.data?.watching, icon: Tv },
-    { label: "Hours", value: statsQ.data?.hoursWatched, icon: Clock, suffix: "h" },
+    { label: "Completed", value: statsQ.data?.completed, icon: CheckCircle2 },
   ];
 
   const watchingItems: MediaSummary[] = (watchingQ.data ?? [])
-    .filter((r) => r.status === "watching" || r.status === "rewatching")
+    .filter((r) => (r.status === "watching" || r.status === "rewatching") && !r.hidden)
     .slice(0, 6)
     .map((r) => {
       const m = r.media as unknown as { media_type: string; source: string; external_id: string; title: string; poster_url: string | null; release_year: number | null } | null;
@@ -154,7 +161,7 @@ function Dashboard() {
           stats.map((s) => (
             <div key={s.label} className="glass rounded-xl p-3 text-center card-hover">
               <s.icon className="mx-auto mb-1 h-4 w-4 text-muted-foreground" />
-              <div className="text-xl font-black text-accent">{statsQ.isLoading ? "…" : s.value ?? "—"}{s.suffix ?? ""}</div>
+              <div className="text-xl font-black text-accent">{statsQ.isLoading ? "…" : s.value ?? "—"}</div>
               <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{s.label}</div>
             </div>
           ))
@@ -226,19 +233,48 @@ function Dashboard() {
         <Section title="Friend activity">
           <div className="space-y-2">
             {actQ.data.slice(0, 10).map((a) => {
-              const p = a.profile as unknown as { username: string; display_name: string } | undefined;
-              const m = a.media as unknown as { title: string } | undefined;
+              const p = a.profile as unknown as { username: string; display_name: string; avatar_url: string | null } | undefined;
+              const m = a.media as unknown as { id: string; title: string; media_type: string; source: string; external_id: string } | null;
               const name = p?.display_name || p?.username || "Someone";
-              const kindText: Record<string, string> = {
-                started: "started watching", completed: "completed", added: "added to watchlist",
-                favorited: "favorited", rated: "rated", friend_joined: "joined NexusTrack",
-              };
-              const action = kindText[a.kind] || a.kind;
+              const isMe = a.user_id === user?.id;
+              const action = KIND_TEXT[a.kind] || a.kind;
+              const canLinkMedia = !!m?.title && !!m.media_type && !!m.source && !!m.external_id;
               return (
-                <div key={a.id} className="glass rounded-lg px-4 py-2.5 text-sm flex items-center gap-2">
-                  <span className="font-medium">{name}</span>
-                  <span className="text-muted-foreground">{action}</span>
-                  {m?.title ? <span className="text-accent font-medium">{m.title}</span> : null}
+                <div key={a.id} className="glass rounded-lg px-3 py-2.5 text-sm flex items-center gap-2.5 min-w-0">
+                  {/* Avatar */}
+                  {p?.avatar_url ? (
+                    <img src={p.avatar_url} alt="" loading="lazy" className="h-7 w-7 shrink-0 rounded-full object-cover" />
+                  ) : (
+                    <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-accent text-[10px] font-bold text-white">
+                      {(isMe ? "Y" : name).charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  {/* Name + action + title */}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate">
+                      {isMe ? (
+                        <span className="font-medium">You</span>
+                      ) : (
+                        <Link to="/user/$username" params={{ username: p?.username ?? "" }} className="font-medium transition-colors hover:text-primary">
+                          {name}
+                        </Link>
+                      )}{" "}
+                      <span className="text-muted-foreground">{action}</span>
+                    </p>
+                    {m?.title ? (
+                      canLinkMedia ? (
+                        <Link to="/media/$type/$source/$id" params={{ type: m.media_type, source: m.source, id: m.external_id }} className="block truncate text-accent font-medium transition-colors hover:underline">
+                          {m.title}
+                        </Link>
+                      ) : (
+                        <span className="block truncate text-accent font-medium">{m.title}</span>
+                      )
+                    ) : null}
+                  </div>
+                  {/* Relative time */}
+                  <time className="shrink-0 text-[10px] text-muted-foreground/70" title={new Date(a.created_at).toLocaleString()}>
+                    {formatDistanceToNow(new Date(a.created_at), { addSuffix: true })}
+                  </time>
                 </div>
               );
             })}

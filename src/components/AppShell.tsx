@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Compass, Film, Home, LogOut, Search, Users, User, Menu, X, Bell, Settings, Command, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "@/components/CommandPalette";
+import { useLibraryMap } from "@/components/MediaCard";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { getUnreadCount } from "@/lib/notifications.functions";
@@ -41,6 +42,10 @@ export function AppShell() {
     refetchInterval: 30000,
     enabled: !isGuest,
   });
+
+  // Warm the shared library map at app start so card pills render together
+  // with posters on every page (no second wave once grids mount).
+  useLibraryMap();
 
   useEffect(() => { setOpen(false); }, [pathname]);
 

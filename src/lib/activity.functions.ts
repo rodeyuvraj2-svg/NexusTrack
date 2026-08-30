@@ -25,7 +25,7 @@ export const listActivity = createServerFn({ method: "GET" })
 
     const { data: rows, error } = await context.supabase
       .from("activity")
-      .select("id, kind, created_at, user_id, media:media_id(id, media_type, title, poster_url)")
+      .select("id, kind, created_at, user_id, media:media_id(id, media_type, source, external_id, title, poster_url)")
       .in("user_id", Array.from(friendIds))
       .order("created_at", { ascending: false })
       .limit(10);
