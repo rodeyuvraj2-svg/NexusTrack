@@ -15,24 +15,34 @@ export const listReviews = createServerFn({ method: "GET" })
       .limit(50);
     if (error) throw error;
 
-    const userIds = Array.from(new Set((rows ?? []).map((r) => r.user_id)));
+    interface ReviewRow {
+      id: string;
+      body: string;
+      likes: number;
+      created_at: string;
+      updated_at: string;
+      user_id: string;
+    }
+    const reviewRows = (rows ?? []) as ReviewRow[];
+
+    const userIds = Array.from(new Set(reviewRows.map((r) => r.user_id)));
     if (userIds.length === 0) return [];
     const { data: profiles } = await context.supabase
       .from("profiles")
       .select("id, username, display_name, avatar_url")
       .in("id", userIds);
-    const pmap = new Map((profiles ?? []).map((p) => [p.id, p]));
+    const pmap = new Map((profiles ?? []).map((p: { id: string; username: string; display_name: string | null; avatar_url: string | null }) => [p.id, p]));
 
     // Check which reviews the current user has liked
     const { data: myLikes } = await context.supabase
       .from("review_likes")
       .select("review_id")
       .eq("user_id", context.userId)
-      .in("review_id", (rows ?? []).map((r) => r.id));
+      .in("review_id", reviewRows.map((r) => r.id));
 
-    const likedSet = new Set((myLikes ?? []).map((l) => l.review_id));
+    const likedSet = new Set((myLikes ?? []).map((l: { review_id: string }) => l.review_id));
 
-    return (rows ?? []).map((r) => ({
+    return reviewRows.map((r) => ({
       ...r,
       profile: pmap.get(r.user_id),
       liked_by_me: likedSet.has(r.id),

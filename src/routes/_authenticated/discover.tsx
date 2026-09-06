@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { discover, trending, getGenres } from "@/lib/tmdb.functions";
 import { topAnime, topManga } from "@/lib/anilist.functions";
 import { MediaGrid } from "@/components/MediaCard";
+import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { cn } from "@/lib/utils";
 import type { MediaSummary } from "@/lib/media-types";
 import type { Genre } from "@/lib/tmdb.functions";
@@ -33,6 +34,7 @@ const ANIME_GENRES = [
 
 export const Route = createFileRoute("/_authenticated/discover")({
   head: () => ({ meta: [{ title: "Discover — NexusTrack" }, { name: "description", content: "Discover trending and popular across movies, TV, anime, and manga." }] }),
+  errorComponent: RouteErrorBoundary,
   component: Discover,
 });
 

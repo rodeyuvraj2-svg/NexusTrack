@@ -68,34 +68,71 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
       throw new Error('Unauthorized: Invalid token');
     }
 
-    const supabase = createClient<Database>(
-      SUPABASE_URL!,
-      SUPABASE_PUBLISHABLE_KEY!,
-      {
-        global: {
-          fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY!),
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-        auth: {
-          storage: undefined,
-          persistSession: false,
-          autoRefreshToken: false,
-        },
-      }
-    );
+    // getUser() is a network roundtrip to Supabase on EVERY server-function
+    // call. Cache validated (userId, client) pairs for a short window so
+    // bursts of requests from the same session skip the roundtrip. The TTL
+    // is short enough that revoked users are rejected within a minute.
+    const AUTH_CACHE_TTL_MS = 30_000;
+    const AUTH_CACHE_MAX = 200;
 
+    interface AuthCacheEntry {
+      userId: string;
+      client: ReturnType<typeof createAuthenticatedClient>;
+      expires: number;
+    }
+    const authCache = (globalThis as { __ntAuthCache?: Map<string, AuthCacheEntry> }).__ntAuthCache
+      ?? ((globalThis as { __ntAuthCache?: Map<string, AuthCacheEntry> }).__ntAuthCache = new Map());
+
+    function createAuthenticatedClient() {
+      return createClient<Database>(
+        SUPABASE_URL!,
+        SUPABASE_PUBLISHABLE_KEY!,
+        {
+          global: {
+            fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY!),
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+          auth: {
+            storage: undefined,
+            persistSession: false,
+            autoRefreshToken: false,
+          },
+        }
+      );
+    }
+
+    const hit = authCache.get(token);
+    const now = Date.now();
+    if (hit && hit.expires > now) {
+      return next({
+        context: {
+          supabase: hit.client,
+          userId: hit.userId,
+          claims: { sub: hit.userId },
+        },
+      });
+    }
+
+    const client = createAuthenticatedClient();
     // Use getUser(jwt) to validate the token — this makes an HTTP request to Supabase
     // and returns the user. getClaims() was deprecated in Supabase JS v2.
-    const { data, error } = await supabase.auth.getUser(token);
+    const { data, error } = await client.auth.getUser(token);
     if (error || !data?.user) {
       throw new Error('Unauthorized: Invalid or expired token');
     }
 
+    authCache.set(token, { userId: data.user.id, client, expires: now + AUTH_CACHE_TTL_MS });
+    // Bound the cache — Map iterates in insertion order, so evict the oldest
+    if (authCache.size > AUTH_CACHE_MAX) {
+      const oldest = authCache.keys().next().value;
+      if (oldest !== undefined) authCache.delete(oldest);
+    }
+
     return next({
       context: {
-        supabase,
+        supabase: client,
         userId: data.user.id,
         claims: { sub: data.user.id },
       },

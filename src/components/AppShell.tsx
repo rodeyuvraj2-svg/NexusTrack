@@ -6,8 +6,11 @@ import { cn } from "@/lib/utils";
 import { CommandPalette } from "@/components/CommandPalette";
 import { useLibraryMap } from "@/components/MediaCard";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
-import { getUnreadCount } from "@/lib/notifications.functions";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getUnreadCount, listNotifications } from "@/lib/notifications.functions";
+import { listFriends } from "@/lib/friends.functions";
+import { getFollowCounts } from "@/lib/follows.functions";
+import { getProfile } from "@/lib/auth.functions";
 import { useGuest } from "@/lib/guest";
 
 const NAV = [
@@ -34,18 +37,62 @@ export function AppShell() {
   const [open, setOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
   const { isGuest, disableGuest } = useGuest();
+  const qc = useQueryClient();
 
   const countFn = useServerFn(getUnreadCount);
   const unreadQ = useQuery({
     queryKey: ["unread-count"],
     queryFn: () => countFn(),
-    refetchInterval: 30000,
+    staleTime: 60_000,
+    // Safety net only — realtime (below) is the primary update path.
+    refetchInterval: 5 * 60_000,
     enabled: !isGuest,
   });
+
+  // Push-based badge updates: new notifications arrive over realtime and
+  // invalidate the cached count, instead of polling every 30s per open tab.
+  // A slow 5-minute interval remains as a safety net if realtime drops.
+  useEffect(() => {
+    if (isGuest) return;
+    const channel = supabase
+      .channel("appshell-notifications")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" }, () => {
+        qc.invalidateQueries({ queryKey: ["unread-count"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [isGuest, qc]);
 
   // Warm the shared library map at app start so card pills render together
   // with posters on every page (no second wave once grids mount).
   useLibraryMap();
+
+  // Warm the small, frequently-visited page queries at app start — same
+  // idea as the library warm above. Friends / notifications / profile would
+  // otherwise be the only pages paying a cold server-function roundtrip on
+  // first navigation (everything else is already cached), which the user
+  // feels as a "breath" before content appears.
+  const friendsFn = useServerFn(listFriends);
+  const notifListFn = useServerFn(listNotifications);
+  const profileFn = useServerFn(getProfile);
+  const followCountsFn = useServerFn(getFollowCounts);
+
+  useEffect(() => {
+    if (isGuest) return;
+    void qc.prefetchQuery({ queryKey: ["friends"], queryFn: () => friendsFn(), staleTime: 30_000 });
+    void qc.prefetchQuery({ queryKey: ["notifications"], queryFn: () => notifListFn() });
+    void qc.prefetchQuery({ queryKey: ["profile"], queryFn: () => profileFn(), staleTime: 60_000 }).then(() => {
+      // Follow counts need the profile id — warm them once it resolves.
+      const profile = qc.getQueryData<{ id?: string }>(["profile"]);
+      if (profile?.id) {
+        void qc.prefetchQuery({
+          queryKey: ["follow-counts", profile.id],
+          queryFn: () => followCountsFn({ data: { user_id: profile.id! } }),
+          staleTime: 60_000,
+        });
+      }
+    });
+  }, [isGuest, qc, friendsFn, notifListFn, profileFn, followCountsFn]);
 
   useEffect(() => { setOpen(false); }, [pathname]);
 

@@ -5,6 +5,7 @@ import { useState, useMemo } from "react";
 import { listLibrary } from "@/lib/library.functions";
 import { MediaGrid } from "@/components/MediaCard";
 import { EmptyState } from "@/components/EmptyState";
+import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { useGuest } from "@/lib/guest";
 import type { MediaSummary } from "@/lib/media-types";
 import { Film, Eye, BookmarkPlus, CheckCircle2, Heart, Search, Loader2, ArrowUpDown, X } from "lucide-react";
@@ -38,6 +39,7 @@ export const Route = createFileRoute("/_authenticated/library")({
       { name: "description", content: "Everything you're tracking, filterable by status, type, and favorites." },
     ],
   }),
+  errorComponent: RouteErrorBoundary,
   component: Library,
 });
 
@@ -60,7 +62,19 @@ function Library() {
     staleTime: 30_000,
   });
 
-  const rows = q.data ?? [];
+  // Row shape returned by listLibrary (user_media joined with media).
+  interface LibraryRow {
+    id: string;
+    status: string;
+    favorite: boolean;
+    hidden: boolean;
+    rating: number | null;
+    media: {
+      media_type: string; source: string; external_id: string; title: string;
+      poster_url: string | null; release_year: number | null; vote_average: number | null;
+    } | null;
+  }
+  const rows = (q.data ?? []) as LibraryRow[];
 
   // Client-side status/type filtering, search, and sorting
   const items = useMemo(() => {
@@ -69,14 +83,11 @@ function Library() {
     if (status === "favorites") filtered = filtered.filter((r) => r.favorite);
     else if (status !== "all") filtered = filtered.filter((r) => r.status === status);
     if (type !== "all") {
-      filtered = filtered.filter((r) => (r.media as unknown as { media_type?: string } | null)?.media_type === type);
+      filtered = filtered.filter((r) => r.media?.media_type === type);
     }
 
     const mapped: MediaSummary[] = filtered.map((r) => {
-      const m = r.media as unknown as {
-        media_type: string; source: string; external_id: string; title: string;
-        poster_url: string | null; release_year: number | null; vote_average: number | null;
-      } | null;
+      const m = r.media;
       const rawSource = m?.source ?? "";
       const rawType = m?.media_type ?? "";
       return {

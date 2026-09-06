@@ -7,6 +7,7 @@ import { getLibraryItem, upsertLibraryItem, removeLibraryItem, listSeasonsWithPr
 import { listReviews, upsertReview, deleteReview, toggleReviewLike } from "@/lib/reviews.functions";
 import { STATUS_LABELS, STATUS_COLORS, getStatusLabel, type WatchStatus, type MediaSummary } from "@/lib/media-types";
 import { MediaGrid } from "@/components/MediaCard";
+import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { SafeImage } from "@/components/SafeImage";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Star, Heart, Trash2, Check, ThumbsUp, MessageSquare, List, Play, CircleCheck, ArrowLeft, ExternalLink, Globe, BookmarkPlus, X } from "lucide-react";
@@ -19,6 +20,7 @@ import type { RestrictedAction } from "@/lib/guest";
 
 export const Route = createFileRoute("/_authenticated/media/$type/$source/$id")({
   head: () => ({ meta: [{ title: "Details — NexusTrack" }, { name: "description", content: "Track this title in your library, mark seasons, and see friends' progress." }] }),
+  errorComponent: RouteErrorBoundary,
   component: MediaDetail,
 });
 

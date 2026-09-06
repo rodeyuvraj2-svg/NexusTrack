@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { z } from "zod";
 
 export const listNotifications = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -12,25 +13,36 @@ export const listNotifications = createServerFn({ method: "GET" })
       .limit(50);
     if (error) throw error;
 
+    interface NotificationRow {
+      id: string;
+      kind: string;
+      payload: Record<string, string> | null;
+      read_at: string | null;
+      created_at: string;
+    }
+    const notifications = (rows ?? []) as NotificationRow[];
+
     // Resolve friend notification payloads into friendly, human-readable messages.
+    // Profile lookup is one batched .in() query over the distinct from_user_ids.
     const friendKinds = ["friend_request", "friend_accept"];
     const fromUserIds = Array.from(new Set(
-      (rows ?? [])
+      notifications
         .filter((n) => friendKinds.includes(n.kind))
-        .map((n) => ((n.payload as Record<string, string> | null)?.from_user_id ?? ""))
+        .map((n) => (n.payload?.from_user_id ?? ""))
         .filter(Boolean),
     ));
 
     let pmap = new Map<string, { username: string; display_name: string | null }>();
     if (fromUserIds.length > 0) {
-      const { data: profiles } = await context.supabase
+      const { data: profiles, error: pErr } = await context.supabase
         .from("profiles")
         .select("id, username, display_name")
         .in("id", fromUserIds);
-      pmap = new Map((profiles ?? []).map((p) => [p.id, p]));
+      if (pErr) throw pErr;
+      pmap = new Map((profiles ?? []).map((p: { id: string; username: string; display_name: string | null }) => [p.id, p]));
     }
 
-    const enrich = (n: (typeof rows)[number]) => {
+    const enrich = (n: NotificationRow) => {
       const payload = (n.payload ?? {}) as Record<string, string | null>;
       const from = payload.from_user_id ? pmap.get(payload.from_user_id) : undefined;
       const name = from?.display_name || from?.username || "Someone";
@@ -39,16 +51,16 @@ export const listNotifications = createServerFn({ method: "GET" })
       return { ...n, payload };
     };
 
-    return (rows ?? []).map(enrich);
+    return notifications.map(enrich);
   });
 
 export const markNotificationRead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input) => {
-    const v = input as { id?: string; all?: boolean };
-    if (!v.id && !v.all) throw new Error("id or all required");
-    return v;
-  })
+  .validator((input) =>
+    z.object({ id: z.string().uuid().optional(), all: z.boolean().optional() })
+      .refine((v) => v.id || v.all, { message: "id or all required" })
+      .parse(input),
+  )
   .handler(async ({ data, context }) => {
     if (data.all) {
       const { error } = await context.supabase

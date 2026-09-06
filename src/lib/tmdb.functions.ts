@@ -33,8 +33,12 @@ const FALLBACK_TV: MediaSummary[] = [
 const FALLBACK_TRENDING: MediaSummary[] = [...FALLBACK_MOVIES, ...FALLBACK_TV];
 
 function fallbackMediaList(type: "movie" | "tv", category?: string): MediaSummary[] {
-  if (category === "trending") return FALLBACK_TRENDING;
-  return type === "movie" ? FALLBACK_MOVIES : FALLBACK_TV;
+  // Tag every demo row so the UI can block saving these placeholders —
+  // their external_ids are real TMDB ids, which would otherwise let users
+  // unknowingly add the wrong title to their library.
+  const tag = (rows: MediaSummary[]) => rows.map((r) => ({ ...r, is_fallback: true }));
+  if (category === "trending") return tag(FALLBACK_TRENDING);
+  return type === "movie" ? tag(FALLBACK_MOVIES) : tag(FALLBACK_TV);
 }
 
 function tmdbHeaders(): Record<string, string> {
@@ -56,7 +60,34 @@ function tmdbUrl(path: string, params: Record<string, string | number | undefine
   return url.toString();
 }
 
+// ── Circuit breaker ──────────────────────────────────────────────────────────
+// When TMDB is unreachable, every request would otherwise burn its full 4s
+// timeout. After several consecutive failures, fail fast for a cooldown
+// window instead — one bad TMDB minute shouldn't stall every page.
+
+const BREAKER_FAILURE_THRESHOLD = 4;
+const BREAKER_COOLDOWN_MS = 30_000;
+const breaker = { failures: 0, openUntil: 0 };
+
+function breakerAllowsRequest(): boolean {
+  return Date.now() >= breaker.openUntil;
+}
+function recordSuccess() {
+  breaker.failures = 0;
+  breaker.openUntil = 0;
+}
+function recordFailure() {
+  breaker.failures++;
+  if (breaker.failures >= BREAKER_FAILURE_THRESHOLD) {
+    breaker.openUntil = Date.now() + BREAKER_COOLDOWN_MS;
+    breaker.failures = 0;
+  }
+}
+
 async function tmdb<T>(path: string, params: Record<string, string | number | undefined> = {}): Promise<T> {
+  if (!breakerAllowsRequest()) {
+    throw new Error("TMDB temporarily unavailable (circuit open)");
+  }
   const key = `tmdb:${path}?${JSON.stringify(params)}`;
   return cached(key, TMDB_CACHE_TTL, async () => {
     const controller = new AbortController();
@@ -65,7 +96,12 @@ async function tmdb<T>(path: string, params: Record<string, string | number | un
       const res = await fetch(tmdbUrl(path, params), { headers: tmdbHeaders(), signal: controller.signal });
       clearTimeout(timeout);
       if (res.status === 429) {
-        await new Promise((r) => setTimeout(r, 1000));
+        // Honor Retry-After when present (capped) instead of a flat 1s.
+        const retryAfterHeader = Number(res.headers.get("retry-after"));
+        const retryAfterMs = Number.isFinite(retryAfterHeader) && retryAfterHeader > 0
+          ? Math.min(retryAfterHeader * 1000, 10_000)
+          : 1000;
+        await new Promise((r) => setTimeout(r, retryAfterMs));
         // Create a new controller for the retry with its own timeout
         const retryController = new AbortController();
         const retryTimeout = setTimeout(() => { try { retryController.abort(); } catch {} }, TMDB_TIMEOUT);
@@ -73,6 +109,7 @@ async function tmdb<T>(path: string, params: Record<string, string | number | un
           const retry = await fetch(tmdbUrl(path, params), { headers: tmdbHeaders(), signal: retryController.signal });
           clearTimeout(retryTimeout);
           if (!retry.ok) throw new Error(`TMDB ${retry.status}: ${await retry.text()}`);
+          recordSuccess();
           return retry.json() as Promise<T>;
         } catch (retryErr) {
           clearTimeout(retryTimeout);
@@ -80,9 +117,11 @@ async function tmdb<T>(path: string, params: Record<string, string | number | un
         }
       }
       if (!res.ok) throw new Error(`TMDB ${res.status}: ${await res.text()}`);
+      recordSuccess();
       return res.json() as Promise<T>;
     } catch (err) {
       clearTimeout(timeout);
+      recordFailure();
       throw err;
     }
   });
@@ -260,209 +299,13 @@ export const cacheMedia = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data, context }) => {
-    // Check cache first using the user's authenticated client
-    const existing = await context.supabase
-      .from("media")
-      .select("id")
-      .eq("media_type", data.type as any)
-      .eq("source", data.source)
-      .eq("external_id", data.external_id)
-      .maybeSingle();
-    if (existing.data) {
-      // If the row was created as a placeholder (e.g. by the grid batch
-      // lookup), TV shows may have no seasons yet — fall through to fetch
-      // and fill them.
-      if (!(data.source === "tmdb" && data.type === "tv")) return { id: existing.data.id };
-      const { count } = await context.supabase
-        .from("seasons")
-        .select("id", { count: "exact", head: true })
-        .eq("media_id", existing.data.id);
-      if (count && count > 0) return { id: existing.data.id };
-    }
-
-    // Fetch media details from the source API
-    let summary: MediaSummary;
-    let seasons: Array<{ season_number: number; name: string; episode_count: number; air_date: string | null; poster_url: string | null; overview: string }> = [];
-    if (data.source === "tmdb" && (data.type === "movie" || data.type === "tv")) {
-      const det = await tmdb<TmdbMovie>(`/${data.type}/${data.external_id}`);
-      summary = toSummary(det, data.type);
-      if (data.type === "tv" && det.seasons) {
-        seasons = det.seasons
-          .filter((s) => s.season_number > 0)
-          .map((s) => ({
-            season_number: s.season_number,
-            name: s.name,
-            episode_count: s.episode_count,
-            air_date: s.air_date,
-            poster_url: imgUrl(s.poster_path),
-            overview: s.overview,
-          }));
-      }
-    } else if (data.source === "anilist" && data.type === "manga") {
-      const aniController = new AbortController();
-      const aniTimeout = setTimeout(() => { try { aniController.abort(); } catch {} }, TMDB_TIMEOUT);
-      const aniRes = await fetch("https://graphql.anilist.co", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          query: `query ($id: Int) {
-            Media(id: $id, type: MANGA) {
-              id title { romaji english }
-              description coverImage { extraLarge large }
-              bannerImage averageScore chapters volumes
-              status genres seasonYear
-            }
-          }`,
-          variables: { id: Number(data.external_id) },
-        }),
-      });
-      clearTimeout(aniTimeout);
-      if (!aniRes.ok) throw new Error(`AniList ${aniRes.status}: ${await aniRes.text()}`);
-      const aniJson = (await aniRes.json()) as {
-        data: { Media: { id: number; title: { romaji: string | null; english: string | null }; description?: string | null; coverImage: { extraLarge?: string | null; large?: string | null }; bannerImage?: string | null; averageScore?: number | null; chapters?: number | null; volumes?: number | null; status?: string | null; genres?: string[]; seasonYear?: number | null } }
-      };
-      const a = aniJson.data.Media;
-      const poster = a.coverImage.extraLarge || a.coverImage.large || null;
-      summary = {
-        external_id: String(a.id),
-        source: "anilist",
-        media_type: "manga",
-        title: a.title.english || a.title.romaji || "Untitled",
-        overview: a.description ? a.description.replace(/<[^>]*>/g, "") : null,
-        poster_url: poster,
-        backdrop_url: a.bannerImage || poster,
-        release_year: a.seasonYear ?? null,
-        vote_average: a.averageScore != null ? a.averageScore / 10 : null,
-        genres: a.genres ?? [],
-        chapter_count: a.chapters ?? null,
-        volume_count: a.volumes ?? null,
-        status: a.status ?? null,
-      };
-    } else if (data.source === "anilist" && data.type === "anime") {
-      const aniController = new AbortController();
-      const aniTimeout = setTimeout(() => { try { aniController.abort(); } catch {} }, TMDB_TIMEOUT);
-      const aniRes = await fetch("https://graphql.anilist.co", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          query: `query ($id: Int) {
-            Media(id: $id, type: ANIME) {
-              id title { romaji english }
-              description coverImage { extraLarge large }
-              bannerImage averageScore episodes duration
-              status genres seasonYear source
-            }
-          }`,
-          variables: { id: Number(data.external_id) },
-        }),
-      });
-      clearTimeout(aniTimeout);
-      if (!aniRes.ok) throw new Error(`AniList ${aniRes.status}: ${await aniRes.text()}`);
-      const aniJson = (await aniRes.json()) as {
-        data: { Media: { id: number; title: { romaji: string | null; english: string | null }; description?: string | null; coverImage: { extraLarge?: string | null; large?: string | null }; bannerImage?: string | null; averageScore?: number | null; episodes?: number | null; duration?: number | null; status?: string | null; genres?: string[]; seasonYear?: number | null; source?: string | null } }
-      };
-      const a = aniJson.data.Media;
-      const poster = a.coverImage.extraLarge || a.coverImage.large || null;
-      summary = {
-        external_id: String(a.id),
-        source: "anilist",
-        media_type: "anime",
-        title: a.title.english || a.title.romaji || "Untitled",
-        overview: a.description ? a.description.replace(/<[^>]*>/g, "") : null,
-        poster_url: poster,
-        backdrop_url: a.bannerImage || poster,
-        release_year: a.seasonYear ?? null,
-        vote_average: a.averageScore != null ? a.averageScore / 10 : null,
-        genres: a.genres ?? [],
-        runtime: a.duration ?? null,
-        season_count: a.episodes ?? null,
-        status: a.status ?? null,
-      };
-    } else {
-      throw new Error("Unsupported media source");
-    }
-
-    // Media metadata is global and must only be written by the trusted server client.
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    if (!supabaseAdmin?.from) {
-      throw new Error("Media caching is unavailable: SUPABASE_SERVICE_ROLE_KEY is not configured.");
-    }
-    const { data: mediaRow, error: mediaError } = await supabaseAdmin
-      .from("media")
-      .upsert(
-        {
-          media_type: summary.media_type as any,
-          source: summary.source,
-          external_id: summary.external_id,
-          title: summary.title,
-          overview: summary.overview,
-          poster_url: summary.poster_url,
-          backdrop_url: summary.backdrop_url,
-          release_year: summary.release_year,
-          vote_average: summary.vote_average,
-          genres: summary.genres,
-          runtime: summary.runtime,
-          season_count: summary.season_count,
-          status: summary.status,
-        },
-        { onConflict: "media_type,source,external_id" },
-      )
-      .select("id")
-      .single();
-    if (mediaError || !mediaRow) throw mediaError ?? new Error("Could not cache media metadata.");
-    const mediaId = mediaRow.id;
-
-    if (seasons.length > 0 && mediaId) {
-      const { error: seasonsError } = await supabaseAdmin
-        .from("seasons")
-        .upsert(
-          seasons.map((s) => ({ ...s, media_id: mediaId })),
-          { onConflict: "media_id,season_number" },
-        );
-      if (seasonsError) throw seasonsError;
-    }
-
-    return { id: mediaId! };
-  });
-
-// ----- Watch providers (streaming availability) -----
-
-export interface WatchProvider {
-  provider_id: number;
-  provider_name: string;
-  logo_path: string | null;
-  display_priority?: number;
-}
-
-export interface WatchProviderResult {
-  link: string | null;
-  flatrate: WatchProvider[];
-  rent: WatchProvider[];
-  buy: WatchProvider[];
-  ads: WatchProvider[];
-}
-
-export const getWatchProviders = createServerFn({ method: "GET" })
-  .validator((input) => z.object({ type: z.enum(["movie", "tv"]), id: z.string() }).parse(input))
   .handler(async ({ data }) => {
-    try {
-      const res = await tmdb<{ results: Record<string, { link?: string; flatrate?: WatchProvider[]; rent?: WatchProvider[]; buy?: WatchProvider[]; ads?: WatchProvider[] }> }>(
-        `/${data.type}/${data.id}/watch/providers`,
-      );
-      const results = res.results ?? {};
-      const region = "US";
-      const entry = results[region] ?? results["GB"] ?? Object.values(results)[0] ?? {};
-      return {
-        link: entry.link ?? null,
-        flatrate: (entry.flatrate ?? []).map((p) => ({ ...p, logo_path: imgUrl(p.logo_path, "w92") })),
-        rent: (entry.rent ?? []).map((p) => ({ ...p, logo_path: imgUrl(p.logo_path, "w92") })),
-        buy: (entry.buy ?? []).map((p) => ({ ...p, logo_path: imgUrl(p.logo_path, "w92") })),
-        ads: (entry.ads ?? []).map((p) => ({ ...p, logo_path: imgUrl(p.logo_path, "w92") })),
-      } as WatchProviderResult;
-    } catch {
-      return null;
-    }
+    // provisionMedia fetches authoritative metadata from the source API and
+    // only writes to `media` via the service-role client — the trusted path
+    // shared with saveLibraryEntryByExternal.
+    const { provisionMedia } = await import("@/lib/media-provision");
+    const id = await provisionMedia(data.type, data.source, data.external_id);
+    return { id };
   });
 
 // ----- Recommendations -----

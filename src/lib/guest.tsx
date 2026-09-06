@@ -8,18 +8,23 @@ function isClient() {
   return typeof window !== "undefined";
 }
 
-function generateGuestId(): string {
-  if (!isClient()) return "";
-  return crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-}
-
-function loadGuestState(): boolean {
+/**
+ * Read the persisted guest flag. Safe on the server (returns false) and in
+ * environments where localStorage is unavailable. Single source of truth —
+ * route guards should use this instead of reading localStorage directly.
+ */
+export function loadGuestState(): boolean {
   if (!isClient()) return false;
   try {
     return localStorage.getItem(GUEST_KEY) === "true";
   } catch {
     return false;
   }
+}
+
+function generateGuestId(): string {
+  if (!isClient()) return "";
+  return crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
 function saveGuestState(isGuest: boolean) {
@@ -84,11 +89,9 @@ export function GuestProvider({ children }: { children: ReactNode }) {
   const [isGuest, setIsGuest] = useState<boolean>(false);
   const [guestId, setGuestId] = useState<string | null>(null);
   const [restrictedAction, setRestrictedAction] = useState<RestrictedAction | null>(null);
-  const [mounted, setMounted] = useState(false);
 
   // Auto-disable guest mode when a real user signs in
   useEffect(() => {
-    setMounted(true);
     // Sync guest state from localStorage on mount (client-side only)
     setIsGuest(loadGuestState());
     setGuestId(getGuestId());
@@ -139,7 +142,10 @@ export function GuestProvider({ children }: { children: ReactNode }) {
     <GuestContext.Provider
       value={{ isGuest, guestId, enableGuest, disableGuest, restrictedAction, setRestrictedAction, requireAuth }}
     >
-      {!mounted ? <div style={{ visibility: "hidden" }}>{children}</div> : children}
+      {/* Render children immediately; isGuest syncs from localStorage on
+          mount, which flips in-place instead of hiding the whole app and
+          avoiding the blank-flash of a visibility:hidden gate. */}
+      {children}
     </GuestContext.Provider>
   );
 }

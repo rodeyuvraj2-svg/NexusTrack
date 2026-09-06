@@ -76,10 +76,32 @@ export type Database = {
         }
         Relationships: []
       }
+      follows: {
+        Row: {
+          id: string
+          follower_id: string
+          following_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          follower_id: string
+          following_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          follower_id?: string
+          following_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       media: {
         Row: {
           backdrop_url: string | null
           cached_at: string
+          chapter_count: number | null
           external_id: string
           genres: string[] | null
           id: string
@@ -94,11 +116,13 @@ export type Database = {
           source: string
           status: string | null
           title: string
+          volume_count: number | null
           vote_average: number | null
         }
         Insert: {
           backdrop_url?: string | null
           cached_at?: string
+          chapter_count?: number | null
           external_id: string
           genres?: string[] | null
           id?: string
@@ -113,11 +137,13 @@ export type Database = {
           source?: string
           status?: string | null
           title: string
+          volume_count?: number | null
           vote_average?: number | null
         }
         Update: {
           backdrop_url?: string | null
           cached_at?: string
+          chapter_count?: number | null
           external_id?: string
           genres?: string[] | null
           id?: string
@@ -132,6 +158,7 @@ export type Database = {
           source?: string
           status?: string | null
           title?: string
+          volume_count?: number | null
           vote_average?: number | null
         }
         Relationships: []
@@ -402,6 +429,7 @@ export type Database = {
     }
     Functions: {
       are_friends: { Args: { a: string; b: string }; Returns: boolean }
+      get_profile_stats: { Args: { p_user_id: string }; Returns: Json }
       upsert_media: {
         Args: {
           p_media_type: string
@@ -437,7 +465,7 @@ export type Database = {
         | "rated"
         | "friend_joined"
       friend_status: "pending" | "accepted" | "blocked"
-      media_type: "movie" | "tv" | "anime"
+      media_type: "movie" | "tv" | "anime" | "manga"
       watch_status:
         | "watching"
         | "completed"

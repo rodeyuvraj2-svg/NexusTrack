@@ -8,8 +8,9 @@ import { STATUS_LABELS, STATUS_COLORS, getStatusLabel, type WatchStatus } from "
 import { Film, Heart, Check, BookmarkIcon, Plus, Users, UserPlus, UserCheck, Clock, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { getFollowCounts, getFollowers, getFollowing, isFollowing, followUser, unfollowUser } from "@/lib/follows.functions";
+import { getFollowState, getFollowers, getFollowing, followUser, unfollowUser, type FollowProfile } from "@/lib/follows.functions";
 import { useGuest } from "@/lib/guest";
+import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,7 @@ const TYPE_FILTERS = ["all", "movie", "tv", "anime", "manga"] as const;
 
 export const Route = createFileRoute("/_authenticated/user/$username")({
   head: () => ({ meta: [{ title: "Profile — NexusTrack" }, { name: "description", content: "View a friend's library." }] }),
+  errorComponent: RouteErrorBoundary,
   component: FriendProfile,
 });
 
@@ -43,37 +45,56 @@ function FriendProfile() {
 
   const q = useQuery({ queryKey: ["public-profile", username], queryFn: () => profileFn({ data: { username } }), placeholderData: (prev) => prev });
 
+  // Session already lives in localStorage — getSession() reads it locally
+  // (no network roundtrip, unlike getUser()). Server functions still
+  // independently enforce auth on every call.
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  useEffect(() => { supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null)); }, []);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setCurrentUserId(data.session?.user.id ?? null));
+  }, []);
 
-  const countFn = useServerFn(getFollowCounts);
-  const isFollowingFn = useServerFn(isFollowing);
+  const followStateFn = useServerFn(getFollowState);
   const followMutFn = useServerFn(followUser);
   const unfollowMutFn = useServerFn(unfollowUser);
 
   const profileId = q.data?.profile?.id;
   const isOwnProfile = profileId && currentUserId && profileId === currentUserId;
-  const followCountsQ = useQuery({
-    queryKey: ["follow-counts", profileId],
-    queryFn: () => countFn({ data: { user_id: profileId! } }),
+
+  // One roundtrip for counts + is-following (was two separate queries).
+  const followStateQ = useQuery({
+    queryKey: ["follow-state", profileId],
+    queryFn: () => followStateFn({ data: { user_id: profileId! } }),
     enabled: !!profileId,
     staleTime: 60_000,
   });
 
-  const followingQ = useQuery({
-    queryKey: ["is-following", profileId],
-    queryFn: () => isFollowingFn({ data: { target_user_id: profileId! } }),
-    enabled: !!profileId,
-  });
+  const isFollowing = followStateQ.data?.isFollowing ?? false;
+  const followersCount = followStateQ.data?.followers ?? 0;
+  const followingCount = followStateQ.data?.following ?? 0;
 
-  const mFollow = useMutation({
-    mutationFn: () => followMutFn({ data: { following_id: profileId! } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["is-following"] }); qc.invalidateQueries({ queryKey: ["follow-counts"] }); },
-  });
-
-  const mUnfollow = useMutation({
-    mutationFn: () => unfollowMutFn({ data: { following_id: profileId! } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["is-following"] }); qc.invalidateQueries({ queryKey: ["follow-counts"] }); },
+  // Optimistic follow/unfollow: flip the button and counts immediately,
+  // roll back on error, and never refetch the whole profile or lists.
+  const mToggleFollow = useMutation({
+    mutationFn: (follow: boolean) =>
+      follow
+        ? followMutFn({ data: { following_id: profileId! } })
+        : unfollowMutFn({ data: { following_id: profileId! } }),
+    onMutate: async (follow) => {
+      await qc.cancelQueries({ queryKey: ["follow-state", profileId] });
+      const previous = qc.getQueryData(["follow-state", profileId]);
+      qc.setQueryData(["follow-state", profileId], (old: { followers: number; following: number; isFollowing: boolean } | undefined) =>
+        old ? { ...old, isFollowing: follow, followers: old.followers + (follow ? 1 : -1) } : old,
+      );
+      return { previous };
+    },
+    onError: (_e, _vars, ctx) => {
+      if (ctx?.previous !== undefined) qc.setQueryData(["follow-state", profileId], ctx.previous);
+      toast.error("Couldn't update follow — try again");
+    },
+    onSettled: () => {
+      // Reconcile with the server's truth, but only this one query.
+      qc.invalidateQueries({ queryKey: ["follow-state", profileId] });
+    },
   });
 
   const [listMode, setListMode] = useState<"followers" | "following" | null>(null);
@@ -83,11 +104,13 @@ function FriendProfile() {
     queryKey: ["followers", profileId],
     queryFn: () => followersFn({ data: { user_id: profileId! } }),
     enabled: listMode === "followers" && !!profileId,
+    staleTime: 60_000,
   });
   const followingListQ = useQuery({
     queryKey: ["following-list", profileId],
     queryFn: () => followingListFn({ data: { user_id: profileId! } }),
     enabled: listMode === "following" && !!profileId,
+    staleTime: 60_000,
   });
 
   const mCopy = useMutation({
@@ -108,7 +131,19 @@ function FriendProfile() {
     </div>
   );
 
-  const { profile, library, isPrivate } = q.data;
+  // Row shape returned by getPublicProfile's library query.
+  interface FriendLibItem {
+    id: string;
+    status: string;
+    rating: number | null;
+    favorite: boolean;
+    media: {
+      id: string; media_type: string; source: string; external_id: string;
+      title: string; poster_url: string | null; release_year: number | null;
+    } | null;
+  }
+  const { profile, library: rawLibrary, isPrivate } = q.data;
+  const library = (rawLibrary ?? []) as FriendLibItem[];
   const watching = library.filter((l) => l.status === "watching" || l.status === "rewatching");
   const completed = library.filter((l) => l.status === "completed");
   const planned = library.filter((l) => l.status === "planned");
@@ -119,7 +154,7 @@ function FriendProfile() {
     if (statusFilter === "watching" && item.status !== "watching" && item.status !== "rewatching") return false;
     if (statusFilter === "completed" && item.status !== "completed") return false;
     if (statusFilter === "planned" && item.status !== "planned") return false;
-    const mediaType = (item.media as unknown as { media_type?: string })?.media_type;
+    const mediaType = item.media?.media_type;
     if (typeFilter !== "all" && mediaType !== typeFilter) return false;
     return true;
   });
@@ -149,26 +184,26 @@ function FriendProfile() {
           <h1 className="text-3xl md:text-4xl font-bold">{profile.display_name || profile.username}</h1>
           <p className="text-muted-foreground">@{profile.username}</p>
           {profile.bio ? <p className="mt-2 max-w-md text-sm text-muted-foreground">{profile.bio}</p> : null}
-          {/* Follow counts */}
+          {/* Follow counts (optimistic — update instantly on follow actions) */}
           <div className="mt-2 flex items-center gap-4 text-sm">
             <button type="button" onClick={() => setListMode("followers")} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
               <Users className="h-4 w-4" />
-              <span className="font-semibold text-foreground">{followCountsQ.data?.followers ?? 0}</span> followers
+              <span className="font-semibold text-foreground">{followersCount}</span> followers
             </button>
             <span className="text-muted-foreground/40">·</span>
             <button type="button" onClick={() => setListMode("following")} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
-              <span className="font-semibold text-foreground">{followCountsQ.data?.following ?? 0}</span> following
+              <span className="font-semibold text-foreground">{followingCount}</span> following
             </button>
           </div>
           {/* Follow/Unfollow button (hidden for own profile) */}
           {!isOwnProfile ? (
-            followingQ.data ? (
-              <button onClick={() => mUnfollow.mutate()} disabled={mUnfollow.isPending}
+            isFollowing ? (
+              <button onClick={() => mToggleFollow.mutate(false)} disabled={mToggleFollow.isPending}
                 className="mt-2 inline-flex items-center gap-1.5 rounded-lg glass px-3 py-1.5 text-sm hover:bg-muted/40">
                 <UserCheck className="h-3.5 w-3.5" /> Following
               </button>
             ) : (
-              <button onClick={() => mFollow.mutate()} disabled={mFollow.isPending}
+              <button onClick={() => mToggleFollow.mutate(true)} disabled={mToggleFollow.isPending}
                 className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-gradient-accent px-3 py-1.5 text-sm font-semibold text-white">
                 <UserPlus className="h-3.5 w-3.5" /> Follow
               </button>
@@ -250,7 +285,7 @@ function FriendProfile() {
             {(listMode === "followers" ? followersListQ.data : followingListQ.data)?.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">No one here yet.</p>
             ) : null}
-            {(listMode === "followers" ? followersListQ.data : followingListQ.data)?.map((user: any) => (
+            {(listMode === "followers" ? (followersListQ.data as FollowProfile[] | undefined) : (followingListQ.data as FollowProfile[] | undefined))?.map((user) => (
               <Link key={user.id} to={"/user/" + user.username} onClick={() => setListMode(null)}>
                 <div className="flex items-center gap-3 rounded-lg p-2.5 hover:bg-muted/30 transition-colors">
                   {user.avatar_url ? (
@@ -282,7 +317,7 @@ function FriendGrid({ items, profileId, mCopy }: {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
       {items.map((item) => {
-        const m = item.media as unknown as { id: string; media_type: string; source: string; external_id: string; title: string; poster_url: string | null; release_year: number | null };
+        const m = item.media;
         if (!m) return null;
         return (
           <div key={item.id} className="group relative overflow-hidden rounded-xl glass">

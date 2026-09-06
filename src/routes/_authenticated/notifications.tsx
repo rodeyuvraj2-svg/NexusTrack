@@ -1,14 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { listNotifications, markNotificationRead, getUnreadCount } from "@/lib/notifications.functions";
+import { listNotifications, markNotificationRead } from "@/lib/notifications.functions";
+import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { Bell, CheckCheck, UserPlus, Heart, Film, Star, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/notifications")({
   head: () => ({ meta: [{ title: "Notifications — NexusTrack" }, { name: "description", content: "Your recent activity and friend updates." }] }),
+  errorComponent: RouteErrorBoundary,
   component: Notifications,
 });
 
@@ -27,10 +29,30 @@ function Notifications() {
   const qc = useQueryClient();
   const listFn = useServerFn(listNotifications);
   const readFn = useServerFn(markNotificationRead);
-  const countFn = useServerFn(getUnreadCount);
 
-  const q = useQuery({ queryKey: ["notifications"], queryFn: () => listFn() });
-  const countQ = useQuery({ queryKey: ["unread-count"], queryFn: () => countFn() });
+  interface NotificationItem {
+    id: string;
+    kind: string;
+    payload: Record<string, string | null> | null;
+    read_at: string | null;
+    created_at: string;
+  }
+  const q = useQuery<NotificationItem[]>({ queryKey: ["notifications"], queryFn: () => listFn() });
+  // Unread count derives from the already-fetched list — no separate
+  // count roundtrip (the AppShell nav keeps its own polled badge query).
+  const unread = (q.data ?? []).filter((n) => !n.read_at).length;
+
+  // Patch the list cache in place for a read-marking mutation — flipping
+  // read_at locally instead of invalidating and refetching the whole list.
+  const patchReadLocally = useCallback((ids: string[] | "all") => {
+    qc.setQueryData<Array<{ id: string; read_at: string | null }>>(["notifications"], (old) => {
+      if (!old) return old;
+      const now = new Date().toISOString();
+      return old.map((n) => (ids === "all" || ids.includes(n.id) ? { ...n, read_at: n.read_at ?? now } : n));
+    });
+    // Keep the nav badge in sync without refetching it either.
+    qc.setQueryData<number>(["unread-count"], (old) => (ids === "all" ? 0 : Math.max(0, (old ?? 0) - ids.length)));
+  }, [qc]);
 
   useEffect(() => {
     const channel = supabase
@@ -45,12 +67,14 @@ function Notifications() {
 
   const mReadAll = useMutation({
     mutationFn: () => readFn({ data: { all: true } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["notifications"] }); qc.invalidateQueries({ queryKey: ["unread-count"] }); },
+    onMutate: () => patchReadLocally("all"),
+    onError: () => { qc.invalidateQueries({ queryKey: ["notifications"] }); qc.invalidateQueries({ queryKey: ["unread-count"] }); },
   });
 
   const mReadOne = useMutation({
     mutationFn: (id: string) => readFn({ data: { id } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["notifications"] }); qc.invalidateQueries({ queryKey: ["unread-count"] }); },
+    onMutate: (id) => patchReadLocally([id]),
+    onError: () => { qc.invalidateQueries({ queryKey: ["notifications"] }); qc.invalidateQueries({ queryKey: ["unread-count"] }); },
   });
 
   return (
@@ -58,8 +82,8 @@ function Notifications() {
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-3xl md:text-4xl font-bold">Notifications</h1>
-          {countQ.data ? (
-            <span className="rounded-full bg-accent/20 px-2.5 py-0.5 text-xs font-bold text-accent">{countQ.data}</span>
+          {unread > 0 ? (
+            <span className="rounded-full bg-accent/20 px-2.5 py-0.5 text-xs font-bold text-accent">{unread}</span>
           ) : null}
         </div>
         {q.data && q.data.some((n) => !n.read_at) ? (
@@ -90,7 +114,7 @@ function Notifications() {
         <div className="space-y-2">
           {q.data!.map((n) => {
             const Icon = KIND_ICONS[n.kind] ?? Bell;
-            const payload = n.payload as Record<string, string> | null;
+            const payload = n.payload;
             return (
               <button
                 key={n.id}
