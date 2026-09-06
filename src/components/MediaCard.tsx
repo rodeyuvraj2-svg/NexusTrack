@@ -169,10 +169,10 @@ function useMediaLibraryEntry(item: MediaSummary) {
           source: item.source,
           external_id: item.external_id,
           title: item.title,
-          poster_url: item.poster_url,
-          release_year: item.release_year,
-          vote_average: item.vote_average,
-        },
+          poster_url: item.poster_url ?? null,
+          release_year: item.release_year ?? null,
+          vote_average: item.vote_average ?? null,
+        } as LibraryRowShape["media"],
       }];
     });
   }, [qc, item]);
@@ -181,14 +181,12 @@ function useMediaLibraryEntry(item: MediaSummary) {
     mutationFn: (data: { status?: WatchStatus; favorite?: boolean }) =>
       saveFn({
         data: {
+          // Only the external identity — the server fetches authoritative
+          // metadata and never trusts client-supplied fields.
           item: {
             source: item.source,
             media_type: item.media_type,
             external_id: item.external_id,
-            title: item.title,
-            poster_url: item.poster_url,
-            release_year: item.release_year,
-            vote_average: item.vote_average,
           },
           ...data,
         },
@@ -388,19 +386,21 @@ const MediaCardInner = memo(function MediaCardInner({ item }: { item: MediaSumma
             </div>
           )}
 
-          {/* Favorite button */}
-          <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(); }}
-            className={cn(
-              "absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full transition-all duration-200",
-              isFavorite
-                ? "bg-accent/90 text-white scale-100 opacity-100"
-                // Always visible on touch devices (no hover); hover-reveal on desktop
-                : "bg-black/40 text-white/70 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:scale-110",
-            )}
-          >
-            <Heart className={cn("h-3.5 w-3.5", isFavorite && "fill-current")} />
-          </button>
+          {/* Favorite button (not for fallback demo rows — they aren't saveable) */}
+          {!item.is_fallback && (
+            <button
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(); }}
+              className={cn(
+                "absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full transition-all duration-200",
+                isFavorite
+                  ? "bg-accent/90 text-white scale-100 opacity-100"
+                  // Always visible on touch devices (no hover); hover-reveal on desktop
+                  : "bg-black/40 text-white/70 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:scale-110",
+              )}
+            >
+              <Heart className={cn("h-3.5 w-3.5", isFavorite && "fill-current")} />
+            </button>
+          )}
         </div>
       </Link>
 
@@ -418,9 +418,13 @@ const MediaCardInner = memo(function MediaCardInner({ item }: { item: MediaSumma
           </h3>
         </Link>
 
-        {/* Status pill */}
+        {/* Status pill (fallback demo rows show a notice instead — not saveable) */}
         <div className="mt-2.5" onClick={(e) => e.stopPropagation()}>
-          {isLoading ? (
+          {item.is_fallback ? (
+            <span className="inline-block rounded-lg border border-border/50 bg-muted/30 px-2.5 py-1 text-xs text-muted-foreground" title="Live data is unavailable right now">
+              Offline preview
+            </span>
+          ) : isLoading ? (
             <div className="h-7 w-28 rounded-lg bg-muted/40 animate-pulse" />
           ) : (
             <StatusPill

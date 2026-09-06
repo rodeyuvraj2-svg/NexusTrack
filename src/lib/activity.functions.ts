@@ -31,11 +31,20 @@ export const listActivity = createServerFn({ method: "GET" })
       .limit(10);
     if (error) throw error;
 
-    const userIds = Array.from(new Set(rows.map((r) => r.user_id)));
+    interface ActivityRow {
+      id: string;
+      kind: string;
+      created_at: string;
+      user_id: string;
+      media: { id: string; media_type: string; source: string; external_id: string; title: string; poster_url: string | null } | null;
+    }
+    const typedRows = (rows ?? []) as ActivityRow[];
+
+    const userIds = Array.from(new Set(typedRows.map((r) => r.user_id)));
     const { data: profiles } = await context.supabase
       .from("profiles")
       .select("id, username, display_name, avatar_url")
       .in("id", userIds);
     const pmap = new Map((profiles ?? []).map((p) => [p.id, p]));
-    return rows.map((r) => ({ ...r, profile: pmap.get(r.user_id) }));
+    return typedRows.map((r) => ({ ...r, profile: pmap.get(r.user_id) }));
   });

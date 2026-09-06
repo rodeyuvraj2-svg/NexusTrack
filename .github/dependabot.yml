@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    # Group patch/minor updates into one PR; majors get their own.
+    groups:
+      patch-and-minor:
+        update-types:
+          - "patch"
+          - "minor"
+    ignore:
+      # TanStack Start's nitro beta must be pinned to matching versions —
+      # handle those upgrades manually.
+      - dependency-name: "nitro"
+      - dependency-name: "@tanstack/*"
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

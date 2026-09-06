@@ -24,6 +24,9 @@ export interface MediaSummary {
   chapter_count?: number | null;
   volume_count?: number | null;
   status?: string | null;
+  /** True for hardcoded demo rows shown when TMDB is unreachable.
+   *  These are placeholders for browsing only — never saveable. */
+  is_fallback?: boolean;
 }
 
 export const STATUS_LABELS: Record<WatchStatus, string> = {

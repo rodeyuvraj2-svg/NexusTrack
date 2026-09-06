@@ -5,16 +5,32 @@ import { useState } from "react";
 import { listFriends, searchUsers, sendFriendRequest, respondFriendRequest, removeFriend } from "@/lib/friends.functions";
 import { UserPlus, UserMinus, Check, X, Users as UsersIcon } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
+import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { useGuest } from "@/lib/guest";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/friends")({
   head: () => ({ meta: [{ title: "Friends — NexusTrack" }, { name: "description", content: "Connect with friends and see what they're watching." }] }),
+  errorComponent: RouteErrorBoundary,
   component: Friends,
 });
 
 const TYPE_FILTERS = ["all", "movies", "tv", "anime"] as const;
 type MediaTypeFilter = (typeof TYPE_FILTERS)[number];
+
+// Row shapes returned by listFriends / searchUsers.
+interface FriendProfile {
+  id: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+interface FriendRow {
+  id: string;
+  status: string;
+  profile?: FriendProfile;
+  library?: { watching: number; completed: number; planned: number; favorites: number };
+}
 
 function Friends() {
   const { isGuest } = useGuest();
@@ -77,11 +93,11 @@ function Friends() {
         {q.length > 1 && search.data ? (
           <ul className="mt-3 space-y-2">
             {search.data.length === 0 ? <p className="text-sm text-muted-foreground">No matches.</p> : null}
-            {search.data.map((u) => {
-              const isAccepted = friends.data?.accepted?.some((f: any) => (f.profile as any)?.id === u.id);
-              const incomingReq = friends.data?.incoming?.find((f: any) => (f.profile as any)?.id === u.id);
+            {search.data.map((u: FriendProfile) => {
+              const isAccepted = (friends.data?.accepted as FriendRow[] | undefined)?.some((f) => f.profile?.id === u.id);
+              const incomingReq = (friends.data?.incoming as FriendRow[] | undefined)?.find((f) => f.profile?.id === u.id);
               const isIncoming = !!incomingReq;
-              const isOutgoing = friends.data?.outgoing?.some((f: any) => (f.profile as any)?.id === u.id);
+              const isOutgoing = (friends.data?.outgoing as FriendRow[] | undefined)?.some((f) => f.profile?.id === u.id);
               return (
               <li key={u.id} className="flex items-center gap-3 rounded-lg bg-muted/30 p-2.5">
                 <Link to="/user/$username" params={{ username: u.username }} className="flex items-center gap-3 flex-1 min-w-0">
@@ -126,8 +142,8 @@ function Friends() {
 
       {friends.data?.incoming?.length ? (
         <Section title="Incoming requests">
-          {friends.data.incoming.map((r) => {
-            const p = r.profile as unknown as { username: string; display_name: string; avatar_url: string | null; id: string } | undefined;
+          {(friends.data.incoming as FriendRow[]).map((r) => {
+            const p = r.profile;
             return (
               <div key={r.id} className="glass rounded-xl p-3 flex items-center gap-3">
                 <Link to="/user/$username" params={{ username: p?.username ?? "" }}>
@@ -154,9 +170,9 @@ function Friends() {
         <>
       <Section title="Your friends">
         {(friends.data?.accepted ?? []).length === 0 ? <p className="text-muted-foreground">No friends yet — search above.</p> : null}
-        {friends.data?.accepted.map((r) => {
-          const p = r.profile as unknown as { username: string; display_name: string; avatar_url: string | null; id: string } | undefined;
-          const lib = r.library as unknown as { watching: number; completed: number; planned: number; favorites: number } | undefined;
+        {friends.data?.accepted.map((r: FriendRow) => {
+          const p = r.profile;
+          const lib = r.library;
           return (
             <div key={r.id} className="glass rounded-xl p-3 flex items-center gap-3 mb-2">
               <Link to="/user/$username" params={{ username: p?.username ?? "" }}>
@@ -184,8 +200,8 @@ function Friends() {
 
       {friends.data?.outgoing?.length ? (
         <Section title="Sent">
-          {friends.data.outgoing.map((r) => {
-            const p = r.profile as unknown as { username: string; display_name: string } | undefined;
+          {(friends.data.outgoing as FriendRow[]).map((r) => {
+            const p = r.profile;
             return <div key={r.id} className="glass rounded-xl p-3 text-sm text-muted-foreground">Pending: {p?.display_name || p?.username}</div>;
           })}
         </Section>

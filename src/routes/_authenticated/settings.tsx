@@ -6,12 +6,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { exportLibrary, importLibrary } from "@/lib/import-export.functions";
 import { deleteAccount, getProfile } from "@/lib/auth.functions";
 import { EmptyState } from "@/components/EmptyState";
+import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { useGuest } from "@/lib/guest";
 import { toast } from "sonner";
 import { Download, Upload, Trash2, User as UserIcon, Settings as SettingsIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({ meta: [{ title: "Settings — NexusTrack" }, { name: "description", content: "Manage your account, privacy, and data." }] }),
+  errorComponent: RouteErrorBoundary,
   component: Settings,
 });
 
@@ -52,7 +54,11 @@ function Settings() {
   }
 
   async function handleExport(format: "json" | "csv") {
-    const data = await exportFn();
+    const data = (await exportFn()) as Array<{
+      title: string; media_type: string; source: string; external_id: string;
+      status: string; rating: number | null; favorite: boolean; hidden: boolean;
+      notes: string | null; created_at: string; updated_at: string;
+    }>;
     let content: string;
     let mime: string;
     if (format === "json") {

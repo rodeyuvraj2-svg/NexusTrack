@@ -6,12 +6,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { getStats, listLibrary } from "@/lib/library.functions";
 import { getProfile } from "@/lib/auth.functions";
 import { getStatusLabel, type WatchStatus } from "@/lib/media-types";
-import { Star, CheckCircle2, Film, Sparkles, Heart, Edit3, Save, Search, Users, BookmarkPlus, Eye } from "lucide-react";
+import { Star, CheckCircle2, Film, Sparkles, Heart, Edit3, Save, Search, Users, BookmarkPlus, Eye, Flame, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useGuest } from "@/lib/guest";
 import { EmptyState } from "@/components/EmptyState";
-import { getFollowCounts, getFollowers, getFollowing } from "@/lib/follows.functions";
+import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
+import { getFollowCounts, getFollowers, getFollowing, type FollowProfile } from "@/lib/follows.functions";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,7 @@ import {
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({ meta: [{ title: "Profile — NexusTrack" }, { name: "description", content: "Your stats, favorites, and watch history." }] }),
+  errorComponent: RouteErrorBoundary,
   component: Profile,
 });
 
@@ -48,6 +50,13 @@ function Profile() {
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [busy, setBusy] = useState(false);
+  // Animate the completion ring on mount: render 0 first, flip to the real
+  // value on the next frame so the CSS transition sweeps it in.
+  const [ringReady, setRingReady] = useState(false);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setRingReady(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
   const { isGuest } = useGuest();
 
   const profile = profileQ.data;
@@ -70,11 +79,13 @@ function Profile() {
     queryKey: ["followers", profile?.id],
     queryFn: () => followersFn({ data: { user_id: profile!.id } }),
     enabled: listMode === "followers" && !!profile?.id,
+    staleTime: 60_000,
   });
   const followingQ = useQuery({
-    queryKey: ["following", profile?.id],
+    queryKey: ["following-list", profile?.id],
     queryFn: () => followingFn({ data: { user_id: profile!.id } }),
     enabled: listMode === "following" && !!profile?.id,
+    staleTime: 60_000,
   });
 
   if (isGuest) {
@@ -107,7 +118,19 @@ function Profile() {
 
   if (!profile) return <ProfileSkeleton />;
   const s = statsQ.data;
-  const libRows = (libQ.data ?? []).filter((r) => !r.hidden);
+  // Row shape returned by listLibrary (user_media joined with media).
+  interface ProfileLibRow {
+    id: string;
+    status: string;
+    favorite: boolean;
+    hidden: boolean;
+    created_at: string;
+    media: {
+      id: string; media_type: string; source: string; external_id: string;
+      title: string; poster_url: string | null; release_year: number | null;
+    } | null;
+  }
+  const libRows = ((libQ.data ?? []) as ProfileLibRow[]).filter((r) => !r.hidden);
   const libraryEmpty = !libQ.isLoading && libRows.length === 0;
   const favorites = libRows.filter((r) => r.favorite).slice(0, 6);
   const recentlyAdded = [...libRows].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 6);
@@ -144,6 +167,20 @@ function Profile() {
               <h1 className="text-2xl md:text-3xl font-bold">{profile.display_name || profile.username}</h1>
               <p className="text-sm text-muted-foreground/70">@{profile.username}</p>
               {profile.bio && <p className="mt-2 max-w-md text-sm text-muted-foreground/80 leading-relaxed">{profile.bio}</p>}
+
+              {/* Streak & hours — computed by getStats, shown as chips */}
+              {(s?.currentStreak ?? 0) > 0 && (
+                <div className="mt-3 flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/40 bg-warning/15 px-2.5 py-1 text-xs font-semibold text-warning">
+                    <Flame className="h-3.5 w-3.5" /> {s?.currentStreak}-day streak
+                  </span>
+                  {(s?.hoursWatched ?? 0) > 0 && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">
+                      <Clock className="h-3.5 w-3.5" /> {s?.hoursWatched} hrs watched
+                    </span>
+                  )}
+                </div>
+              )}
 
               {/* Follow counts */}
               <div className="mt-3 flex items-center gap-4 text-sm">
@@ -210,7 +247,8 @@ function Profile() {
               <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="8" className="text-muted/20" />
                 <circle cx="50" cy="50" r="42" fill="none" stroke="url(#grad)" strokeWidth="8" strokeLinecap="round"
-                  strokeDasharray={`${(s?.completionPct ?? 0) * 2.64} 264`} />
+                  strokeDasharray={`${(ringReady ? (s?.completionPct ?? 0) : 0) * 2.64} 264`}
+                  className="transition-[stroke-dasharray] duration-1000 ease-out" />
                 <defs><linearGradient id="grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#6366f1" /><stop offset="100%" stopColor="#8b5cf6" /></linearGradient></defs>
               </svg>
               <div className="absolute inset-0 grid place-items-center">
@@ -272,13 +310,19 @@ function Profile() {
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
             {favorites.map((r) => {
-              const m = r.media as unknown as { id: string; title: string; poster_url: string | null; media_type: string; source: string; external_id: string };
+              const m = r.media;
               return (
                 <Link key={r.id} to="/media/$type/$source/$id" params={{ type: m.media_type, source: m.source, id: m.external_id }}
                   className="group relative overflow-hidden rounded-xl bg-card/60 border border-border/30 hover:border-border/60 transition-all">
                   <div className="aspect-[2/3] bg-muted overflow-hidden">
                     {m.poster_url ? <img src={m.poster_url} alt={m.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" /> : null}
                   </div>
+                  {r.rating != null && r.rating > 0 && (
+                    <div className="absolute top-2 left-2 flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-sm px-1.5 py-0.5">
+                      <Star className="h-3 w-3 fill-warning text-warning" />
+                      <span className="text-[11px] font-bold text-white">{r.rating}</span>
+                    </div>
+                  )}
                   <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-2">
                     <p className="line-clamp-1 text-xs font-medium text-white">{m.title}</p>
                   </div>
@@ -297,7 +341,7 @@ function Profile() {
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
             {recentlyAdded.map((r) => {
-              const m = r.media as unknown as { id: string; title: string; poster_url: string | null; media_type: string; source: string; external_id: string };
+              const m = r.media;
               return (
                 <Link key={r.id} to="/media/$type/$source/$id" params={{ type: m.media_type, source: m.source, id: m.external_id }}
                   className="group relative overflow-hidden rounded-xl bg-card/60 border border-border/30 hover:border-border/60 transition-all">
@@ -325,10 +369,10 @@ function Profile() {
         <DialogContent>
           <DialogHeader><DialogTitle>{listMode === "followers" ? "Followers" : "Following"}</DialogTitle></DialogHeader>
           <div className="max-h-80 space-y-3 overflow-y-auto">
-            {(listMode === "followers" ? followersQ.data : followingQ.data)?.length === 0 ? (
+            {(listMode === "followers" ? (followersQ.data as FollowProfile[] | undefined) : (followingQ.data as FollowProfile[] | undefined))?.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">No one here yet.</p>
             ) : null}
-            {(listMode === "followers" ? followersQ.data : followingQ.data)?.map((user) => (
+            {(listMode === "followers" ? (followersQ.data as FollowProfile[] | undefined) : (followingQ.data as FollowProfile[] | undefined))?.map((user) => (
               <Link key={user.id} to={"/user/" + user.username} onClick={() => setListMode(null)}>
                 <div className="flex items-center gap-3 rounded-lg p-2.5 hover:bg-muted/20 transition-colors">
                   {user.avatar_url ? (

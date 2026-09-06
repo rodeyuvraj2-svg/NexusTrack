@@ -1,5 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
+import { loadGuestState } from "@/lib/guest";
 import { AppShell } from "@/components/AppShell";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -24,15 +25,16 @@ export const Route = createFileRoute("/_authenticated")({
     const { data, error } = session;
     if (error || !data.session) {
       // Check if guest mode is active before redirecting
-      try {
-        if (typeof window !== "undefined") {
-          const isGuest = localStorage.getItem("nt_guest") === "true";
-          if (isGuest) return { user: null, isGuest: true };
-        }
-      } catch {
-        // localStorage unavailable — redirect to auth
+      if (loadGuestState()) return { user: null, isGuest: true };
+      // Only sign out for genuine auth failures (e.g. the refresh token was
+      // revoked / is invalid). Transient network errors during a token
+      // refresh must not destroy the local session — the user would be
+      // logged out by a momentary offline blip. Redirecting to /auth is
+      // fine either way; the login page will pick the session back up.
+      const authFailure = !!error && /refresh|invalid|revoked|expired|bad.?jwt/i.test(error.message);
+      if (authFailure) {
+        await supabase.auth.signOut();
       }
-      await supabase.auth.signOut();
       throw redirect({ to: "/auth" });
     }
     return { user: data.session.user, isGuest: false };

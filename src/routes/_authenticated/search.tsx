@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 import { searchAll } from "@/lib/tmdb.functions";
 import { searchAnime, searchManga } from "@/lib/anilist.functions";
 import { MediaGrid } from "@/components/MediaCard";
+import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { Search as SearchIcon, Loader2, AlertCircle, Film, Tv, Sparkles, BookmarkIcon, Layers } from "lucide-react";
 import { z } from "zod";
 
@@ -26,6 +27,7 @@ const CATEGORY_TABS: { id: "all" | "movie" | "tv" | "anime" | "manga"; label: st
 export const Route = createFileRoute("/_authenticated/search")({
   head: () => ({ meta: [{ title: "Search — NexusTrack" }, { name: "description", content: "Search movies, TV, and anime from one place." }] }),
   validateSearch: searchParamsSchema,
+  errorComponent: RouteErrorBoundary,
   component: SearchPage,
 });
 

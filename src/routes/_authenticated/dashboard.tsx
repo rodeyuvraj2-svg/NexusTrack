@@ -7,6 +7,7 @@ import { topAnime, topManga } from "@/lib/anilist.functions";
 import { listActivity } from "@/lib/activity.functions";
 import { getStats, listLibrary } from "@/lib/library.functions";
 import { MediaGrid } from "@/components/MediaCard";
+import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import type { MediaSummary } from "@/lib/media-types";
 import { AlertCircle, Film, Tv, TrendingUp, CheckCircle2, BookmarkIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +16,7 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — NexusTrack" }, { name: "description", content: "Your personalized entertainment dashboard." }] }),
+  errorComponent: RouteErrorBoundary,
   component: Dashboard,
 });
 
@@ -129,11 +131,17 @@ function Dashboard() {
     { label: "Completed", value: statsQ.data?.completed, icon: CheckCircle2 },
   ];
 
-  const watchingItems: MediaSummary[] = (watchingQ.data ?? [])
+  // Row shape returned by the watching query (user_media joined with media).
+  interface WatchingRow {
+    status: string;
+    hidden: boolean;
+    media: { media_type: string; source: string; external_id: string; title: string; poster_url: string | null; release_year: number | null } | null;
+  }
+  const watchingItems: MediaSummary[] = ((watchingQ.data ?? []) as WatchingRow[])
     .filter((r) => (r.status === "watching" || r.status === "rewatching") && !r.hidden)
     .slice(0, 6)
     .map((r) => {
-      const m = r.media as unknown as { media_type: string; source: string; external_id: string; title: string; poster_url: string | null; release_year: number | null } | null;
+      const m = r.media;
       return {
         external_id: m?.external_id ?? "",
         source: (m?.source ?? "tmdb") as "tmdb" | "anilist",
@@ -232,9 +240,15 @@ function Dashboard() {
       ) : actQ.data && actQ.data.length > 0 ? (
         <Section title="Friend activity">
           <div className="space-y-2">
-            {actQ.data.slice(0, 10).map((a) => {
-              const p = a.profile as unknown as { username: string; display_name: string; avatar_url: string | null } | undefined;
-              const m = a.media as unknown as { id: string; title: string; media_type: string; source: string; external_id: string } | null;
+            {((actQ.data ?? []) as Array<{
+              id: string;
+              kind: string;
+              user_id: string;
+              profile?: { username: string; display_name: string; avatar_url: string | null };
+              media: { id: string; title: string; media_type: string; source: string; external_id: string } | null;
+            }>).slice(0, 10).map((a) => {
+              const p = a.profile;
+              const m = a.media;
               const name = p?.display_name || p?.username || "Someone";
               const isMe = a.user_id === user?.id;
               const action = KIND_TEXT[a.kind] || a.kind;

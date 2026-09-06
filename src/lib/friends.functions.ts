@@ -12,50 +12,65 @@ export const listFriends = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false });
     if (error) throw error;
 
-    const otherIds = Array.from(new Set(rows.map((r) => (r.requester_id === context.userId ? r.addressee_id : r.requester_id))));
-    if (otherIds.length === 0) return { accepted: [], incoming: [], outgoing: [] };
-    const { data: profiles } = await context.supabase
-      .from("profiles")
-      .select("id, username, display_name, avatar_url")
-      .in("id", otherIds);
-    const pmap = new Map((profiles ?? []).map((p) => [p.id, p]));
+    interface FriendshipRow {
+      id: string;
+      status: "pending" | "accepted" | "blocked";
+      requester_id: string;
+      addressee_id: string;
+      created_at: string;
+    }
+    const friendRows = (rows ?? []) as FriendshipRow[];
 
-    // Fetch library stats for accepted friends
-    const acceptedFriendIds = rows
+    const otherIds = Array.from(new Set(friendRows.map((r) => (r.requester_id === context.userId ? r.addressee_id : r.requester_id))));
+    if (otherIds.length === 0) return { accepted: [], incoming: [], outgoing: [] };
+
+    // Profiles and library stats both depend only on the friendship rows —
+    // fetch them in parallel instead of back-to-back roundtrips.
+    const acceptedFriendIds = friendRows
       .filter((r) => r.status === "accepted")
       .map((r) => (r.requester_id === context.userId ? r.addressee_id : r.requester_id));
+
+    const [profilesRes, statsRes] = await Promise.all([
+      context.supabase
+        .from("profiles")
+        .select("id, username, display_name, avatar_url")
+        .in("id", otherIds),
+      acceptedFriendIds.length > 0
+        ? context.supabase
+            .from("user_media")
+            .select("user_id, status, favorite, media:media_id(media_type)")
+            .in("user_id", acceptedFriendIds)
+        : Promise.resolve({ data: [] as Array<{ user_id: string; status: string; favorite: boolean; media: { media_type: string } | null }>, error: null }),
+    ]);
+    if (profilesRes.error) throw profilesRes.error;
+    const pmap = new Map((profilesRes.data ?? []).map((p: { id: string; username: string; display_name: string | null; avatar_url: string | null }) => [p.id, p]));
+
     interface FriendLibraryStats { watching: number; completed: number; planned: number; favorites: number; movies: number; tv: number; anime: number; }
-    let libraryStats: Map<string, FriendLibraryStats> = new Map();
-    if (acceptedFriendIds.length > 0) {
-      const { data: stats } = await context.supabase
-        .from("user_media")
-        .select("user_id, status, favorite, media:media_id(media_type)")
-        .in("user_id", acceptedFriendIds);
-      for (const s of stats ?? []) {
-        const entry = libraryStats.get(s.user_id) ?? { watching: 0, completed: 0, planned: 0, favorites: 0, movies: 0, tv: 0, anime: 0 };
-        if (s.status === "watching" || s.status === "rewatching") entry.watching++;
-        if (s.status === "completed") entry.completed++;
-        if (s.status === "planned") entry.planned++;
-        if (s.favorite) entry.favorites++;
-        const mediaType = (s.media as unknown as { media_type?: string } | null)?.media_type;
-        if (mediaType === "movie") entry.movies++;
-        else if (mediaType === "tv") entry.tv++;
-        else if (mediaType === "anime") entry.anime++;
-        libraryStats.set(s.user_id, entry);
-      }
+    const libraryStats: Map<string, FriendLibraryStats> = new Map();
+    for (const s of (statsRes.data ?? []) as Array<{ user_id: string; status: string; favorite: boolean; media: { media_type: string } | null }>) {
+      const entry = libraryStats.get(s.user_id) ?? { watching: 0, completed: 0, planned: 0, favorites: 0, movies: 0, tv: 0, anime: 0 };
+      if (s.status === "watching" || s.status === "rewatching") entry.watching++;
+      if (s.status === "completed") entry.completed++;
+      if (s.status === "planned") entry.planned++;
+      if (s.favorite) entry.favorites++;
+      const mediaType = s.media?.media_type;
+      if (mediaType === "movie") entry.movies++;
+      else if (mediaType === "tv") entry.tv++;
+      else if (mediaType === "anime") entry.anime++;
+      libraryStats.set(s.user_id, entry);
     }
 
     return {
-      accepted: rows
+      accepted: friendRows
         .filter((r) => r.status === "accepted")
         .map((r) => {
           const friendId = r.requester_id === context.userId ? r.addressee_id : r.requester_id;
           return { ...r, profile: pmap.get(friendId), library: libraryStats.get(friendId) ?? { watching: 0, completed: 0, planned: 0, favorites: 0 } };
         }),
-      incoming: rows
+      incoming: friendRows
         .filter((r) => r.status === "pending" && r.addressee_id === context.userId)
         .map((r) => ({ ...r, profile: pmap.get(r.requester_id) })),
-      outgoing: rows
+      outgoing: friendRows
         .filter((r) => r.status === "pending" && r.requester_id === context.userId)
         .map((r) => ({ ...r, profile: pmap.get(r.addressee_id) })),
     };
@@ -156,26 +171,32 @@ export const getPublicProfile = createServerFn({ method: "GET" })
     // Check visibility: own profile, public profile, or friend
     const isOwnProfile = profile.id === context.userId;
     const isPublic = profile.is_public;
-    const { data: friendRow } = await context.supabase
-      .from("friendships")
-      .select("status")
-      .eq("status", "accepted")
-      .or(`and(requester_id.eq.${context.userId},addressee_id.eq.${profile.id}),and(requester_id.eq.${profile.id},addressee_id.eq.${context.userId})`)
-      .maybeSingle();
-    const isFriend = !!friendRow;
+
+    // Friendship check and library load are independent — run both in
+    // parallel instead of a sequential waterfall. The library rows are only
+    // returned when visibility allows, but the queries themselves overlap.
+    const [friendRes, libraryRes] = await Promise.all([
+      context.supabase
+        .from("friendships")
+        .select("status")
+        .eq("status", "accepted")
+        .or(`and(requester_id.eq.${context.userId},addressee_id.eq.${profile.id}),and(requester_id.eq.${profile.id},addressee_id.eq.${context.userId})`)
+        .maybeSingle(),
+      context.supabase
+        .from("user_media")
+        .select("id, status, rating, favorite, media:media_id(id, media_type, source, external_id, title, poster_url, release_year)")
+        .eq("user_id", profile.id)
+        .eq("hidden", false)
+        .order("updated_at", { ascending: false })
+        .limit(60),
+    ]);
+    const isFriend = !!friendRes.data;
 
     if (!isOwnProfile && !isPublic && !isFriend) {
       return { profile: { ...profile, username: "Private User", display_name: null, bio: null, avatar_url: null }, library: [], isPrivate: true };
     }
 
-    const { data: library } = await context.supabase
-      .from("user_media")
-      .select("id, status, rating, favorite, media:media_id(id, media_type, source, external_id, title, poster_url, release_year)")
-      .eq("user_id", profile.id)
-      .eq("hidden", false)
-      .order("updated_at", { ascending: false })
-      .limit(60);
-    return { profile, library: library ?? [], isPrivate: false };
+    return { profile, library: libraryRes.data ?? [], isPrivate: false };
   });
 
 export const copyFromFriend = createServerFn({ method: "POST" })
