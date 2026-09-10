@@ -2,6 +2,15 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
+// Serializable profile shape shared by the friendship payloads — server
+// functions validate serializability, so `unknown`/`any` values fail.
+interface FriendProfileRow {
+  id: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
 export const listFriends = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -43,7 +52,9 @@ export const listFriends = createServerFn({ method: "GET" })
         : Promise.resolve({ data: [] as Array<{ user_id: string; status: string; favorite: boolean; media: { media_type: string } | null }>, error: null }),
     ]);
     if (profilesRes.error) throw profilesRes.error;
-    const pmap = new Map((profilesRes.data ?? []).map((p: { id: string; username: string; display_name: string | null; avatar_url: string | null }) => [p.id, p]));
+    const pmap = new Map(
+      (profilesRes.data ?? []).map((p: FriendProfileRow): [string, FriendProfileRow] => [p.id, p]),
+    );
 
     interface FriendLibraryStats { watching: number; completed: number; planned: number; favorites: number; movies: number; tv: number; anime: number; }
     const libraryStats: Map<string, FriendLibraryStats> = new Map();

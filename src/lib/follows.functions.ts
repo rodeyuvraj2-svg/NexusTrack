@@ -123,7 +123,7 @@ export const getFollowers = createServerFn({ method: "GET" })
       .limit(100);
     if (error) throw error;
 
-    const userIds = (rows ?? []).map((r) => r.follower_id);
+    const userIds = (rows ?? []).map((r: { follower_id: string }) => r.follower_id);
     if (userIds.length === 0) return [] as FollowProfileRow[];
     const { data: profiles, error: profilesError } = await context.supabase
       .from("profiles")
@@ -146,7 +146,7 @@ export const getFollowing = createServerFn({ method: "GET" })
       .limit(100);
     if (error) throw error;
 
-    const userIds = (rows ?? []).map((r) => r.following_id);
+    const userIds = (rows ?? []).map((r: { following_id: string }) => r.following_id);
     if (userIds.length === 0) return [] as FollowProfileRow[];
     const { data: profiles, error: profilesError } = await context.supabase
       .from("profiles")

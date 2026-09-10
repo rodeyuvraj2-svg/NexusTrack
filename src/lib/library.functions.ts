@@ -34,6 +34,35 @@ export const listLibrary = createServerFn({ method: "GET" })
     return rows;
   });
 
+/**
+ * Read an existing `media` cache row by external identity — without
+ * provisioning. Unlike cacheMedia this never calls the source API, so it
+ * still works when the external API (AniList/Jikan/TMDB) is unreachable;
+ * the detail page uses it to render items the user already has cached.
+ */
+export const getMediaRowByExternal = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) =>
+    z
+      .object({
+        source: z.enum(["tmdb", "anilist", "jikan", "kitsu"]),
+        media_type: z.enum(["movie", "tv", "anime", "manga"]),
+        external_id: z.string().min(1).max(64),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: row, error } = await context.supabase
+      .from("media")
+      .select("id, media_type, source, external_id, title, overview, poster_url, backdrop_url, release_year, vote_average, genres, runtime, season_count, chapter_count, volume_count, status")
+      .eq("source", data.source)
+      .eq("media_type", data.media_type as any)
+      .eq("external_id", data.external_id)
+      .maybeSingle();
+    if (error) throw error;
+    return row ?? null;
+  });
+
 // Shared upsert used by both upsertLibraryItem (by media id) and
 // saveLibraryEntryByExternal (by source + external id).
 async function applyLibraryUpsert(
@@ -87,29 +116,37 @@ async function applyLibraryUpsert(
     .single();
   if (error) throw error;
 
-  // Log activity (non-critical — wrapped in try/catch)
+  // Log activity (non-critical — wrapped in try/catch).
+  // A first save logs exactly ONE row reflecting the initial action —
+  // previously saving directly as "completed"/"watching" also logged an
+  // "added" row, so the feed showed "added to watchlist" AND
+  // "completed"/"started watching" as separate entries.
+  const isWatchKind = data.status === "watching" || data.status === "rewatching";
   try {
-    if (data.status === "completed" && existing?.status !== "completed") {
-      await supabase.from("activity").insert({
-        user_id: userId, kind: "completed", media_id: mediaId,
-      }).maybeSingle();
-    }
-    if (data.status === "watching" && existing?.status !== "watching") {
-      await supabase.from("activity").insert({
-        user_id: userId, kind: "started", media_id: mediaId,
-      }).maybeSingle();
-    }
-    if (data.favorite === true && !existing?.favorite) {
-      await supabase.from("activity").insert({
-        user_id: userId, kind: "favorited", media_id: mediaId,
-      }).maybeSingle();
-    }
     if (!existing) {
+      const kind = data.status === "completed" ? "completed"
+        : isWatchKind ? "started"
+        : data.favorite ? "favorited"
+        : "added";
       await supabase.from("activity").insert({
-        user_id: userId,
-        kind: data.favorite ? "favorited" : "added",
-        media_id: mediaId,
+        user_id: userId, kind, media_id: mediaId,
       }).maybeSingle();
+    } else {
+      if (data.status === "completed" && existing.status !== "completed") {
+        await supabase.from("activity").insert({
+          user_id: userId, kind: "completed", media_id: mediaId,
+        }).maybeSingle();
+      }
+      if (isWatchKind && existing.status !== "watching" && existing.status !== "rewatching") {
+        await supabase.from("activity").insert({
+          user_id: userId, kind: "started", media_id: mediaId,
+        }).maybeSingle();
+      }
+      if (data.favorite === true && !existing.favorite) {
+        await supabase.from("activity").insert({
+          user_id: userId, kind: "favorited", media_id: mediaId,
+        }).maybeSingle();
+      }
     }
   } catch { /* activity logging is non-critical */ }
 
@@ -139,7 +176,7 @@ export const upsertLibraryItem = createServerFn({ method: "POST" })
 // strings would let anyone poison shared rows; the handler provisions the
 // row from the source API (TMDB / AniList) instead.
 const MediaRefSchema = z.object({
-  source: z.enum(["tmdb", "anilist"]),
+  source: z.enum(["tmdb", "anilist", "jikan", "kitsu"]),
   media_type: z.enum(["movie", "tv", "anime", "manga"]),
   external_id: z.string().min(1).max(64),
 });
@@ -309,12 +346,18 @@ export const setSeasonStatus = createServerFn({ method: "POST" })
       .single();
     const seriesStatusChanged = (after?.status ?? null) !== (um.data?.status ?? null);
 
-    // Log activity for status changes (non-critical)
-    if (overallChanged || seriesStatusChanged || (data.status === "completed" && um.data?.status !== "completed")) {
+    // Log activity for status changes (non-critical). Only completed and
+    // watching-type actions are activity-worthy — previously ANY non-
+    // completed season action (planned/paused/skipped) logged
+    // "started watching", which surfaced wrong entries in the feed.
+    const seasonKind = data.status === "completed" ? "completed"
+      : data.status === "watching" || data.status === "rewatching" ? "started"
+      : null;
+    if (seasonKind && (overallChanged || seriesStatusChanged || (data.status === "completed" && um.data?.status !== "completed"))) {
       try {
         await context.supabase.from("activity").insert({
           user_id: context.userId,
-          kind: data.status === "completed" ? "completed" : "started",
+          kind: seasonKind,
           media_id: data.media_id,
         }).maybeSingle();
       } catch { /* activity logging is non-critical */ }
@@ -359,7 +402,9 @@ async function computeStatsInJs(
     .select("status, rating, favorite, media:media_id(id, media_type, runtime, title, poster_url, source, external_id, genres, season_count)")
     .eq("user_id", userId);
   if (error) throw error;
-  const list = (rows ?? []) as StatRow[];
+  // Embedded `media:media_id(...)` is a to-one join, but the untyped client
+  // models it as an array — double-cast to the real runtime shape.
+  const list = (rows ?? []) as unknown as StatRow[];
 
   const total = list.length;
   const completed = list.filter((r) => r.status === "completed").length;

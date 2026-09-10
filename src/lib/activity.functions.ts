@@ -45,6 +45,9 @@ export const listActivity = createServerFn({ method: "GET" })
       .from("profiles")
       .select("id, username, display_name, avatar_url")
       .in("id", userIds);
-    const pmap = new Map((profiles ?? []).map((p) => [p.id, p]));
+    // Typed tuple so the Map values stay serializable (server functions
+    // reject `unknown`), and so `p` isn't implicit any.
+    interface ProfileRow { id: string; username: string; display_name: string | null; avatar_url: string | null }
+    const pmap = new Map((profiles ?? []).map((p: ProfileRow): [string, ProfileRow] => [p.id, p]));
     return typedRows.map((r) => ({ ...r, profile: pmap.get(r.user_id) }));
   });

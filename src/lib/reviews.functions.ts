@@ -31,7 +31,10 @@ export const listReviews = createServerFn({ method: "GET" })
       .from("profiles")
       .select("id, username, display_name, avatar_url")
       .in("id", userIds);
-    const pmap = new Map((profiles ?? []).map((p: { id: string; username: string; display_name: string | null; avatar_url: string | null }) => [p.id, p]));
+    // Typed tuple so Map values stay serializable (server functions reject
+    // `unknown` values in their return type).
+    interface ProfileRow { id: string; username: string; display_name: string | null; avatar_url: string | null }
+    const pmap = new Map((profiles ?? []).map((p: ProfileRow): [string, ProfileRow] => [p.id, p]));
 
     // Check which reviews the current user has liked
     const { data: myLikes } = await context.supabase

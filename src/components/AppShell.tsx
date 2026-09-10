@@ -49,14 +49,18 @@ export function AppShell() {
     enabled: !isGuest,
   });
 
-  // Push-based badge updates: new notifications arrive over realtime and
-  // invalidate the cached count, instead of polling every 30s per open tab.
-  // A slow 5-minute interval remains as a safety net if realtime drops.
+  // Push-based badge updates: new notifications (classic or media
+  // recommendations) arrive over realtime and invalidate the cached count,
+  // instead of polling every 30s per open tab. A slow 5-minute interval
+  // remains as a safety net if realtime drops.
   useEffect(() => {
     if (isGuest) return;
     const channel = supabase
       .channel("appshell-notifications")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" }, () => {
+        qc.invalidateQueries({ queryKey: ["unread-count"] });
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "media_recommendations" }, () => {
         qc.invalidateQueries({ queryKey: ["unread-count"] });
       })
       .subscribe();
