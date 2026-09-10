@@ -1,6 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { cached } from "./api-cache";
+import {
+  searchAnimeViaJikan, searchMangaViaJikan, topAnimeViaJikan,
+  topMangaViaJikan, seasonalAnimeViaJikan,
+} from "./jikan.functions";
+import {
+  searchAnimeViaKitsu, searchMangaViaKitsu, topAnimeViaKitsu,
+  topMangaViaKitsu, seasonalAnimeViaKitsu,
+} from "./kitsu.functions";
 import type { MediaSummary } from "./media-types";
 
 // ---- AniList GraphQL endpoint ----
@@ -225,8 +233,20 @@ export const searchAnime = createServerFn({ method: "GET" })
       );
       return (result.Page.media ?? []).map(toSummary);
     } catch (error) {
-      console.warn('[AniList] searchAnime failed:', error);
-      return [];
+      // AniList unreachable — fall back to Jikan (MyAnimeList), then Kitsu,
+      // so search still works. Results carry source "jikan"/"kitsu" ids.
+      console.warn('[AniList] searchAnime failed, falling back to Jikan:', error);
+      try {
+        return await searchAnimeViaJikan(data.q);
+      } catch (jikanError) {
+        console.warn('[Jikan] searchAnime fallback failed, trying Kitsu:', jikanError);
+        try {
+          return await searchAnimeViaKitsu(data.q);
+        } catch (kitsuError) {
+          console.warn('[Kitsu] searchAnime fallback failed:', kitsuError);
+          return [];
+        }
+      }
     }
   });
 
@@ -237,8 +257,9 @@ export const topAnime = createServerFn({ method: "GET" })
     sort: z.enum(["trending", "popular"]).default("popular"),
   }).parse(input ?? {}))
   .handler(async ({ data }) => {
+    // Parsed before try/catch so the fallback providers can honor the same filters.
+    const genreList = data.genre ? data.genre.split(",").map((g) => g.trim()).filter(Boolean) : [];
     try {
-      const genreList = data.genre ? data.genre.split(",").map((g) => g.trim()).filter(Boolean) : [];
       const sortOrder = data.sort === "trending" ? "TRENDING_DESC" : "POPULARITY_DESC";
       const result = await anilist<{ Page: { media: AniListMedia[] } }>(
         `query ($page: Int, $genreIn: [String]) {
@@ -260,8 +281,18 @@ export const topAnime = createServerFn({ method: "GET" })
       );
       return (result.Page.media ?? []).map(toSummary);
     } catch (error) {
-      console.warn('[AniList] topAnime failed:', error);
-      return FALLBACK_ANIME.slice(0, 6);
+      console.warn('[AniList] topAnime failed, falling back to Jikan:', error);
+      try {
+        return await topAnimeViaJikan(data.page, { genres: genreList, sort: data.sort });
+      } catch (jikanError) {
+        console.warn('[Jikan] topAnime fallback failed, trying Kitsu:', jikanError);
+        try {
+          return await topAnimeViaKitsu({ page: data.page, genres: genreList, sort: data.sort });
+        } catch (kitsuError) {
+          console.warn('[Kitsu] topAnime fallback failed:', kitsuError);
+          return FALLBACK_ANIME.slice(0, 6);
+        }
+      }
     }
   });
 
@@ -360,8 +391,18 @@ export const seasonalAnime = createServerFn({ method: "GET" })
     );
     return (result.Page.media ?? []).map(toSummary);
   } catch (error) {
-    console.warn('[AniList] seasonalAnime failed:', error);
-    return FALLBACK_ANIME.slice(0, 6);
+    console.warn('[AniList] seasonalAnime failed, falling back to Jikan:', error);
+    try {
+      return await seasonalAnimeViaJikan(data.page);
+    } catch (jikanError) {
+      console.warn('[Jikan] seasonalAnime fallback failed, trying Kitsu:', jikanError);
+      try {
+        return await seasonalAnimeViaKitsu();
+      } catch (kitsuError) {
+        console.warn('[Kitsu] seasonalAnime fallback failed:', kitsuError);
+        return FALLBACK_ANIME.slice(0, 6);
+      }
+    }
   }
 });
 
@@ -532,8 +573,18 @@ export const searchManga = createServerFn({ method: "GET" })
       );
       return (result.Page.media ?? []).map(toMangaSummary);
     } catch (error) {
-      console.warn('[AniList] searchManga failed:', error);
-      return [];
+      console.warn('[AniList] searchManga failed, falling back to Jikan:', error);
+      try {
+        return await searchMangaViaJikan(data.q);
+      } catch (jikanError) {
+        console.warn('[Jikan] searchManga fallback failed, trying Kitsu:', jikanError);
+        try {
+          return await searchMangaViaKitsu(data.q);
+        } catch (kitsuError) {
+          console.warn('[Kitsu] searchManga fallback failed:', kitsuError);
+          return [];
+        }
+      }
     }
   });
 
@@ -544,8 +595,9 @@ export const topManga = createServerFn({ method: "GET" })
     type: z.enum(["top", "popular"]).default("popular"),
   }).parse(input ?? {}))
   .handler(async ({ data }) => {
+    // Parsed before try/catch so the fallback providers can honor the same filters.
+    const genreList = data.genre ? data.genre.split(",").map((g) => g.trim()).filter(Boolean) : [];
     try {
-      const genreList = data.genre ? data.genre.split(",").map((g) => g.trim()).filter(Boolean) : [];
       const sort = data.type === "top" ? "SCORE_DESC" : "POPULARITY_DESC";
       const perPage = data.type === "top" ? 20 : 40;
       const result = await anilist<{ Page: { media: AniListMedia[] } }>(
@@ -570,8 +622,18 @@ export const topManga = createServerFn({ method: "GET" })
       );
       return (result.Page.media ?? []).map(toMangaSummary);
     } catch (error) {
-      console.warn('[AniList] topManga failed:', error);
-      return FALLBACK_MANGA.slice(0, 20);
+      console.warn('[AniList] topManga failed, falling back to Jikan:', error);
+      try {
+        return await topMangaViaJikan(data.page, { genres: genreList, type: data.type });
+      } catch (jikanError) {
+        console.warn('[Jikan] topManga fallback failed, trying Kitsu:', jikanError);
+        try {
+          return await topMangaViaKitsu({ page: data.page, genres: genreList, sort: data.type });
+        } catch (kitsuError) {
+          console.warn('[Kitsu] topManga fallback failed:', kitsuError);
+          return FALLBACK_MANGA.slice(0, 20);
+        }
+      }
     }
   });
 
@@ -633,8 +695,11 @@ export const getMangaDetails = createServerFn({ method: "GET" })
         extra: { relations, chapters: a.chapters ?? null, volumes: a.volumes ?? null },
       };
     } catch (error) {
-      console.warn('[AniList] getMangaDetails failed:', error);
-      return { summary: FALLBACK_MANGA[0], extra: null };
+      // Never fake success with fallback data — a wrong "One Piece" page is
+      // worse than a clear error. The detail page falls back to the cached
+      // Supabase row (if any) when this throws.
+      console.error("[AniList] getMangaDetails error:", error);
+      throw new Error(`Failed to load manga details: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   });
 

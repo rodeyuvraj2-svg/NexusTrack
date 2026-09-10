@@ -57,7 +57,7 @@ export const importLibrary = createServerFn({ method: "POST" })
       items: z.array(z.object({
         title: z.string().min(1).max(300),
         media_type: z.enum(["movie", "tv", "anime", "manga"]),
-        source: z.enum(["tmdb", "anilist"]),
+        source: z.enum(["tmdb", "anilist", "jikan", "kitsu"]),
         external_id: z.string().min(1).max(64),
         status: z.enum(["watching", "completed", "planned", "paused", "dropped", "skipped", "rewatching"]).optional(),
         rating: z.number().int().min(0).max(10).nullable().optional(),

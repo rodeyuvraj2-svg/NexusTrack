@@ -5,6 +5,7 @@ import { z } from "zod";
 export const listNotifications = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    try {
     const { data: rows, error } = await context.supabase
       .from("notifications")
       .select("id, kind, payload, read_at, created_at")
@@ -52,6 +53,10 @@ export const listNotifications = createServerFn({ method: "GET" })
     };
 
     return notifications.map(enrich);
+    } catch (err) {
+      console.error("[listNotifications] failed:", err);
+      throw new Error(`listNotifications: ${err instanceof Error ? err.message : String(err)}`);
+    }
   });
 
 export const markNotificationRead = createServerFn({ method: "POST" })
@@ -83,11 +88,22 @@ export const markNotificationRead = createServerFn({ method: "POST" })
 export const getUnreadCount = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { count, error } = await context.supabase
-      .from("notifications")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", context.userId)
-      .is("read_at", null);
-    if (error) throw error;
-    return count ?? 0;
+    // Unread classic notifications + unread media recommendations make up
+    // the badge count together.
+    const [notifRes, recRes] = await Promise.all([
+      context.supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", context.userId)
+        .is("read_at", null),
+      context.supabase
+        .from("media_recommendations")
+        .select("id", { count: "exact", head: true })
+        .eq("recipient_id", context.userId)
+        .eq("status", "unread")
+        .gt("expires_at", new Date().toISOString()),
+    ]);
+    if (notifRes.error) throw notifRes.error;
+    if (recRes.error) throw recRes.error;
+    return (notifRes.count ?? 0) + (recRes.count ?? 0);
   });

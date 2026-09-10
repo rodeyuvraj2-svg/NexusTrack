@@ -144,7 +144,7 @@ function Dashboard() {
       const m = r.media;
       return {
         external_id: m?.external_id ?? "",
-        source: (m?.source ?? "tmdb") as "tmdb" | "anilist",
+        source: (m?.source ?? "tmdb") as "tmdb" | "anilist" | "jikan" | "kitsu",
         media_type: (m?.media_type ?? "movie") as "movie" | "tv" | "anime" | "manga",
         title: m?.title ?? "",
         overview: null, poster_url: m?.poster_url ?? null, backdrop_url: null,
@@ -244,6 +244,7 @@ function Dashboard() {
               id: string;
               kind: string;
               user_id: string;
+              created_at: string;
               profile?: { username: string; display_name: string; avatar_url: string | null };
               media: { id: string; title: string; media_type: string; source: string; external_id: string } | null;
             }>).slice(0, 10).map((a) => {

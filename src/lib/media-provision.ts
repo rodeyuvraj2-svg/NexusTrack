@@ -160,6 +160,117 @@ function anilistSummary(a: AniListMedia, type: "anime" | "manga"): MediaSummary 
   };
 }
 
+// ── Jikan (MyAnimeList) ──────────────────────────────────────────────────────
+
+interface JikanMedia {
+  mal_id: number;
+  title?: string | null;
+  title_english?: string | null;
+  synopsis?: string | null;
+  images?: { jpg?: { large_image_url?: string | null; image_url?: string | null } | null } | null;
+  score?: number | null;
+  episodes?: number | null;
+  chapters?: number | null;
+  volumes?: number | null;
+  status?: string | null;
+  type?: string | null;
+  source?: string | null;
+  duration?: string | null;
+  genres?: { name: string }[] | null;
+  themes?: { name: string }[] | null;
+  published?: { from?: string | null } | null;
+  aired?: { from?: string | null } | null;
+}
+
+async function jikanFetch<T>(path: string): Promise<T> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => { try { controller.abort(); } catch {} }, FETCH_TIMEOUT);
+  try {
+    const res = await fetch("https://api.jikan.moe/v4" + path, { signal: controller.signal });
+    if (!res.ok) throw new Error(`Jikan ${res.status}: ${await res.text()}`);
+    return (await res.json()) as T;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function jikanSummary(m: JikanMedia, type: "anime" | "manga"): MediaSummary {
+  const poster = m.images?.jpg?.large_image_url || m.images?.jpg?.image_url || null;
+  const from = (type === "manga" ? m.published?.from : m.aired?.from) ?? null;
+  const year = from ? parseInt(from.slice(0, 4), 10) : null;
+  return {
+    external_id: String(m.mal_id),
+    source: "jikan",
+    media_type: type,
+    title: m.title_english || m.title || "Untitled",
+    overview: m.synopsis ?? null,
+    poster_url: poster,
+    backdrop_url: poster,
+    release_year: Number.isFinite(year as number) ? (year as number) : null,
+    vote_average: m.score ?? null,
+    genres: [...(m.genres ?? []), ...(m.themes ?? [])].map((g) => g.name),
+    ...(type === "manga"
+      ? { chapter_count: m.chapters ?? null, volume_count: m.volumes ?? null }
+      : { season_count: m.episodes ?? null }),
+    status: m.status ?? null,
+  };
+}
+
+// ── Kitsu (kitsu.app) ────────────────────────────────────────────────────────
+
+interface KitsuMedia {
+  id: string;
+  attributes: {
+    canonicalTitle?: string | null;
+    titles?: { en?: string | null } | null;
+    synopsis?: string | null;
+    posterImage?: { large?: string | null; medium?: string | null } | null;
+    startDate?: string | null;
+    averageRating?: string | null;
+    episodeCount?: number | null;
+    chapterCount?: number | null;
+    volumeCount?: number | null;
+    status?: string | null;
+  };
+}
+
+async function kitsuFetch<T>(path: string): Promise<T> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => { try { controller.abort(); } catch {} }, FETCH_TIMEOUT);
+  try {
+    const res = await fetch("https://kitsu.app/api/edge" + path, {
+      headers: { Accept: "application/vnd.api+json" },
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`Kitsu ${res.status}: ${await res.text()}`);
+    return (await res.json()) as T;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function kitsuSummary(m: KitsuMedia, type: "anime" | "manga"): MediaSummary {
+  const a = m.attributes;
+  const poster = a.posterImage?.large || a.posterImage?.medium || null;
+  const rating = a.averageRating != null ? Number(a.averageRating) : NaN;
+  return {
+    external_id: m.id,
+    source: "kitsu",
+    media_type: type,
+    title: a.titles?.en || a.canonicalTitle || "Untitled",
+    overview: a.synopsis ?? null,
+    poster_url: poster,
+    backdrop_url: poster,
+    release_year: a.startDate ? parseInt(a.startDate.slice(0, 4), 10) || null : null,
+    vote_average: Number.isFinite(rating) ? rating / 10 : null,
+    genres: [],
+    ...(type === "manga"
+      ? { chapter_count: a.chapterCount ?? null, volume_count: a.volumeCount ?? null }
+      : { season_count: a.episodeCount ?? null }),
+    status: a.status ?? null,
+  };
+}
+
 // ── Provisioning ─────────────────────────────────────────────────────────────
 
 export interface ProvisionedMedia {
@@ -182,7 +293,7 @@ export interface ProvisionedMedia {
  */
 export async function fetchAuthoritativeMedia(
   type: MediaType,
-  source: "tmdb" | "anilist",
+  source: "tmdb" | "anilist" | "jikan" | "kitsu",
   externalId: string,
 ): Promise<ProvisionedMedia> {
   let summary: MediaSummary;
@@ -229,6 +340,16 @@ export async function fetchAuthoritativeMedia(
       Number(externalId),
     );
     summary = anilistSummary(json.data.Media, "anime");
+  } else if (source === "jikan" && (type === "anime" || type === "manga")) {
+    const json = await jikanFetch<{ data: JikanMedia }>(
+      `/${type}/${encodeURIComponent(externalId)}/full`,
+    );
+    if (!json.data) throw new Error(`Jikan returned no data for ${type} ${externalId}`);
+    summary = jikanSummary(json.data, type);
+  } else if (source === "kitsu" && (type === "anime" || type === "manga")) {
+    const json = await kitsuFetch<{ data: KitsuMedia }>(`/${type}/${encodeURIComponent(externalId)}`);
+    if (!json.data) throw new Error(`Kitsu returned no data for ${type} ${externalId}`);
+    summary = kitsuSummary(json.data, type);
   } else {
     throw new Error(`Unsupported media source: ${source}/${type}`);
   }
@@ -243,7 +364,7 @@ export async function fetchAuthoritativeMedia(
  */
 export async function provisionMedia(
   type: MediaType,
-  source: "tmdb" | "anilist",
+  source: "tmdb" | "anilist" | "jikan" | "kitsu",
   externalId: string,
 ): Promise<string> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

@@ -3,14 +3,17 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient, useMutation, type UseQueryResult } from "@tanstack/react-query";
 import { getDetails, cacheMedia, getRecommendations, getCast, reclassifyMedia, getTrailerKey } from "@/lib/tmdb.functions";
 import { getAnimeDetails, getMultipleAnimeDetails, getMangaDetails, getMultipleMangaDetails } from "@/lib/anilist.functions";
-import { getLibraryItem, upsertLibraryItem, removeLibraryItem, listSeasonsWithProgress, setSeasonStatus } from "@/lib/library.functions";
+import { getJikanAnimeDetails, getJikanMangaDetails, getMultipleJikanAnimeDetails, getMultipleJikanMangaDetails, getJikanDetailsByTitle } from "@/lib/jikan.functions";
+import { getKitsuAnimeDetails, getKitsuMangaDetails } from "@/lib/kitsu.functions";
+import { getLibraryItem, upsertLibraryItem, removeLibraryItem, listSeasonsWithProgress, setSeasonStatus, getMediaRowByExternal } from "@/lib/library.functions";
 import { listReviews, upsertReview, deleteReview, toggleReviewLike } from "@/lib/reviews.functions";
+import { createRecommendation, listRecommendableUsers, type RecommendableUser } from "@/lib/recommendations.functions";
 import { STATUS_LABELS, STATUS_COLORS, getStatusLabel, type WatchStatus, type MediaSummary } from "@/lib/media-types";
 import { MediaGrid } from "@/components/MediaCard";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { SafeImage } from "@/components/SafeImage";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Star, Heart, Trash2, Check, ThumbsUp, MessageSquare, List, Play, CircleCheck, ArrowLeft, ExternalLink, Globe, BookmarkPlus, X } from "lucide-react";
+import { Star, Heart, Trash2, Check, ThumbsUp, MessageSquare, List, Play, CircleCheck, ArrowLeft, ExternalLink, Globe, BookmarkPlus, X, AlertCircle, Info, Send } from "lucide-react";
 import { toast } from "sonner";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -112,10 +115,17 @@ function MediaDetail() {
   const cacheFn = useServerFn(cacheMedia);
   const detailsFn = useServerFn(getDetails);
   const animeDetailsFn = useServerFn(getAnimeDetails);
+  const jikanAnimeDetailsFn = useServerFn(getJikanAnimeDetails);
   const multipleAnimeDetailsFn = useServerFn(getMultipleAnimeDetails);
+  const multipleJikanAnimeDetailsFn = useServerFn(getMultipleJikanAnimeDetails);
   const mangaDetailsFn = useServerFn(getMangaDetails);
+  const jikanMangaDetailsFn = useServerFn(getJikanMangaDetails);
+  const kitsuAnimeDetailsFn = useServerFn(getKitsuAnimeDetails);
+  const kitsuMangaDetailsFn = useServerFn(getKitsuMangaDetails);
   const multipleMangaDetailsFn = useServerFn(getMultipleMangaDetails);
+  const multipleJikanMangaDetailsFn = useServerFn(getMultipleJikanMangaDetails);
   const libFn = useServerFn(getLibraryItem);
+  const mediaRowFn = useServerFn(getMediaRowByExternal);
   const upsertFn = useServerFn(upsertLibraryItem);
   const removeFn = useServerFn(removeLibraryItem);
   const seasonsFn = useServerFn(listSeasonsWithProgress);
@@ -127,6 +137,37 @@ function MediaDetail() {
   const deleteReviewFn = useServerFn(deleteReview);
   const likeReviewFn = useServerFn(toggleReviewLike);
   const reclassifyFn = useServerFn(reclassifyMedia);
+  const recommendFn = useServerFn(createRecommendation);
+  const recommendableUsersFn = useServerFn(listRecommendableUsers);
+
+  // ---- Recommend to Friend ----
+  const [showRecommend, setShowRecommend] = useState(false);
+  const recommendableQ = useQuery({
+    queryKey: ["recommendable-users"],
+    queryFn: () => recommendableUsersFn(),
+    enabled: showRecommend,
+    staleTime: 60_000,
+  });
+  const mRecommend = useMutation({
+    mutationFn: (input: { recipient_id: string; message?: string }) =>
+      recommendFn({
+        data: {
+          ...input,
+          is_fallback: summary?.is_fallback ?? false,
+          media: {
+            source: source as "tmdb" | "anilist" | "jikan" | "kitsu",
+            media_type: type as "movie" | "tv" | "anime" | "manga",
+            external_id: id,
+          },
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Recommendation sent!");
+      setShowRecommend(false);
+      qc.invalidateQueries({ queryKey: ["recommendations"] });
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   // ---- Local State ----
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -147,10 +188,14 @@ function MediaDetail() {
   });
 
   // ---- Fetch Details (independent of cache) ----
-  const isAnime = source === "anilist" && type !== "manga";
+  // Anime/manga items come from AniList, Jikan (MyAnimeList) or Kitsu —
+  // each with its own details endpoint. Everything else is TMDB.
+  const isJikan = source === "jikan";
+  const isKitsu = source === "kitsu";
+  const isAnime = (source === "anilist" || isJikan || isKitsu) && type !== "manga";
   const isManga = type === "manga";
 
-  // Separate queries for TMDB vs AniList due to different return types
+  // Separate queries for TMDB vs anime/manga APIs due to different return types
   const tmdbDetailsQ = useQuery({
     queryKey: ["details", type, id],
     queryFn: () => detailsFn({ data: { type: type as "movie" | "tv", id } }),
@@ -160,27 +205,28 @@ function MediaDetail() {
   });
 
   const animeDetailsQ = useQuery({
-    queryKey: ["anime-details", id],
-    queryFn: () => animeDetailsFn({ data: { id } }),
+    queryKey: ["anime-details", source, id],
+    queryFn: () => {
+      if (isJikan) return jikanAnimeDetailsFn({ data: { id } });
+      if (isKitsu) return kitsuAnimeDetailsFn({ data: { id } });
+      return animeDetailsFn({ data: { id } });
+    },
     enabled: isAnime,
-    retry: 2,
+    retry: 1,
     staleTime: 300_000,
   });
 
   const mangaDetailsQ = useQuery({
-    queryKey: ["manga-details", id],
-    queryFn: () => mangaDetailsFn({ data: { id } }),
+    queryKey: ["manga-details", source, id],
+    queryFn: () => {
+      if (isJikan) return jikanMangaDetailsFn({ data: { id } });
+      if (isKitsu) return kitsuMangaDetailsFn({ data: { id } });
+      return mangaDetailsFn({ data: { id } });
+    },
     enabled: isManga,
-    retry: 2,
+    retry: 1,
     staleTime: 300_000,
   });
-
-  // Use a common interface for the data
-  const detailsData = isManga
-    ? { summary: mangaDetailsQ.data?.summary, extra: mangaDetailsQ.data?.extra }
-    : isAnime
-    ? { summary: animeDetailsQ.data?.summary, extra: animeDetailsQ.data?.extra }
-    : { summary: tmdbDetailsQ.data?.summary, seasons: tmdbDetailsQ.data?.seasons, extra: undefined };
 
   const detailsLoading = isManga ? mangaDetailsQ.isLoading : isAnime ? animeDetailsQ.isLoading : tmdbDetailsQ.isLoading;
   const detailsError = isManga ? mangaDetailsQ.isError : isAnime ? animeDetailsQ.isError : tmdbDetailsQ.isError;
@@ -190,16 +236,82 @@ function MediaDetail() {
   // ---- Cache / Media ID (for library features) ----
   const cached = useQuery({
     queryKey: ["cache", type, source, id],
-    queryFn: () => cacheFn({ data: { type: type as "movie" | "tv" | "anime" | "manga", source: source as "tmdb" | "anilist", external_id: id } }),
+    queryFn: () => cacheFn({ data: { type: type as "movie" | "tv" | "anime" | "manga", source: source as "tmdb" | "anilist" | "jikan" | "kitsu", external_id: id } }),
     retry: 1,
     staleTime: 60_000,
     // Don't fail the whole page if caching fails — it just means no library features
   });
 
-  const mediaId = cached.data?.id;
+  // Existing media row (never provisions) — lets the page render cached
+  // metadata when the details API is down, even if cacheMedia above fails.
+  const mediaRowQ = useQuery({
+    queryKey: ["media-row", type, source, id],
+    queryFn: () => mediaRowFn({ data: { source: source as "tmdb" | "anilist" | "jikan" | "kitsu", media_type: type as "movie" | "tv" | "anime" | "manga", external_id: id } }),
+    retry: 1,
+    staleTime: 60_000,
+  });
 
-  // Unified summary
-  const summary: MediaSummary | undefined = detailsData.summary;
+  const mediaId = cached.data?.id ?? mediaRowQ.data?.id ?? undefined;
+  const mediaRowTitle = mediaRowQ.data?.title ?? undefined;
+
+  // Cross-provider rescue: when an AniList-saved item can't reach AniList,
+  // look the saved title up on Jikan and use its full details (studios,
+  // relations, episodes) for display. Library identity stays anilist.
+  const jikanByTitleFn = useServerFn(getJikanDetailsByTitle);
+  const crossDetailsQ = useQuery({
+    queryKey: ["cross-details", source, id, mediaRowTitle],
+    queryFn: () => jikanByTitleFn({ data: { title: mediaRowTitle!, type: isManga ? "manga" : "anime" } }),
+    enabled: detailsError && source === "anilist" && !!mediaRowTitle,
+    retry: 0,
+    staleTime: 300_000,
+  });
+  const usingCrossProvider = !!crossDetailsQ.data?.summary;
+
+  // Use a common interface for the data — prefer the item's own provider,
+  // then the cross-provider lookup, then nothing (cached row takes over).
+  const ownDetails = isManga
+    ? { summary: mangaDetailsQ.data?.summary, extra: mangaDetailsQ.data?.extra }
+    : isAnime
+    ? { summary: animeDetailsQ.data?.summary, extra: animeDetailsQ.data?.extra }
+    : { summary: tmdbDetailsQ.data?.summary, seasons: tmdbDetailsQ.data?.seasons, extra: undefined };
+  const detailsData = ownDetails.summary
+    ? ownDetails
+    : crossDetailsQ.data?.summary
+    ? { summary: crossDetailsQ.data.summary, extra: crossDetailsQ.data.extra }
+    : ownDetails;
+
+  // Which provider the loaded relations/ids belong to — franchise links and
+  // the related-details batch fetch must use the SAME provider's ids.
+  const relationsSource = (detailsData.summary?.source ?? source) as "anilist" | "jikan" | "kitsu";
+
+  // Unified summary — the cached Supabase row renders IMMEDIATELY (while the
+  // details API is still fetching/retrying) so the page never sits on a
+  // skeleton during an API outage. When live details arrive they take over;
+  // if they fail, the saved data stays and the banner below explains why
+  // extras (studios, related titles) are missing.
+  const fallbackSummary: MediaSummary | undefined = useMemo(() => {
+    const row = mediaRowQ.data;
+    if (!row) return undefined;
+    return {
+      external_id: row.external_id,
+      source: row.source as MediaSummary["source"],
+      media_type: row.media_type as MediaSummary["media_type"],
+      title: row.title,
+      overview: row.overview ?? null,
+      poster_url: row.poster_url ?? null,
+      backdrop_url: row.backdrop_url ?? null,
+      release_year: row.release_year ?? null,
+      vote_average: row.vote_average ?? null,
+      genres: row.genres ?? [],
+      runtime: row.runtime ?? null,
+      season_count: row.season_count ?? null,
+      chapter_count: row.chapter_count ?? null,
+      volume_count: row.volume_count ?? null,
+      status: row.status ?? null,
+    };
+  }, [mediaRowQ.data]);
+  const usingCachedRow = detailsError && fallbackSummary !== undefined && !detailsData.summary;
+  const summary: MediaSummary | undefined = detailsData.summary ?? fallbackSummary;
 
   // ---- Clipboard Helper ----
   const copyTitle = useCallback(async (label: string) => {
@@ -214,10 +326,11 @@ function MediaDetail() {
 
   // ---- TMDB Watch Providers ----
 
-  // Relations (Anime/Manga)
-  const relations = isManga ? (mangaDetailsQ.data?.extra?.relations ?? []) : isAnime ? (animeDetailsQ.data?.extra?.relations ?? []) : [];
+  // Relations (Anime/Manga) — from whichever provider supplied the details
+  const relations = detailsData.extra?.relations ?? [];
 
-  // Related anime/manga details (for franchise view)
+  // Related anime/manga details (for franchise view) — fetched from the same
+  // provider the relations (and their ids) came from.
   const relatedIds = useMemo(() => {
     if (relations.length === 0) return [];
     const ids = new Set<string>();
@@ -230,12 +343,16 @@ function MediaDetail() {
   }, [relations, id]);
 
   const relatedDetailsQ = useQuery<RelatedItem[]>({
-    queryKey: ["related-anime", ...relatedIds],
+    queryKey: ["related-anime", relationsSource, ...relatedIds],
     queryFn: async () => {
       if (isManga) {
-        return multipleMangaDetailsFn({ data: { ids: relatedIds.map(Number) } }) as unknown as RelatedItem[];
+        return (relationsSource === "jikan"
+          ? multipleJikanMangaDetailsFn({ data: { ids: relatedIds } })
+          : multipleMangaDetailsFn({ data: { ids: relatedIds.map(Number) } })) as unknown as RelatedItem[];
       }
-      return multipleAnimeDetailsFn({ data: { ids: relatedIds } }) as unknown as RelatedItem[];
+      return (relationsSource === "jikan"
+        ? multipleJikanAnimeDetailsFn({ data: { ids: relatedIds } })
+        : multipleAnimeDetailsFn({ data: { ids: relatedIds } })) as unknown as RelatedItem[];
     },
     enabled: relatedIds.length > 0,
     staleTime: 300_000,
@@ -301,7 +418,7 @@ function MediaDetail() {
   const trailerKey = trailerQ.data;
 
   // ---- Reviews ----
-  const reviews = useQuery({
+  const reviews = useQuery<ReviewData[]>({
     queryKey: ["reviews", mediaId],
     queryFn: () => reviewsFn({ data: { media_id: mediaId! } }),
     enabled: !!mediaId,
@@ -321,7 +438,7 @@ function MediaDetail() {
           media:media_id!inner(external_id, source)
         `)
         .eq("user_id", currentUserId!)
-        .in("media.source", ["anilist"])
+        .in("media.source", ["anilist", "jikan", "kitsu"])
         .in("media.external_id", allExternalIds);
       if (error) throw error;
       return data ?? [];
@@ -469,7 +586,9 @@ function MediaDetail() {
       const cacheRes = await cacheFn({
         data: {
           type: contentType,
-          source: "anilist",
+          // Franchise entries carry the relation provider's ids — provision
+          // with that source, not the page's source.
+          source: relationsSource,
           external_id: String(item.mal_id),
         },
       });
@@ -507,8 +626,10 @@ function MediaDetail() {
   };
 
   // ---- Loading / Error States ----
-  if (detailsLoading) return <DetailSkeleton />;
-  if (detailsError || !summary) {
+  // Skeleton only while there's nothing to show at all — if the cached row
+  // already gave us a summary, render it instead of blocking on the API.
+  if (detailsLoading && !summary) return <DetailSkeleton />;
+  if (!summary) {
     return (
       <div className="glass rounded-2xl p-12 text-center">
         <h2 className="text-xl font-bold text-foreground mb-2">Could not load details</h2>
@@ -541,6 +662,20 @@ function MediaDetail() {
 
   return (
     <div className="max-w-full">
+      {usingCrossProvider ? (
+        <div className="mb-3 rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-xs text-primary flex items-center gap-2">
+          <Info className="h-4 w-4 shrink-0" />
+          <span>AniList is unreachable right now — showing matching data from MyAnimeList.</span>
+        </div>
+      ) : usingCachedRow ? (
+        <div className="mb-3 rounded-xl border border-warning/30 bg-warning/10 px-4 py-2.5 text-xs text-warning flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>
+            The {source === "jikan" ? "Jikan" : source === "kitsu" ? "Kitsu" : source === "anilist" ? "AniList" : "TMDB"} API is unreachable right now —
+            showing your saved info. Some details (studios, related titles) may be missing.
+          </span>
+        </div>
+      ) : null}
       {/* Back button — a plain in-flow child of the content container, aligned
           to its padding gutter (px-4/px-8). It cannot be clipped or slide
           under the sidebar at any width because it never leaves the content
@@ -700,6 +835,14 @@ function MediaDetail() {
               ) : null}
             </>
           )}
+          {!summary?.is_fallback ? (
+            <button
+              onClick={() => setShowRecommend(true)}
+              className="mt-2 w-full min-h-[44px] rounded-lg glass text-sm font-medium hover:bg-muted/40 flex items-center justify-center gap-1.5"
+            >
+              <Send className="h-4 w-4" /> Recommend to Friend
+            </button>
+          ) : null}
         </div>
 
         {/* Trailer (mobile) */}
@@ -839,6 +982,14 @@ function MediaDetail() {
             >
               <Heart className={cn("inline h-4 w-4 mr-1", entryFavorited && "fill-current")} /> {entryFavorited ? "Favorited" : "Favorite"}
             </button>
+            {!summary?.is_fallback ? (
+              <button
+                onClick={() => setShowRecommend(true)}
+                className="rounded-lg px-4 py-2 text-sm font-medium glass hover:bg-muted/40"
+              >
+                <Send className="inline h-4 w-4 mr-1" /> Recommend
+              </button>
+            ) : null}
             {entry ? (
               <button onClick={handleRemove} disabled={mRemove.isPending} className="rounded-lg px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/10">
                 <Trash2 className="inline h-4 w-4 mr-1" /> Remove
@@ -947,7 +1098,7 @@ function MediaDetail() {
                 <Link
                   key={item.mal_id}
                   to="/media/$type/$source/$id"
-                  params={{ type: "anime" as const, source: "anilist" as const, id: String(item.mal_id) }}
+                  params={{ type: (isManga ? "manga" : "anime") as "manga" | "anime", source: (item.isCurrent ? source : relationsSource) as "anilist" | "jikan" | "kitsu", id: String(item.mal_id) }}
                   className={cn(
                     "group relative flex w-40 shrink-0 snap-start flex-col overflow-hidden rounded-xl glass hover:ring-2 hover:ring-accent transition-all",
                     item.isCurrent && "ring-2 ring-primary bg-primary/10"
@@ -1004,7 +1155,7 @@ function MediaDetail() {
               <Link
                 key={item.mal_id}
                 to="/media/$type/$source/$id"
-                params={{ type: "anime" as const, source: "anilist" as const, id: String(item.mal_id) }}
+                params={{ type: (isManga ? "manga" : "anime") as "manga" | "anime", source: relationsSource, id: String(item.mal_id) }}
                 className="w-36 shrink-0 snap-start group"
               >
                 <div className="aspect-[2/3] rounded-xl overflow-hidden glass mb-2">
@@ -1161,7 +1312,184 @@ function MediaDetail() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ---- Recommend to Friend modal ---- */}
+      <RecommendDialog
+        open={showRecommend}
+        onOpenChange={setShowRecommend}
+        mediaTitle={summary.title}
+        users={recommendableQ.data ?? []}
+        usersLoading={recommendableQ.isLoading}
+        usersError={recommendableQ.isError}
+        onRetryUsers={() => recommendableQ.refetch()}
+        isPending={mRecommend.isPending}
+        onConfirm={(recipient_id, message) => mRecommend.mutate({ recipient_id, message: message || undefined })}
+      />
     </div>
+  );
+}
+
+// ---- Recommend to Friend modal ----
+
+function RecommendDialog({
+  open, onOpenChange, mediaTitle, users, usersLoading, usersError, onRetryUsers, isPending, onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  mediaTitle: string;
+  users: RecommendableUser[];
+  usersLoading: boolean;
+  usersError: boolean;
+  onRetryUsers: () => void;
+  isPending: boolean;
+  onConfirm: (recipientId: string, message: string) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
+  const [touched, setTouched] = useState(false);
+
+  // Reset local state whenever the dialog closes
+  useEffect(() => {
+    if (!open) {
+      setSearch("");
+      setSelectedId(null);
+      setMessage("");
+      setTouched(false);
+    }
+  }, [open]);
+
+  const q = search.trim().toLowerCase();
+  const filtered = q
+    ? users.filter((u) => u.username.toLowerCase().includes(q) || (u.display_name ?? "").toLowerCase().includes(q))
+    : users;
+
+  function handleConfirm() {
+    setTouched(true);
+    if (!selectedId) return;
+    onConfirm(selectedId, message.trim());
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogTitle>Recommend to a friend</DialogTitle>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Share <span className="font-medium text-foreground">“{mediaTitle}”</span> with a friend or someone you follow.
+        </p>
+
+        <div className="mt-4 space-y-4">
+          <div>
+            <label htmlFor="recommend-search" className="text-xs uppercase tracking-wider text-muted-foreground">
+              Search people
+            </label>
+            <input
+              id="recommend-search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="username…"
+              autoComplete="off"
+              className="mt-1 w-full rounded-lg border border-input bg-background/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+          </div>
+
+          {/* Recipient list */}
+          <div className="min-h-[120px]">
+            {usersLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="h-12 rounded-lg bg-muted/30 animate-pulse" />
+                ))}
+              </div>
+            ) : usersError ? (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                Couldn't load your friends.
+                <button onClick={onRetryUsers} className="ml-2 font-semibold underline">Try again</button>
+              </div>
+            ) : users.length === 0 ? (
+              <p className="rounded-lg glass p-3 text-sm text-muted-foreground">
+                You have no friends or followed users yet. Add some on the Friends page first.
+              </p>
+            ) : filtered.length === 0 ? (
+              <p className="rounded-lg glass p-3 text-sm text-muted-foreground">No matches for “{search.trim()}”.</p>
+            ) : (
+              <ul role="listbox" aria-label="People you can recommend to" className="max-h-52 space-y-1.5 overflow-y-auto pr-1">
+                {filtered.map((u) => {
+                  const selected = selectedId === u.id;
+                  return (
+                    <li key={u.id}>
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={selected}
+                        onClick={() => { setSelectedId(u.id); setTouched(false); }}
+                        className={cn(
+                          "flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors",
+                          selected ? "bg-primary/15 ring-1 ring-primary/40" : "glass hover:bg-muted/40",
+                        )}
+                      >
+                        {u.avatar_url ? (
+                          <img src={u.avatar_url} alt="" loading="lazy" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+                        ) : (
+                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-accent text-[11px] font-bold text-white">
+                            {(u.display_name || u.username).charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold">{u.display_name || u.username}</span>
+                          <span className="block truncate text-xs text-muted-foreground">@{u.username}</span>
+                        </span>
+                        {selected ? <Check className="h-4 w-4 shrink-0 text-primary" aria-label="Selected" /> : null}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {touched && !selectedId ? (
+              <p role="alert" className="mt-2 text-xs text-destructive">Select someone to recommend to.</p>
+            ) : null}
+          </div>
+
+          {/* Optional message */}
+          <div>
+            <label htmlFor="recommend-message" className="text-xs uppercase tracking-wider text-muted-foreground">
+              Message (optional)
+            </label>
+            <textarea
+              id="recommend-message"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              maxLength={500}
+              rows={3}
+              placeholder="You have to watch this! …"
+              className="mt-1 w-full resize-none rounded-lg border border-input bg-background/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+            <p className="mt-1 text-right text-[10px] text-muted-foreground">{message.length}/500</p>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+            className="rounded-lg glass px-4 py-2 text-sm font-medium hover:bg-muted/40 disabled:opacity-40"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={isPending || !selectedId}
+            className="rounded-lg bg-gradient-accent px-4 py-2 text-sm font-semibold text-white btn-press disabled:opacity-40 flex items-center gap-1.5"
+          >
+            <Send className="h-4 w-4" /> {isPending ? "Sending…" : "Send"}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

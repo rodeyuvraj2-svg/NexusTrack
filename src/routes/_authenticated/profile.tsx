@@ -311,6 +311,7 @@ function Profile() {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
             {favorites.map((r) => {
               const m = r.media;
+              if (!m) return null;
               return (
                 <Link key={r.id} to="/media/$type/$source/$id" params={{ type: m.media_type, source: m.source, id: m.external_id }}
                   className="group relative overflow-hidden rounded-xl bg-card/60 border border-border/30 hover:border-border/60 transition-all">

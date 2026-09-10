@@ -295,7 +295,7 @@ export const cacheMedia = createServerFn({ method: "POST" })
       .object({
         type: z.enum(["movie", "tv", "anime", "manga"]),
         external_id: z.string(),
-        source: z.enum(["tmdb", "anilist"]).default("tmdb"),
+        source: z.enum(["tmdb", "anilist", "jikan", "kitsu"]).default("tmdb"),
       })
       .parse(input),
   )
