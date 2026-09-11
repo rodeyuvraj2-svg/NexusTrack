@@ -10,6 +10,10 @@ import {
   type RecommendationItem,
 } from "@/lib/recommendations.functions";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
+import { PageHeader } from "@/components/PageHeader";
+import { SkeletonRow } from "@/components/Skeletons";
+import { ErrorPanel } from "@/components/ErrorPanel";
+import { EmptyState } from "@/components/EmptyState";
 import { Bell, CheckCheck, UserPlus, Heart, Film, Star, Users, Send, Check, X, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -165,48 +169,53 @@ function Notifications() {
 
   return (
     <div className="max-w-2xl">
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-3xl md:text-4xl font-bold">Notifications</h1>
-          {unread > 0 ? (
-            <span className="rounded-full bg-accent/20 px-2.5 py-0.5 text-xs font-bold text-accent">{unread}</span>
-          ) : null}
-        </div>
-        {(q.data ?? []).some((n) => !n.read_at) ? (
-          <button onClick={() => mReadAll.mutate()} className="flex items-center gap-1.5 rounded-lg glass px-3 py-1.5 text-sm hover:bg-muted/40">
-            <CheckCheck className="h-4 w-4" /> Mark all read
-          </button>
-        ) : null}
-      </div>
+      <PageHeader
+        title={
+          <span className="flex items-center gap-3">
+            Notifications
+            {unread > 0 ? (
+              <span className="rounded-full bg-accent/20 px-2.5 py-0.5 text-xs font-bold text-accent tabular-nums" aria-label={`${unread} unread`}>
+                {unread > 99 ? "99+" : unread}
+              </span>
+            ) : null}
+          </span>
+        }
+        actions={
+          (q.data ?? []).some((n) => !n.read_at) ? (
+            <button onClick={() => mReadAll.mutate()} className="flex items-center gap-1.5 rounded-lg glass px-3 py-1.5 text-sm hover:bg-muted/40">
+              <CheckCheck className="h-4 w-4" /> Mark all read
+            </button>
+          ) : undefined
+        }
+      />
 
       {isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="glass rounded-xl p-4 h-20 animate-pulse flex gap-3">
-              <div className="h-9 w-9 shrink-0 rounded-lg bg-muted/40" />
-              <div className="flex-1 space-y-2">
-                <div className="h-4 w-3/4 rounded bg-muted/30" />
-                <div className="h-3 w-1/4 rounded bg-muted/20" />
-              </div>
-            </div>
+            <SkeletonRow key={i} />
           ))}
         </div>
       ) : loadError ? (
-        <div className="glass rounded-2xl p-8 text-center">
-          <p className="text-sm font-semibold text-destructive">Couldn't load notifications</p>
-          <p className="mt-2 break-words rounded-lg bg-muted/40 p-3 text-left text-xs text-muted-foreground">{loadError}</p>
-          <button
-            onClick={() => { q.refetch(); recQ.refetch(); }}
-            className="mt-4 rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white btn-press"
-          >
-            Try again
-          </button>
-        </div>
+        <ErrorPanel
+          tone="destructive"
+          title="Couldn't load notifications"
+          detail={loadError}
+          action={
+            <button
+              onClick={() => { q.refetch(); recQ.refetch(); }}
+              className="rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white btn-press"
+            >
+              Try again
+            </button>
+          }
+        />
       ) : feed.length === 0 ? (
-        <div className="glass rounded-2xl p-12 text-center">
-          <Bell className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-          <p className="text-muted-foreground">No notifications yet.</p>
-        </div>
+        <EmptyState
+          variant="panel"
+          icon={Bell}
+          title="No notifications yet"
+          description="Friend activity and recommendations will show up here."
+        />
       ) : (
         <div className="space-y-2">
           {feed.map((item) =>

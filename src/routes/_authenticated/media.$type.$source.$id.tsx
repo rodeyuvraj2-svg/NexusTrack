@@ -11,6 +11,10 @@ import { createRecommendation, listRecommendableUsers, type RecommendableUser } 
 import { STATUS_LABELS, STATUS_COLORS, getStatusLabel, type WatchStatus, type MediaSummary } from "@/lib/media-types";
 import { MediaGrid } from "@/components/MediaCard";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
+import { SectionHeader } from "@/components/PageHeader";
+import { ErrorPanel } from "@/components/ErrorPanel";
+import { EmptyState } from "@/components/EmptyState";
+import { SkeletonRow } from "@/components/Skeletons";
 import { SafeImage } from "@/components/SafeImage";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Star, Heart, Trash2, Check, ThumbsUp, MessageSquare, List, Play, CircleCheck, ArrowLeft, ExternalLink, Globe, BookmarkPlus, X, AlertCircle, Info, Send } from "lucide-react";
@@ -631,14 +635,17 @@ function MediaDetail() {
   if (detailsLoading && !summary) return <DetailSkeleton />;
   if (!summary) {
     return (
-      <div className="glass rounded-2xl p-12 text-center">
-        <h2 className="text-xl font-bold text-foreground mb-2">Could not load details</h2>
-        <p className="text-sm text-muted-foreground mb-4">{detailsErrorMsg || "The API might be temporarily unavailable."}</p>
-        <div className="flex gap-2 justify-center">
-          <button onClick={() => refetchDetails()} className="rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white">Try again</button>
-          <Link to="/dashboard" className="rounded-lg glass px-5 py-2 text-sm font-medium">Go home</Link>
-        </div>
-      </div>
+      <ErrorPanel
+        tone="destructive"
+        title="Could not load details"
+        detail={detailsErrorMsg || "The API might be temporarily unavailable."}
+        action={
+          <div className="flex gap-2 justify-center">
+            <button onClick={() => refetchDetails()} className="rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white">Try again</button>
+            <Link to="/dashboard" className="rounded-lg glass px-5 py-2 text-sm font-medium">Go home</Link>
+          </div>
+        }
+      />
     );
   }
 
@@ -1046,9 +1053,10 @@ function MediaDetail() {
       {/* ---- Watch on (free streaming / reading sites) ---- */}
       {summary?.title ? (
         <section className="mt-6 md:mt-12 px-4 md:px-0">
-          <h2 className="mb-3 md:mb-4 text-xl md:text-2xl font-bold flex items-center gap-2">
-            <ExternalLink className="h-5 w-5 text-primary" /> {isManga ? "Read online" : "Watch online"}
-          </h2>
+          <SectionHeader
+            className="mb-3 md:mb-4"
+            title={<span className="flex items-center gap-2"><ExternalLink className="h-5 w-5 text-primary" /> {isManga ? "Read online" : "Watch online"}</span>}
+          />
           <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory md:flex-wrap md:snap-none md:overflow-visible">
             {(isManga
               ? [
@@ -1088,9 +1096,10 @@ function MediaDetail() {
       {/* ---- Franchise Timeline (anime/manga) ---- */}
       {(isAnime || isManga) && franchiseList.length > 0 ? (
         <section className="mt-6 md:mt-12 px-4 md:px-0">
-          <h2 className="mb-3 md:mb-4 text-xl md:text-2xl font-bold flex items-center gap-2">
-            <List className="h-5 w-5 text-warning" /> {isManga ? "Related manga" : "Seasons, OVAs & Movies"}
-          </h2>
+          <SectionHeader
+            className="mb-3 md:mb-4"
+            title={<span className="flex items-center gap-2"><List className="h-5 w-5 text-warning" /> {isManga ? "Related manga" : "Seasons, OVAs & Movies"}</span>}
+          />
           <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-muted">
             {franchiseList.map((item) => {
               const itemStatus = statusMap.get(String(item.mal_id));
@@ -1147,9 +1156,10 @@ function MediaDetail() {
       {/* ---- More Like This (non-prequel/sequel relations) ---- */}
       {(isAnime || isManga) && animeRecommendations.length > 0 ? (
         <section className="mt-6 md:mt-12 px-4 md:px-0">
-          <h2 className="mb-3 md:mb-4 text-xl md:text-2xl font-bold flex items-center gap-2">
-            <ExternalLink className="h-5 w-5 text-primary" /> More Like This
-          </h2>
+          <SectionHeader
+            className="mb-3 md:mb-4"
+            title={<span className="flex items-center gap-2"><ExternalLink className="h-5 w-5 text-primary" /> More Like This</span>}
+          />
           <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-muted">
             {animeRecommendations.slice(0, 10).map((item) => (
               <Link
@@ -1182,7 +1192,7 @@ function MediaDetail() {
       {/* ---- Seasons (tv/anime) ---- */}
       {hasSeasons && seasonList.length > 0 ? (
         <section className="mt-6 md:mt-12 px-4 md:px-0">
-          <h2 className="mb-3 md:mb-4 text-xl md:text-2xl font-bold">Seasons</h2>
+          <SectionHeader className="mb-3 md:mb-4" title="Seasons" />
           <div className="grid gap-3 md:grid-cols-2">
             {seasonList.map((sn) => (
               <div key={sn.id} className="glass rounded-xl p-4 flex gap-4">
@@ -1221,7 +1231,7 @@ function MediaDetail() {
       {/* ---- Cast ---- */}
       {castQ.data && castQ.data.cast?.length > 0 ? (
         <section className="mt-6 md:mt-12 px-4 md:px-0">
-          <h2 className="mb-3 md:mb-4 text-xl md:text-2xl font-bold">Cast</h2>
+          <SectionHeader className="mb-3 md:mb-4" title="Cast" />
           <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-muted">
             {castQ.data.cast.map((c) => (
               <div key={c.id} className="w-20 shrink-0 snap-start text-center">
@@ -1241,7 +1251,7 @@ function MediaDetail() {
       {/* ---- Recommendations ---- */}
       {recs.data && recs.data.length > 0 ? (
         <section className="mt-6 md:mt-12 px-4 md:px-0">
-          <h2 className="mb-3 md:mb-4 text-xl md:text-2xl font-bold">More like this</h2>
+          <SectionHeader className="mb-3 md:mb-4" title="More like this" />
           {/* Mobile: horizontal scroll */}
           <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-muted md:hidden">
             {recs.data.slice(0, 10).map((item) => (
@@ -1525,14 +1535,17 @@ function ReviewsSection({ mediaId, reviews, upsertFn, deleteFn, likeFn, qc, curr
 
   return (
     <section className="mt-6 md:mt-12 px-4 md:px-0">
-      <div className="mb-3 md:mb-4 flex items-center justify-between">
-        <h2 className="text-xl md:text-2xl font-bold">Reviews</h2>
-        {!writing && !myReview ? (
-          <button onClick={() => { if (requireAuth("writeReview")) setWriting(true); }} className="flex items-center gap-1.5 rounded-lg glass px-4 py-2.5 text-sm font-medium hover:bg-muted/40 min-h-[44px]">
-            <MessageSquare className="h-4 w-4" /> Write a review
-          </button>
-        ) : null}
-      </div>
+      <SectionHeader
+        className="mb-3 md:mb-4"
+        title="Reviews"
+        action={
+          !writing && !myReview ? (
+            <button onClick={() => { if (requireAuth("writeReview")) setWriting(true); }} className="flex items-center gap-1.5 rounded-lg glass px-4 py-2.5 text-sm font-medium hover:bg-muted/40 min-h-[44px]">
+              <MessageSquare className="h-4 w-4" /> Write a review
+            </button>
+          ) : undefined
+        }
+      />
 
       {writing ? (
         <div className="glass-strong mb-6 rounded-2xl p-4">
@@ -1554,9 +1567,18 @@ function ReviewsSection({ mediaId, reviews, upsertFn, deleteFn, likeFn, qc, curr
       ) : null}
 
       {reviews.isLoading ? (
-        <p className="text-muted-foreground">Loading reviews…</p>
+        <div className="space-y-3">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <SkeletonRow key={i} />
+          ))}
+        </div>
       ) : (reviews.data?.length ?? 0) === 0 ? (
-        <p className="text-sm text-muted-foreground">No reviews yet. Be the first to share your thoughts.</p>
+        <EmptyState
+          icon={MessageSquare}
+          title="No reviews yet"
+          description="Be the first to share your thoughts."
+          variant="panel"
+        />
       ) : (
         <div className="space-y-3">
           {reviews.data!.map((r) => {
@@ -1571,7 +1593,7 @@ function ReviewsSection({ mediaId, reviews, upsertFn, deleteFn, likeFn, qc, curr
                     <div className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString(undefined, { dateStyle: "medium" })}</div>
                   </div>
                   {isMine ? (
-                    <button onClick={() => { if (requireAuth("deleteReview")) mDelete.mutate(r.id); }} className="rounded-lg p-1.5 text-destructive hover:bg-destructive/10">
+                    <button onClick={() => { if (requireAuth("deleteReview")) mDelete.mutate(r.id); }} aria-label="Delete your review" className="rounded-lg p-1.5 text-destructive hover:bg-destructive/10">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   ) : null}
@@ -1579,6 +1601,8 @@ function ReviewsSection({ mediaId, reviews, upsertFn, deleteFn, likeFn, qc, curr
                 <p className="text-sm leading-relaxed">{r.body}</p>
                 <button
                   onClick={() => { if (requireAuth("likeReview")) mLike.mutate(r.id); }}
+                  aria-label={r.liked_by_me ? "Unlike this review" : "Like this review"}
+                  aria-pressed={r.liked_by_me}
                   className={cn("mt-2 flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs transition-colors", r.liked_by_me ? "text-primary" : "text-muted-foreground hover:text-foreground")}
                 >
                   <ThumbsUp className={cn("h-3.5 w-3.5", r.liked_by_me && "fill-current")} /> {r.likes}

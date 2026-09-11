@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useGuest } from "@/lib/guest";
 import { EmptyState } from "@/components/EmptyState";
+import { PageHeader, SectionHeader } from "@/components/PageHeader";
+import { StatCard } from "@/components/StatCard";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { getFollowCounts, getFollowers, getFollowing, type FollowProfile } from "@/lib/follows.functions";
 import {
@@ -91,11 +93,12 @@ function Profile() {
   if (isGuest) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Profile</h1>
+        <PageHeader title="Profile" />
         <EmptyState
           icon={Users}
           title="Sign in to see your profile"
           description="Track your stats, manage your favorites, and keep your watch history."
+          variant="panel"
           action={<Link to="/auth" className="inline-block rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white">Sign in</Link>}
         />
       </div>
@@ -212,30 +215,24 @@ function Profile() {
         {STAT_CARDS.map(({ key, label, Icon }) => {
           const raw = s?.[key as keyof typeof s];
           const value = typeof raw === "number" ? raw : 0;
-          return (
-            <div key={key} className="glass rounded-xl p-4 text-center card-hover">
-              <Icon className="mx-auto mb-1.5 h-4 w-4 text-muted-foreground/60" />
-              <div className="text-xl font-black text-foreground">{value}</div>
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">{label}</div>
-            </div>
-          );
+          return <StatCard key={key} icon={Icon} label={label} value={value} className="p-4" />;
         })}
       </div>
 
       {/* ── Empty library CTA ── */}
       {libraryEmpty ? (
-        <div className="glass rounded-2xl p-10 md:p-14 text-center">
-          <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-muted/40">
-            <Film className="h-7 w-7 text-muted-foreground/60" />
-          </div>
-          <p className="text-base md:text-lg font-semibold text-foreground/90">Your library is empty</p>
-          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground/80">
-            Add your first movie, show, or anime — your stats, levels, and favorites will light up here.
-          </p>
-          <Link to="/search" className="mt-5 inline-flex items-center gap-2 rounded-lg bg-gradient-accent px-5 py-2.5 text-sm font-semibold text-white shadow-lg btn-press">
-            <Search className="h-4 w-4" /> Find something to watch
-          </Link>
-        </div>
+        <EmptyState
+          variant="panel"
+          icon={Film}
+          title="Your library is empty"
+          description="Add your first movie, show, or anime — your stats, levels, and favorites will light up here."
+          className="p-10 md:p-14"
+          action={
+            <Link to="/search" className="inline-flex items-center gap-2 rounded-lg bg-gradient-accent px-5 py-2.5 text-sm font-semibold text-white shadow-lg btn-press">
+              <Search className="h-4 w-4" /> Find something to watch
+            </Link>
+          }
+        />
       ) : (
         <>
           {/* ── Completion ring + Levels ── */}
@@ -279,13 +276,11 @@ function Profile() {
       {/* ── Top Rated ── */}
       {s?.topRatings && s.topRatings.length > 0 && (
         <section>
-          <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-            <Star className="h-4 w-4 text-warning" /> Top Rated
-          </h2>
+          <SectionHeader className="mb-4 text-lg md:text-lg" title={<span className="flex items-center gap-2"><Star className="h-4 w-4 text-warning" /> Top Rated</span>} />
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
             {s.topRatings.map((r) => (
               <Link key={r.media_id} to="/media/$type/$source/$id" params={{ type: r.media_type, source: r.source, id: r.external_id }}
-                className="group relative overflow-hidden rounded-xl bg-card/60 border border-border/30 hover:border-border/60 transition-all">
+                className="group relative overflow-hidden rounded-xl bg-card/60 border border-border/40 hover:border-border/60 transition-all">
                 <div className="aspect-[2/3] bg-muted overflow-hidden">
                   {r.poster_url ? <img src={r.poster_url} alt={r.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" /> : null}
                 </div>
@@ -305,16 +300,14 @@ function Profile() {
       {/* ── Favorites ── */}
       {favorites.length > 0 && (
         <section>
-          <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-            <Heart className="h-4 w-4 text-accent" /> Favorites
-          </h2>
+          <SectionHeader className="mb-4 text-lg md:text-lg" title={<span className="flex items-center gap-2"><Heart className="h-4 w-4 text-accent" /> Favorites</span>} />
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
             {favorites.map((r) => {
               const m = r.media;
               if (!m) return null;
               return (
                 <Link key={r.id} to="/media/$type/$source/$id" params={{ type: m.media_type, source: m.source, id: m.external_id }}
-                  className="group relative overflow-hidden rounded-xl bg-card/60 border border-border/30 hover:border-border/60 transition-all">
+                  className="group relative overflow-hidden rounded-xl bg-card/60 border border-border/40 hover:border-border/60 transition-all">
                   <div className="aspect-[2/3] bg-muted overflow-hidden">
                     {m.poster_url ? <img src={m.poster_url} alt={m.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" /> : null}
                   </div>
@@ -337,15 +330,13 @@ function Profile() {
       {/* ── Recently Added ── */}
       {recentlyAdded.length > 0 && (
         <section>
-          <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" /> Recently Added
-          </h2>
+          <SectionHeader className="mb-4 text-lg md:text-lg" title={<span className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> Recently Added</span>} />
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
             {recentlyAdded.map((r) => {
               const m = r.media;
               return (
                 <Link key={r.id} to="/media/$type/$source/$id" params={{ type: m.media_type, source: m.source, id: m.external_id }}
-                  className="group relative overflow-hidden rounded-xl bg-card/60 border border-border/30 hover:border-border/60 transition-all">
+                  className="group relative overflow-hidden rounded-xl bg-card/60 border border-border/40 hover:border-border/60 transition-all">
                   <div className="aspect-[2/3] bg-muted overflow-hidden">
                     {m.poster_url ? <img src={m.poster_url} alt={m.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" /> : null}
                   </div>

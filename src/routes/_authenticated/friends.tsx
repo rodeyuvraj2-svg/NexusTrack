@@ -5,6 +5,8 @@ import { useState } from "react";
 import { listFriends, searchUsers, sendFriendRequest, respondFriendRequest, removeFriend } from "@/lib/friends.functions";
 import { UserPlus, UserMinus, Check, X, Users as UsersIcon } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
+import { PageHeader, SectionHeader } from "@/components/PageHeader";
+import { SkeletonRow } from "@/components/Skeletons";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { useGuest } from "@/lib/guest";
 import { toast } from "sonner";
@@ -67,11 +69,12 @@ function Friends() {
   if (isGuest) {
     return (
       <div>
-        <h1 className="text-3xl md:text-4xl font-bold mb-6">Friends</h1>
+        <PageHeader title="Friends" />
         <EmptyState
           icon={UsersIcon}
           title="Sign in to connect with friends"
           description="See what friends are watching, share recommendations, and never watch alone."
+          variant="panel"
           action={
             <Link to="/auth" className="inline-block rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white">
               Sign in
@@ -84,11 +87,11 @@ function Friends() {
 
   return (
     <div>
-      <h1 className="text-3xl md:text-4xl font-bold mb-6">Friends</h1>
+      <PageHeader title="Friends" />
 
       <div className="glass-strong rounded-2xl p-4 mb-8">
-        <label className="text-xs uppercase tracking-wider text-muted-foreground">Find people</label>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="username…"
+        <label htmlFor="friend-search" className="text-xs uppercase tracking-wider text-muted-foreground">Find people</label>
+        <input id="friend-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="username…"
           className="mt-1 w-full rounded-lg border border-input bg-background/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
         {q.length > 1 && search.data ? (
           <ul className="mt-3 space-y-2">
@@ -152,8 +155,8 @@ function Friends() {
                 <Link to="/user/$username" params={{ username: p?.username ?? "" }} className="flex-1 min-w-0">
                   <div className="font-semibold text-sm">{p?.display_name || p?.username}</div>
                 </Link>
-                <button onClick={() => mResp.mutate({ id: r.id, accept: true })} className="rounded-lg bg-success/20 text-success p-2"><Check className="h-4 w-4" /></button>
-                <button onClick={() => mResp.mutate({ id: r.id, accept: false })} className="rounded-lg bg-destructive/20 text-destructive p-2"><X className="h-4 w-4" /></button>
+                <button onClick={() => mResp.mutate({ id: r.id, accept: true })} aria-label={`Accept friend request from ${p?.display_name || p?.username || "user"}`} className="rounded-lg bg-success/20 text-success p-2"><Check className="h-4 w-4" /></button>
+                <button onClick={() => mResp.mutate({ id: r.id, accept: false })} aria-label="Decline friend request" className="rounded-lg bg-destructive/20 text-destructive p-2"><X className="h-4 w-4" /></button>
               </div>
             );
           })}
@@ -163,7 +166,7 @@ function Friends() {
       {friends.isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="glass rounded-xl p-3 h-14 animate-pulse" />
+            <SkeletonRow key={i} />
           ))}
         </div>
       ) : (
@@ -192,7 +195,7 @@ function Friends() {
                   </div>
                 ) : null}
               </Link>
-              <button onClick={() => mRm.mutate(r.id)} className="rounded-lg text-destructive hover:bg-destructive/10 p-2 shrink-0"><UserMinus className="h-4 w-4" /></button>
+              <button onClick={() => mRm.mutate(r.id)} aria-label={`Remove ${p?.display_name || p?.username || "friend"}`} className="rounded-lg text-destructive hover:bg-destructive/10 p-2 shrink-0"><UserMinus className="h-4 w-4" /></button>
             </div>
           );
         })}
@@ -213,7 +216,7 @@ function Friends() {
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="mb-8"><h2 className="text-lg font-bold mb-3">{title}</h2><div className="space-y-2">{children}</div></section>;
+  return <section className="mb-8"><SectionHeader title={title} className="mb-3 text-lg md:text-lg" /><div className="space-y-2">{children}</div></section>;
 }
 
 function Avatar({ url, name }: { url: string | null; name: string }) {

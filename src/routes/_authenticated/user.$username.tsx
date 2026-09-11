@@ -11,6 +11,10 @@ import { cn } from "@/lib/utils";
 import { getFollowState, getFollowers, getFollowing, followUser, unfollowUser, type FollowProfile } from "@/lib/follows.functions";
 import { useGuest } from "@/lib/guest";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
+import { FilterTabs, Chip } from "@/components/FilterTabs";
+import { StatCard } from "@/components/StatCard";
+import { EmptyState } from "@/components/EmptyState";
+import { Film as FilmIcon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -224,41 +228,25 @@ function FriendProfile() {
           { label: "Completed", value: completed.length, Icon: Check },
           { label: "Favorites", value: favorites.length, Icon: Heart },
         ].map((s) => (
-          <div key={s.label} className="glass rounded-xl p-4 text-center">
-            <s.Icon className="mx-auto mb-1 h-4 w-4 text-muted-foreground" />
-            <div className="text-xl md:text-2xl font-bold text-accent">{s.value}</div>
-            <div className="text-[10px] md:text-xs uppercase tracking-wider text-muted-foreground">{s.label}</div>
-          </div>
+          <StatCard key={s.label} icon={s.Icon} label={s.label} value={s.value} className="p-4" />
         ))}
       </div>
 
       {/* Status filter pills */}
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-2 scrollbar-none md:flex-wrap">
-        {STATUS_FILTERS.map((s) => (
-          <button
-            key={s}
-            onClick={() => setStatusFilter(s)}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200 capitalize ${
-              statusFilter === s ? "bg-gradient-accent text-white shadow-md" : "glass hover:bg-muted/40"
-            }`}
-          >
-            {s}
-          </button>
-        ))}
-      </div>
+      <FilterTabs
+        className="mb-4 md:flex-wrap"
+        size="sm"
+        options={STATUS_FILTERS.map((s) => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))}
+        value={statusFilter}
+        onChange={setStatusFilter}
+      />
 
       {/* Type filter pills */}
       <div className="mb-8 flex flex-wrap gap-2">
         {TYPE_FILTERS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTypeFilter(t)}
-            className={`rounded-full border px-3 py-1 text-xs uppercase tracking-wider transition-colors capitalize ${
-              typeFilter === t ? "border-primary/50 bg-primary/20 text-primary" : "border-border text-muted-foreground hover:bg-muted/40"
-            }`}
-          >
+          <Chip key={t} active={typeFilter === t} onClick={() => setTypeFilter(t)} className="capitalize">
             {t}
-          </button>
+          </Chip>
         ))}
       </div>
 
@@ -266,13 +254,12 @@ function FriendProfile() {
       {filtered.length > 0 ? (
         <FriendGrid items={filtered} profileId={profile.id} mCopy={mCopy} />
       ) : (
-        <div className="glass rounded-2xl p-12 text-center">
-          <p className="text-muted-foreground">
-            {library.length === 0
-              ? "This user hasn't added anything yet."
-              : "No items match the selected filters."}
-          </p>
-        </div>
+        <EmptyState
+          variant="panel"
+          icon={FilmIcon}
+          title={library.length === 0 ? "Nothing here yet" : "No items match the selected filters."}
+          description={library.length === 0 ? "This user hasn't added anything to their library yet." : "Try a different status or type filter."}
+        />
       )}
 
       {/* Followers/Following Dialog */}

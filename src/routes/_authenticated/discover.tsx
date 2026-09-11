@@ -6,10 +6,14 @@ import { discover, trending, getGenres } from "@/lib/tmdb.functions";
 import { topAnime, topManga } from "@/lib/anilist.functions";
 import { MediaGrid } from "@/components/MediaCard";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
-import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/PageHeader";
+import { FilterTabs, Chip } from "@/components/FilterTabs";
+import { SkeletonGrid } from "@/components/Skeletons";
+import { ErrorPanel } from "@/components/ErrorPanel";
+import { EmptyState } from "@/components/EmptyState";
 import type { MediaSummary } from "@/lib/media-types";
 import type { Genre } from "@/lib/tmdb.functions";
-import { AlertCircle, Film, Tv, Sparkles, Loader2, X, TrendingUp, BookmarkIcon } from "lucide-react";
+import { AlertCircle, Film, Tv, Sparkles, Loader2, X, BookmarkIcon } from "lucide-react";
 
 type MediaType = "movie" | "tv" | "anime" | "manga";
 type SortMode = "all" | "trending" | "popular";
@@ -140,33 +144,22 @@ function Discover() {
 
   return (
     <div className="overflow-x-hidden">
-      <div className="flex items-center justify-between mb-5">
-        <h1 className="text-3xl md:text-4xl font-bold animate-fade-in">Discover</h1>
-      </div>
+      <PageHeader title="Discover" />
 
       {/* Media type tabs */}
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {TABS.map((t) => (
-          <button key={t.id} onClick={() => onTabChange(t.id)}
-            className={cn(
-              "rounded-full px-4 py-2 text-sm font-medium transition-colors btn-press shrink-0",
-              tab === t.id ? "bg-gradient-accent text-white shadow-md" : "glass hover:bg-muted/40",
-            )}>
-            <t.icon className="h-4 w-4 inline mr-1.5 -mt-0.5" />{t.label}
-          </button>
-        ))}
-      </div>
+      <FilterTabs
+        className="mb-4"
+        options={TABS.map((t) => ({ value: t.id, label: t.label, icon: t.icon }))}
+        value={tab}
+        onChange={onTabChange}
+      />
 
       {/* Sort: Trending / Popular */}
       <div className="mb-4 flex gap-1.5">
         {SORTS.map((s) => (
-          <button key={s.id} onClick={() => setSort(s.id)}
-            className={cn(
-              "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
-              sort === s.id ? "bg-primary/15 text-primary border border-primary/30" : "text-muted-foreground hover:text-foreground",
-            )}>
+          <Chip key={s.id} active={sort === s.id} onClick={() => setSort(s.id)} className="px-4 py-1.5 text-xs normal-case tracking-normal">
             {s.label}
-          </button>
+          </Chip>
         ))}
       </div>
 
@@ -174,23 +167,21 @@ function Discover() {
       {genreChips.length > 0 && (
         <div className="mb-6">
           <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-            <button onClick={() => setSelectedGenres([])}
-              className={cn(
-                "rounded-full px-3 py-1.5 text-xs font-medium transition-colors shrink-0",
-                selectedGenres.length === 0 ? "bg-primary/20 text-primary border border-primary/30" : "glass hover:bg-muted/40 text-muted-foreground",
-              )}>
+            <Chip active={selectedGenres.length === 0} onClick={() => setSelectedGenres([])} className="px-3 py-1.5 text-xs normal-case tracking-normal">
               All
-            </button>
+            </Chip>
             {genreChips.map((chip) => (
-              <button key={chip.id} onClick={() =>
-                setSelectedGenres((prev) => prev.includes(chip.id) ? prev.filter((id) => id !== chip.id) : [...prev, chip.id])
-              }
-                className={cn(
-                  "rounded-full px-3 py-1.5 text-xs font-medium transition-colors shrink-0",
-                  selectedGenres.includes(chip.id) ? "bg-accent/20 text-accent border border-accent/30" : "glass hover:bg-muted/40 text-muted-foreground",
-                )}>
+              <Chip
+                key={chip.id}
+                tone="accent"
+                active={selectedGenres.includes(chip.id)}
+                onClick={() =>
+                  setSelectedGenres((prev) => prev.includes(chip.id) ? prev.filter((id) => id !== chip.id) : [...prev, chip.id])
+                }
+                className="px-3 py-1.5 text-xs normal-case tracking-normal"
+              >
                 {chip.name}
-              </button>
+              </Chip>
             ))}
           </div>
           {selectedGenres.length > 0 && (
@@ -211,28 +202,31 @@ function Discover() {
 
       {/* Results */}
       {q.isLoading ? (
-        <SkeletonGrid />
+        <SkeletonGrid count={12} />
       ) : q.isError ? (
-        <div className="glass rounded-2xl p-12 text-center animate-fade-in">
-          <AlertCircle className="mx-auto mb-3 h-8 w-8 text-destructive" />
-          <p className="text-sm text-muted-foreground">Failed to load content. Try again.</p>
-          <button onClick={() => q.refetch()} className="mt-5 rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white shadow-lg btn-press">
-            Try again
-          </button>
-        </div>
+        <ErrorPanel
+          icon={AlertCircle}
+          tone="destructive"
+          title="Failed to load content. Try again."
+          action={
+            <button onClick={() => q.refetch()} className="rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white shadow-lg btn-press">
+              Try again
+            </button>
+          }
+        />
       ) : items.length === 0 && !q.isFetchingNextPage ? (
-        <div className="glass rounded-2xl p-12 text-center animate-fade-in">
-          <Film className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
-            {selectedGenres.length > 0 ? "No content matches those genres." : "No content available right now."}
-          </p>
-        </div>
+        <EmptyState
+          variant="panel"
+          icon={Film}
+          title={selectedGenres.length > 0 ? "No content matches those genres." : "No content available right now."}
+          description=""
+        />
       ) : (
         <>
           <MediaGrid items={items} />
           <div ref={sentinelRef} className="flex justify-center py-8">
             {q.isFetchingNextPage ? (
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-label="Loading more" />
             ) : q.hasNextPage ? (
               <span className="text-xs text-muted-foreground">Scroll for more</span>
             ) : items.length > 0 ? (
@@ -241,16 +235,6 @@ function Discover() {
           </div>
         </>
       )}
-    </div>
-  );
-}
-
-function SkeletonGrid({ count = 12 }: { count?: number }) {
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="aspect-[2/3] rounded-xl glass animate-pulse" style={{ animationDelay: i * 50 + "ms" }} />
-      ))}
     </div>
   );
 }

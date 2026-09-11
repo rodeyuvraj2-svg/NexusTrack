@@ -5,14 +5,13 @@ import type { MediaSummary, MediaType, WatchStatus } from "@/lib/media-types";
 import { STATUS_LABELS, getStatusLabel } from "@/lib/media-types";
 import {
   BookmarkPlus,
-  BookmarkCheck,
   Eye,
   CheckCircle2,
   Heart,
+  Film,
   Loader2,
   Star,
   Trash2,
-  Plus,
 } from "lucide-react";
 import { listLibrary, saveLibraryEntryByExternal, removeLibraryItem } from "@/lib/library.functions";
 import { cn } from "@/lib/utils";
@@ -21,6 +20,7 @@ import { toast } from "sonner";
 import { useGuest } from "@/lib/guest";
 import type { RestrictedAction } from "@/lib/guest";
 import { SafeImage } from "@/components/SafeImage";
+import { EmptyState } from "@/components/EmptyState";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -287,6 +287,8 @@ function StatusPill({ current, onChange, disabled, onRemove }: {
       <button
         onClick={() => setOpen(!open)}
         disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
         className={cn(
           "flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition-all",
           "hover:scale-[1.02] active:scale-[0.98]",
@@ -302,12 +304,14 @@ function StatusPill({ current, onChange, disabled, onRemove }: {
       </button>
 
       {open && (
-        <div className="absolute bottom-full left-0 mb-1.5 z-30 min-w-[140px] rounded-xl border border-border/40 bg-card p-1 shadow-2xl shadow-black/40 animate-fade-in">
+        <div role="listbox" className="absolute bottom-full left-0 mb-1.5 z-30 min-w-[140px] rounded-xl border border-border/50 bg-card p-1 shadow-2xl shadow-black/40 animate-fade-in">
           {STATUS_OPTIONS.map((opt) => {
             const isActive = current === opt.value;
             return (
               <button
                 key={opt.value}
+                role="option"
+                aria-selected={isActive}
                 onClick={async () => {
                   setOpen(false);
                   if (isActive) {
@@ -366,7 +370,7 @@ const MediaCardInner = memo(function MediaCardInner({ item }: { item: MediaSumma
   }
 
   return (
-    <div className="group relative block overflow-hidden rounded-xl bg-card/60 border border-border/30 transition-all duration-300 hover:border-border/60 hover:shadow-xl hover:shadow-black/30 hover:-translate-y-0.5">
+    <div className="group relative block overflow-hidden rounded-xl bg-card/60 border border-border/40 transition-all duration-300 hover:border-border/60 hover:shadow-xl hover:shadow-black/30 hover:-translate-y-0.5">
       <Link to={CARD_LINK} params={{ type: item.media_type, source: item.source, id: item.external_id }} className="block">
         <div className="aspect-[2/3] bg-muted overflow-hidden relative">
           <SafeImage
@@ -390,6 +394,8 @@ const MediaCardInner = memo(function MediaCardInner({ item }: { item: MediaSumma
           {!item.is_fallback && (
             <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(); }}
+              aria-label={isFavorite ? `Remove ${item.title} from favorites` : `Add ${item.title} to favorites`}
+              aria-pressed={isFavorite}
               className={cn(
                 "absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full transition-all duration-200",
                 isFavorite
@@ -457,9 +463,12 @@ export function MediaGrid({ items }: { items: MediaSummary[] }) {
 
   if (items.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <p className="text-sm text-muted-foreground">Nothing here yet.</p>
-      </div>
+      <EmptyState
+        icon={Film}
+        title="Nothing here yet"
+        description="Titles you add will show up here."
+        variant="panel"
+      />
     );
   }
   return (

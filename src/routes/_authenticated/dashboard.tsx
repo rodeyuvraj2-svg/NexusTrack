@@ -8,11 +8,15 @@ import { listActivity } from "@/lib/activity.functions";
 import { getStats, listLibrary } from "@/lib/library.functions";
 import { MediaGrid } from "@/components/MediaCard";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
+import { PageHeader, SectionHeader } from "@/components/PageHeader";
+import { Chip } from "@/components/FilterTabs";
+import { StatCard } from "@/components/StatCard";
+import { SkeletonGrid, SkeletonRow } from "@/components/Skeletons";
+import { ErrorPanel } from "@/components/ErrorPanel";
 import type { MediaSummary } from "@/lib/media-types";
 import { AlertCircle, Film, Tv, TrendingUp, CheckCircle2, BookmarkIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — NexusTrack" }, { name: "description", content: "Your personalized entertainment dashboard." }] }),
@@ -37,10 +41,7 @@ const KIND_TEXT: Record<string, string> = {
 function Section({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="mb-10">
-      <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-xl md:text-2xl font-bold tracking-tight">{title}</h2>
-        {action}
-      </div>
+      <SectionHeader title={title} action={action} />
       {children}
     </section>
   );
@@ -154,24 +155,28 @@ function Dashboard() {
 
   return (
     <div>
-      <div className="mb-8 animate-fade-in">
-        <h1 className="text-3xl md:text-4xl font-bold">Welcome back{userName ? `, ${userName}` : ""}.</h1>
-        <p className="text-muted-foreground mt-1">Pick up where you left off, or find something new.</p>
-      </div>
+      <PageHeader
+        title={`Welcome back${userName ? `, ${userName}` : ""}.`}
+        description="Pick up where you left off, or find something new."
+      />
 
       {/* Stats */}
       <div className="mb-10 grid grid-cols-2 md:grid-cols-4 gap-3 animate-fade-in">
         {statsQ.isError ? (
-          <div className="col-span-full text-center text-sm text-muted-foreground flex items-center justify-center gap-1">
-            <AlertCircle className="h-4 w-4" /> Stats temporarily unavailable
-          </div>
+          <ErrorPanel
+            icon={AlertCircle}
+            title="Stats temporarily unavailable"
+            className="col-span-full !p-6"
+          />
         ) : (
           stats.map((s) => (
-            <div key={s.label} className="glass rounded-xl p-3 text-center card-hover">
-              <s.icon className="mx-auto mb-1 h-4 w-4 text-muted-foreground" />
-              <div className="text-xl font-black text-accent">{statsQ.isLoading ? "…" : s.value ?? "—"}</div>
-              <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{s.label}</div>
-            </div>
+            <StatCard
+              key={s.label}
+              icon={s.icon}
+              label={s.label}
+              value={s.value}
+              loading={statsQ.isLoading}
+            />
           ))
         )}
       </div>
@@ -194,38 +199,36 @@ function Dashboard() {
 
       {/* Trending */}
       <Section title="Trending" action={<Link to="/discover" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Discover all →</Link>}>
-        <TypeFilter active={trendingType} onChange={setTrendingType} />
-        <div className="mt-3">
-          {trendingQ.isError ? (
-            <div className="glass rounded-2xl p-12 text-center">
-              <TrendingUp className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Trending content temporarily unavailable</p>
-            </div>
-          ) : trendingQ.isLoading ? <SkeletonGrid />
-          : (trendingQ.data ?? []).length === 0 ? (
-            <div className="glass rounded-2xl p-12 text-center">
-              <p className="text-sm text-muted-foreground">No content available</p>
-            </div>
-          ) : <MediaGrid items={trendingQ.data ?? []} />}
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {TYPE_FILTERS.map(({ key, label }) => (
+            <Chip key={key} active={trendingType === key} onClick={() => setTrendingType(key)}>
+              {label}
+            </Chip>
+          ))}
         </div>
+        {trendingQ.isError ? (
+          <ErrorPanel icon={TrendingUp} title="Trending content temporarily unavailable" />
+        ) : trendingQ.isLoading ? <SkeletonGrid count={12} />
+        : (trendingQ.data ?? []).length === 0 ? (
+          <ErrorPanel icon={TrendingUp} title="No content available" />
+        ) : <MediaGrid items={trendingQ.data ?? []} />}
       </Section>
 
       {/* Popular */}
       <Section title="Popular" action={<Link to="/discover" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Discover all →</Link>}>
-        <TypeFilter active={popularType} onChange={setPopularType} />
-        <div className="mt-3">
-          {popularQ.isError ? (
-            <div className="glass rounded-2xl p-12 text-center">
-              <Film className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Popular content temporarily unavailable</p>
-            </div>
-          ) : popularQ.isLoading ? <SkeletonGrid />
-          : (popularQ.data ?? []).length === 0 ? (
-            <div className="glass rounded-2xl p-12 text-center">
-              <p className="text-sm text-muted-foreground">No content available</p>
-            </div>
-          ) : <MediaGrid items={popularQ.data ?? []} />}
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {TYPE_FILTERS.map(({ key, label }) => (
+            <Chip key={key} active={popularType === key} onClick={() => setPopularType(key)}>
+              {label}
+            </Chip>
+          ))}
         </div>
+        {popularQ.isError ? (
+          <ErrorPanel icon={Film} title="Popular content temporarily unavailable" />
+        ) : popularQ.isLoading ? <SkeletonGrid count={12} />
+        : (popularQ.data ?? []).length === 0 ? (
+          <ErrorPanel icon={Film} title="No content available" />
+        ) : <MediaGrid items={popularQ.data ?? []} />}
       </Section>
 
       {/* Activity */}
@@ -233,7 +236,7 @@ function Dashboard() {
         <Section title="Friend activity">
           <div className="space-y-2">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="glass rounded-lg px-4 py-2.5 h-10 animate-pulse" />
+              <SkeletonRow key={i} />
             ))}
           </div>
         </Section>
@@ -300,30 +303,3 @@ function Dashboard() {
   );
 }
 
-function TypeFilter({ active, onChange }: { active: MediaType; onChange: (t: MediaType) => void }) {
-  return (
-    <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-      {TYPE_FILTERS.map(({ key, label }) => (
-        <button key={key} onClick={() => onChange(key)}
-          className={cn(
-            "rounded-full px-3 py-1 text-xs font-medium transition-colors shrink-0",
-            active === key
-              ? "bg-primary text-white shadow-sm"
-              : "glass text-muted-foreground hover:text-foreground hover:bg-muted/40",
-          )}>
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function SkeletonGrid({ count = 6 }: { count?: number }) {
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="aspect-[2/3] rounded-xl glass animate-pulse" style={{ animationDelay: i * 100 + "ms" }} />
-      ))}
-    </div>
-  );
-}

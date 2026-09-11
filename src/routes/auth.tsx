@@ -274,9 +274,9 @@ function AuthPage() {
 
         <div className="glass-strong rounded-2xl p-6">
           {/* Tabs */}
-          <div className="mb-5 flex rounded-lg bg-muted/50 p-0.5">
+          <div className="mb-5 flex rounded-lg bg-muted/50 p-0.5" role="tablist" aria-label="Authentication mode">
             {(["signin", "signup"] as const).map((m) => (
-              <button key={m} type="button" onClick={() => { setMode(m); setShowPassword(false); }}
+              <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => { setMode(m); setShowPassword(false); }}
                 className={`flex-1 rounded-md py-2 text-sm font-medium transition-all ${
                   mode === m ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}>
@@ -287,13 +287,13 @@ function AuthPage() {
 
           {/* Google */}
           <button type="button" onClick={handleGoogle} disabled={busy}
-            className="w-full rounded-lg border border-border/50 bg-card/30 py-2.5 text-sm font-medium text-foreground hover:bg-card/60 transition-colors disabled:opacity-60 flex items-center justify-center gap-2.5 mb-3">
+            className="w-full rounded-lg border border-border/40 bg-card/30 py-2.5 text-sm font-medium text-foreground hover:bg-card/60 transition-colors disabled:opacity-60 flex items-center justify-center gap-2.5 mb-3">
             <Chrome className="h-4 w-4" /> Continue with Google
           </button>
 
           {/* Divider */}
           <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border/30" /></div>
+            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border/40" /></div>
             <div className="relative flex justify-center text-xs"><span className="bg-[var(--card)] px-2 text-muted-foreground/60">or</span></div>
           </div>
 
@@ -306,6 +306,7 @@ function AuthPage() {
                 onChange={(e) => setPassword(e.target.value)} placeholder="Password"
                 className="w-full rounded-lg border border-input bg-background/40 px-3 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-muted-foreground/50" />
               <button type="button" onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
                 className="absolute right-3 inset-y-0 my-auto flex items-center text-muted-foreground hover:text-foreground" tabIndex={-1}>
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -326,7 +327,7 @@ function AuthPage() {
 
           {/* Guest */}
           <button type="button" onClick={handleGuestMode}
-            className="mt-3 w-full rounded-lg border border-border/30 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors">
+            className="mt-3 w-full rounded-lg border border-border/40 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors">
             Continue as Guest
           </button>
         </div>
