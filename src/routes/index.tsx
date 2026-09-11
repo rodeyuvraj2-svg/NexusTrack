@@ -26,7 +26,7 @@ function Landing() {
   return (
     <div className="relative">
       {/* ── NAV ── */}
-      <header className="fixed top-0 inset-x-0 z-50 flex items-center justify-between px-4 sm:px-6 py-4 bg-background/80 backdrop-blur-lg border-b border-border/30">
+      <header className="fixed top-0 inset-x-0 z-50 flex items-center justify-between px-4 sm:px-6 py-4 bg-background/80 backdrop-blur-lg border-b border-border/40">
         <Link to="/" className="flex items-center gap-2.5">
           <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-accent shadow-lg">
             <span className="text-sm font-black text-white">N</span>
@@ -215,7 +215,7 @@ function Landing() {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer className="border-t border-border/30 px-6 py-8">
+      <footer className="border-t border-border/40 px-6 py-8">
         <div className="mx-auto max-w-6xl flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <div className="grid h-6 w-6 place-items-center rounded-md bg-gradient-accent">
