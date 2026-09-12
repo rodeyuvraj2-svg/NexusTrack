@@ -8,11 +8,28 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Hop as Home, Search, Compass, Film, Users, User as UserIcon, Bell, Settings, LogOut, LogIn } from "lucide-react";
+import {
+  Hop as Home,
+  Search,
+  Compass,
+  Film,
+  Users,
+  User as UserIcon,
+  Bell,
+  Settings,
+  LogOut,
+  LogIn,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useGuest } from "@/lib/guest";
 
-export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+export function CommandPalette({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { isGuest, disableGuest } = useGuest();
@@ -67,9 +84,13 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
         </CommandGroup>
         <CommandGroup heading="Account">
           {isGuest ? (
-            <CommandItem onSelect={signIn}><LogIn className="mr-2 h-4 w-4" /> Sign in</CommandItem>
+            <CommandItem onSelect={signIn}>
+              <LogIn className="mr-2 h-4 w-4" /> Sign in
+            </CommandItem>
           ) : (
-            <CommandItem onSelect={signOut}><LogOut className="mr-2 h-4 w-4" /> Sign out</CommandItem>
+            <CommandItem onSelect={signOut}>
+              <LogOut className="mr-2 h-4 w-4" /> Sign out
+            </CommandItem>
           )}
         </CommandGroup>
       </CommandList>

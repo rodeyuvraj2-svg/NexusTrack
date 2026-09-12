@@ -11,6 +11,7 @@
 // `client.server.ts`) so it never ships to the client bundle.
 
 import type { MediaSummary, MediaType } from "./media-types";
+import type { Database } from "@/integrations/supabase/types";
 import { cached } from "./api-cache";
 
 const TMDB_CACHE_TTL = 5 * 60_000; // same TTL as tmdb.functions.ts
@@ -22,9 +23,13 @@ const FETCH_TIMEOUT = 4_000;
 
 function tmdbHeaders(): Record<string, string> {
   const readToken = process.env.TMDB_READ_TOKEN;
-  if (readToken) return { Authorization: `Bearer ${readToken}`, "Content-Type": "application/json" };
+  if (readToken)
+    return { Authorization: `Bearer ${readToken}`, "Content-Type": "application/json" };
   const apiKey = process.env.TMDB_API_KEY;
-  if (!apiKey) throw new Error("TMDB_API_KEY is not configured — add TMDB_API_KEY or TMDB_READ_TOKEN to your .env file.");
+  if (!apiKey)
+    throw new Error(
+      "TMDB_API_KEY is not configured — add TMDB_API_KEY or TMDB_READ_TOKEN to your .env file.",
+    );
   return { "Content-Type": "application/json" };
 }
 
@@ -73,7 +78,13 @@ async function tmdbFetch<T>(path: string): Promise<T> {
   const key = `tmdb:${path}?{}`;
   return cached(key, TMDB_CACHE_TTL, async () => {
     const controller = new AbortController();
-    const timeout = setTimeout(() => { try { controller.abort(); } catch {} }, FETCH_TIMEOUT);
+    const timeout = setTimeout(() => {
+      try {
+        controller.abort();
+      } catch {
+        /* abort() throws if the signal already aborted — nothing to do */
+      }
+    }, FETCH_TIMEOUT);
     try {
       const res = await fetch(tmdbUrl(path), { headers: tmdbHeaders(), signal: controller.signal });
       if (!res.ok) throw new Error(`TMDB ${res.status}: ${await res.text()}`);
@@ -109,7 +120,13 @@ function toSummary(item: TmdbMovie, type: MediaType): MediaSummary {
 
 async function anilistFetch<T>(query: string, id: number): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => { try { controller.abort(); } catch {} }, FETCH_TIMEOUT);
+  const timeout = setTimeout(() => {
+    try {
+      controller.abort();
+    } catch {
+      /* abort() throws if the signal already aborted — nothing to do */
+    }
+  }, FETCH_TIMEOUT);
   try {
     const res = await fetch("https://graphql.anilist.co", {
       method: "POST",
@@ -184,7 +201,13 @@ interface JikanMedia {
 
 async function jikanFetch<T>(path: string): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => { try { controller.abort(); } catch {} }, FETCH_TIMEOUT);
+  const timeout = setTimeout(() => {
+    try {
+      controller.abort();
+    } catch {
+      /* abort() throws if the signal already aborted — nothing to do */
+    }
+  }, FETCH_TIMEOUT);
   try {
     const res = await fetch("https://api.jikan.moe/v4" + path, { signal: controller.signal });
     if (!res.ok) throw new Error(`Jikan ${res.status}: ${await res.text()}`);
@@ -236,7 +259,13 @@ interface KitsuMedia {
 
 async function kitsuFetch<T>(path: string): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => { try { controller.abort(); } catch {} }, FETCH_TIMEOUT);
+  const timeout = setTimeout(() => {
+    try {
+      controller.abort();
+    } catch {
+      /* abort() throws if the signal already aborted — nothing to do */
+    }
+  }, FETCH_TIMEOUT);
   try {
     const res = await fetch("https://kitsu.app/api/edge" + path, {
       headers: { Accept: "application/vnd.api+json" },
@@ -347,7 +376,9 @@ export async function fetchAuthoritativeMedia(
     if (!json.data) throw new Error(`Jikan returned no data for ${type} ${externalId}`);
     summary = jikanSummary(json.data, type);
   } else if (source === "kitsu" && (type === "anime" || type === "manga")) {
-    const json = await kitsuFetch<{ data: KitsuMedia }>(`/${type}/${encodeURIComponent(externalId)}`);
+    const json = await kitsuFetch<{ data: KitsuMedia }>(
+      `/${type}/${encodeURIComponent(externalId)}`,
+    );
     if (!json.data) throw new Error(`Kitsu returned no data for ${type} ${externalId}`);
     summary = kitsuSummary(json.data, type);
   } else {
@@ -377,7 +408,7 @@ export async function provisionMedia(
   const existing = await supabaseAdmin
     .from("media")
     .select("id")
-    .eq("media_type", type as any)
+    .eq("media_type", type as Database["public"]["Enums"]["media_type"])
     .eq("source", source)
     .eq("external_id", externalId)
     .maybeSingle();
@@ -396,7 +427,7 @@ export async function provisionMedia(
     .from("media")
     .upsert(
       {
-        media_type: summary.media_type as any,
+        media_type: summary.media_type as Database["public"]["Enums"]["media_type"],
         source: summary.source,
         external_id: summary.external_id,
         title: summary.title,
@@ -420,12 +451,10 @@ export async function provisionMedia(
   const mediaId = mediaRow.id as string;
 
   if (seasons.length > 0) {
-    const { error: seasonsError } = await supabaseAdmin
-      .from("seasons")
-      .upsert(
-        seasons.map((s) => ({ ...s, media_id: mediaId })),
-        { onConflict: "media_id,season_number" },
-      );
+    const { error: seasonsError } = await supabaseAdmin.from("seasons").upsert(
+      seasons.map((s) => ({ ...s, media_id: mediaId })),
+      { onConflict: "media_id,season_number" },
+    );
     if (seasonsError) throw seasonsError;
   }
 

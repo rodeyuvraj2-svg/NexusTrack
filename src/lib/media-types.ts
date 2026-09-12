@@ -53,10 +53,14 @@ export const STATUS_COLORS: Record<WatchStatus, string> = {
 export function getStatusLabel(status: WatchStatus, media_type?: MediaType): string {
   if (media_type === "manga") {
     switch (status) {
-      case "planned": return "Plan to Read";
-      case "watching": return "Reading";
-      case "rewatching": return "Rereading";
-      default: return STATUS_LABELS[status];
+      case "planned":
+        return "Plan to Read";
+      case "watching":
+        return "Reading";
+      case "rewatching":
+        return "Rereading";
+      default:
+        return STATUS_LABELS[status];
     }
   }
   return STATUS_LABELS[status];

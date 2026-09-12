@@ -170,7 +170,17 @@ describe("expired recommendations", () => {
     const ttlMs = expires.getTime() - NOW.getTime();
     expect(Math.round(ttlMs / (24 * 60 * 60 * 1000))).toBe(RECOMMENDATION_TTL_DAYS);
     // 30 days later it is expired, 30 days minus a minute it is not.
-    expect(isExpired({ expires_at: defaultExpiresAt(NOW) }, new Date(NOW.getTime() + 31 * 24 * 60 * 60 * 1000))).toBe(true);
-    expect(isExpired({ expires_at: defaultExpiresAt(NOW) }, new Date(NOW.getTime() + (RECOMMENDATION_TTL_DAYS * 24 * 60 * 60 * 1000) - 60_000))).toBe(false);
+    expect(
+      isExpired(
+        { expires_at: defaultExpiresAt(NOW) },
+        new Date(NOW.getTime() + 31 * 24 * 60 * 60 * 1000),
+      ),
+    ).toBe(true);
+    expect(
+      isExpired(
+        { expires_at: defaultExpiresAt(NOW) },
+        new Date(NOW.getTime() + RECOMMENDATION_TTL_DAYS * 24 * 60 * 60 * 1000 - 60_000),
+      ),
+    ).toBe(false);
   });
 });

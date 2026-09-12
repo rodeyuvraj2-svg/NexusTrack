@@ -105,7 +105,9 @@ export function GuestProvider({ children }: { children: ReactNode }) {
     });
 
     // Listen for sign-in events
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
         setIsGuest(false);
         saveGuestState(false);
@@ -140,7 +142,15 @@ export function GuestProvider({ children }: { children: ReactNode }) {
 
   return (
     <GuestContext.Provider
-      value={{ isGuest, guestId, enableGuest, disableGuest, restrictedAction, setRestrictedAction, requireAuth }}
+      value={{
+        isGuest,
+        guestId,
+        enableGuest,
+        disableGuest,
+        restrictedAction,
+        setRestrictedAction,
+        requireAuth,
+      }}
     >
       {/* Render children immediately; isGuest syncs from localStorage on
           mount, which flips in-place instead of hiding the whole app and

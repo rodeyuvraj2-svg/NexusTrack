@@ -30,7 +30,13 @@ export const listFriends = createServerFn({ method: "GET" })
     }
     const friendRows = (rows ?? []) as FriendshipRow[];
 
-    const otherIds = Array.from(new Set(friendRows.map((r) => (r.requester_id === context.userId ? r.addressee_id : r.requester_id))));
+    const otherIds = Array.from(
+      new Set(
+        friendRows.map((r) =>
+          r.requester_id === context.userId ? r.addressee_id : r.requester_id,
+        ),
+      ),
+    );
     if (otherIds.length === 0) return { accepted: [], incoming: [], outgoing: [] };
 
     // Profiles and library stats both depend only on the friendship rows —
@@ -49,17 +55,51 @@ export const listFriends = createServerFn({ method: "GET" })
             .from("user_media")
             .select("user_id, status, favorite, media:media_id(media_type)")
             .in("user_id", acceptedFriendIds)
-        : Promise.resolve({ data: [] as Array<{ user_id: string; status: string; favorite: boolean; media: { media_type: string } | null }>, error: null }),
+        : Promise.resolve({
+            data: [] as Array<{
+              user_id: string;
+              status: string;
+              favorite: boolean;
+              media: { media_type: string } | null;
+            }>,
+            error: null,
+          }),
     ]);
     if (profilesRes.error) throw profilesRes.error;
-    const pmap = new Map(
-      (profilesRes.data ?? []).map((p: FriendProfileRow): [string, FriendProfileRow] => [p.id, p]),
+    // Explicit Map type — built from `any` rows it would otherwise infer
+    // Map<unknown, unknown>, and server functions reject `unknown` payloads.
+    const pmap: Map<string, FriendProfileRow> = new Map(
+      ((profilesRes.data ?? []) as FriendProfileRow[]).map((p): [string, FriendProfileRow] => [
+        p.id,
+        p,
+      ]),
     );
 
-    interface FriendLibraryStats { watching: number; completed: number; planned: number; favorites: number; movies: number; tv: number; anime: number; }
+    interface FriendLibraryStats {
+      watching: number;
+      completed: number;
+      planned: number;
+      favorites: number;
+      movies: number;
+      tv: number;
+      anime: number;
+    }
     const libraryStats: Map<string, FriendLibraryStats> = new Map();
-    for (const s of (statsRes.data ?? []) as Array<{ user_id: string; status: string; favorite: boolean; media: { media_type: string } | null }>) {
-      const entry = libraryStats.get(s.user_id) ?? { watching: 0, completed: 0, planned: 0, favorites: 0, movies: 0, tv: 0, anime: 0 };
+    for (const s of (statsRes.data ?? []) as Array<{
+      user_id: string;
+      status: string;
+      favorite: boolean;
+      media: { media_type: string } | null;
+    }>) {
+      const entry = libraryStats.get(s.user_id) ?? {
+        watching: 0,
+        completed: 0,
+        planned: 0,
+        favorites: 0,
+        movies: 0,
+        tv: 0,
+        anime: 0,
+      };
       if (s.status === "watching" || s.status === "rewatching") entry.watching++;
       if (s.status === "completed") entry.completed++;
       if (s.status === "planned") entry.planned++;
@@ -76,14 +116,23 @@ export const listFriends = createServerFn({ method: "GET" })
         .filter((r) => r.status === "accepted")
         .map((r) => {
           const friendId = r.requester_id === context.userId ? r.addressee_id : r.requester_id;
-          return { ...r, profile: pmap.get(friendId), library: libraryStats.get(friendId) ?? { watching: 0, completed: 0, planned: 0, favorites: 0 } };
+          return {
+            ...r,
+            profile: pmap.get(friendId) ?? null,
+            library: libraryStats.get(friendId) ?? {
+              watching: 0,
+              completed: 0,
+              planned: 0,
+              favorites: 0,
+            },
+          };
         }),
       incoming: friendRows
         .filter((r) => r.status === "pending" && r.addressee_id === context.userId)
-        .map((r) => ({ ...r, profile: pmap.get(r.requester_id) })),
+        .map((r) => ({ ...r, profile: pmap.get(r.requester_id) ?? null })),
       outgoing: friendRows
         .filter((r) => r.status === "pending" && r.requester_id === context.userId)
-        .map((r) => ({ ...r, profile: pmap.get(r.addressee_id) })),
+        .map((r) => ({ ...r, profile: pmap.get(r.addressee_id) ?? null })),
     };
   });
 
@@ -112,7 +161,9 @@ export const sendFriendRequest = createServerFn({ method: "POST" })
     const { data: existing } = await context.supabase
       .from("friendships")
       .select("id, status, requester_id, addressee_id")
-      .or(`and(requester_id.eq.${context.userId},addressee_id.eq.${data.user_id}),and(requester_id.eq.${data.user_id},addressee_id.eq.${context.userId})`)
+      .or(
+        `and(requester_id.eq.${context.userId},addressee_id.eq.${data.user_id}),and(requester_id.eq.${data.user_id},addressee_id.eq.${context.userId})`,
+      )
       .maybeSingle();
 
     if (existing) {
@@ -191,11 +242,15 @@ export const getPublicProfile = createServerFn({ method: "GET" })
         .from("friendships")
         .select("status")
         .eq("status", "accepted")
-        .or(`and(requester_id.eq.${context.userId},addressee_id.eq.${profile.id}),and(requester_id.eq.${profile.id},addressee_id.eq.${context.userId})`)
+        .or(
+          `and(requester_id.eq.${context.userId},addressee_id.eq.${profile.id}),and(requester_id.eq.${profile.id},addressee_id.eq.${context.userId})`,
+        )
         .maybeSingle(),
       context.supabase
         .from("user_media")
-        .select("id, status, rating, favorite, media:media_id(id, media_type, source, external_id, title, poster_url, release_year)")
+        .select(
+          "id, status, rating, favorite, media:media_id(id, media_type, source, external_id, title, poster_url, release_year)",
+        )
         .eq("user_id", profile.id)
         .eq("hidden", false)
         .order("updated_at", { ascending: false })
@@ -204,7 +259,17 @@ export const getPublicProfile = createServerFn({ method: "GET" })
     const isFriend = !!friendRes.data;
 
     if (!isOwnProfile && !isPublic && !isFriend) {
-      return { profile: { ...profile, username: "Private User", display_name: null, bio: null, avatar_url: null }, library: [], isPrivate: true };
+      return {
+        profile: {
+          ...profile,
+          username: "Private User",
+          display_name: null,
+          bio: null,
+          avatar_url: null,
+        },
+        library: [],
+        isPrivate: true,
+      };
     }
 
     return { profile, library: libraryRes.data ?? [], isPrivate: false };
@@ -212,7 +277,16 @@ export const getPublicProfile = createServerFn({ method: "GET" })
 
 export const copyFromFriend = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input) => z.object({ media_id: z.string().uuid(), copy_status: z.boolean().default(true), copy_favorite: z.boolean().default(false), source_user_id: z.string().uuid() }).parse(input))
+  .validator((input) =>
+    z
+      .object({
+        media_id: z.string().uuid(),
+        copy_status: z.boolean().default(true),
+        copy_favorite: z.boolean().default(false),
+        source_user_id: z.string().uuid(),
+      })
+      .parse(input),
+  )
   .handler(async ({ data, context }) => {
     const src = await context.supabase
       .from("user_media")

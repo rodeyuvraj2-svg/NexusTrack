@@ -2,9 +2,24 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { computeStreaks, computeHoursWatched, computeFavoriteGenres, type StatRow } from "./stats-utils";
+import {
+  computeStreaks,
+  computeHoursWatched,
+  computeFavoriteGenres,
+  type StatRow,
+} from "./stats-utils";
+import type { ContinueWatchingRow } from "./progress-utils";
+import type { Database } from "@/integrations/supabase/types";
 
-const StatusEnum = z.enum(["watching", "completed", "planned", "paused", "dropped", "skipped", "rewatching"]);
+const StatusEnum = z.enum([
+  "watching",
+  "completed",
+  "planned",
+  "paused",
+  "dropped",
+  "skipped",
+  "rewatching",
+]);
 type WatchStatusValue = z.infer<typeof StatusEnum>;
 
 export const listLibrary = createServerFn({ method: "GET" })
@@ -23,12 +38,15 @@ export const listLibrary = createServerFn({ method: "GET" })
       .from("user_media")
       // !inner: a filter on the embedded media row must be an inner join,
       // otherwise PostgREST returns rows whose embedded media is null.
-      .select("id, status, rating, favorite, hidden, notes, progress, created_at, updated_at, media:media_id!inner(id, media_type, source, external_id, title, poster_url, release_year, vote_average, genres)")
+      .select(
+        "id, status, rating, favorite, hidden, notes, progress, created_at, updated_at, current_season, current_episode, current_chapter, progress_updated_at, media:media_id!inner(id, media_type, source, external_id, title, poster_url, release_year, vote_average, genres, season_count, chapter_count)",
+      )
       .eq("user_id", context.userId)
       .order("updated_at", { ascending: false });
     if (data.status) q = q.eq("status", data.status);
     if (data.favorite !== undefined) q = q.eq("favorite", data.favorite);
-    if (data.type) q = q.eq("media.media_type", data.type as any);
+    if (data.type)
+      q = q.eq("media.media_type", data.type as Database["public"]["Enums"]["media_type"]);
     const { data: rows, error } = await q;
     if (error) throw error;
     return rows;
@@ -54,9 +72,11 @@ export const getMediaRowByExternal = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { data: row, error } = await context.supabase
       .from("media")
-      .select("id, media_type, source, external_id, title, overview, poster_url, backdrop_url, release_year, vote_average, genres, runtime, season_count, chapter_count, volume_count, status")
+      .select(
+        "id, media_type, source, external_id, title, overview, poster_url, backdrop_url, release_year, vote_average, genres, runtime, season_count, chapter_count, volume_count, status",
+      )
       .eq("source", data.source)
-      .eq("media_type", data.media_type as any)
+      .eq("media_type", data.media_type as Database["public"]["Enums"]["media_type"])
       .eq("external_id", data.external_id)
       .maybeSingle();
     if (error) throw error;
@@ -124,31 +144,57 @@ async function applyLibraryUpsert(
   const isWatchKind = data.status === "watching" || data.status === "rewatching";
   try {
     if (!existing) {
-      const kind = data.status === "completed" ? "completed"
-        : isWatchKind ? "started"
-        : data.favorite ? "favorited"
-        : "added";
-      await supabase.from("activity").insert({
-        user_id: userId, kind, media_id: mediaId,
-      }).maybeSingle();
+      const kind =
+        data.status === "completed"
+          ? "completed"
+          : isWatchKind
+            ? "started"
+            : data.favorite
+              ? "favorited"
+              : "added";
+      await supabase
+        .from("activity")
+        .insert({
+          user_id: userId,
+          kind,
+          media_id: mediaId,
+        })
+        .maybeSingle();
     } else {
       if (data.status === "completed" && existing.status !== "completed") {
-        await supabase.from("activity").insert({
-          user_id: userId, kind: "completed", media_id: mediaId,
-        }).maybeSingle();
+        await supabase
+          .from("activity")
+          .insert({
+            user_id: userId,
+            kind: "completed",
+            media_id: mediaId,
+          })
+          .maybeSingle();
       }
       if (isWatchKind && existing.status !== "watching" && existing.status !== "rewatching") {
-        await supabase.from("activity").insert({
-          user_id: userId, kind: "started", media_id: mediaId,
-        }).maybeSingle();
+        await supabase
+          .from("activity")
+          .insert({
+            user_id: userId,
+            kind: "started",
+            media_id: mediaId,
+          })
+          .maybeSingle();
       }
       if (data.favorite === true && !existing.favorite) {
-        await supabase.from("activity").insert({
-          user_id: userId, kind: "favorited", media_id: mediaId,
-        }).maybeSingle();
+        await supabase
+          .from("activity")
+          .insert({
+            user_id: userId,
+            kind: "favorited",
+            media_id: mediaId,
+          })
+          .maybeSingle();
       }
     }
-  } catch { /* activity logging is non-critical */ }
+  } catch {
+    /* activity logging is non-critical */
+  }
 
   return row;
 }
@@ -203,7 +249,11 @@ export const saveLibraryEntryByExternal = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     // 1. Ensure the media row exists, fetched from the source API (trusted).
     const { provisionMedia } = await import("@/lib/media-provision");
-    const mediaId = await provisionMedia(data.item.media_type, data.item.source, data.item.external_id);
+    const mediaId = await provisionMedia(
+      data.item.media_type,
+      data.item.source,
+      data.item.external_id,
+    );
 
     // 2. Apply the library change (same path as upsertLibraryItem)
     return applyLibraryUpsert(context.supabase, context.userId, mediaId, data);
@@ -222,11 +272,10 @@ export const removeLibraryItem = createServerFn({ method: "POST" })
     if (item) {
       // Delete season progress first (non-critical)
       try {
-        await context.supabase
-          .from("user_seasons")
-          .delete()
-          .eq("user_media_id", item.id);
-      } catch { /* season cleanup is non-critical */ }
+        await context.supabase.from("user_seasons").delete().eq("user_media_id", item.id);
+      } catch {
+        /* season cleanup is non-critical */
+      }
     }
     const { error } = await context.supabase
       .from("user_media")
@@ -248,6 +297,142 @@ export const getLibraryItem = createServerFn({ method: "GET" })
       .eq("media_id", data.media_id)
       .maybeSingle();
     return row;
+  });
+
+// Progress --------------------------------------------------------------
+
+// user_media row joined with the media fields cache consumers need to patch
+// ["library", "all"] / ["continue-watching"] without a refetch.
+const PROGRESS_ROW_SELECT =
+  "id, status, rating, favorite, hidden, notes, progress, created_at, updated_at, current_season, current_episode, current_chapter, progress_updated_at, media:media_id!inner(id, media_type, source, external_id, title, poster_url, release_year, vote_average, season_count, chapter_count)";
+
+/**
+ * Save where the user is in a TV show, anime, or manga. The user must already
+ * own the user_media record (progress never adds a title to the library),
+ * and the media type is read from the trusted `media` row — never the client.
+ * Only explicitly supplied fields are written (`!== undefined`, not ??) so an
+ * explicit null clears a stored value.
+ */
+export const updateMediaProgress = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) =>
+    z
+      .object({
+        media_id: z.string().uuid(),
+        current_season: z.number().int().min(0).nullable().optional(),
+        current_episode: z.number().int().min(0).nullable().optional(),
+        current_chapter: z.number().int().min(0).nullable().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    // 1. Look up the user's own row — also gives us the values to diff
+    //    against so a no-op save doesn't bump progress_updated_at.
+    const { data: entry } = await context.supabase
+      .from("user_media")
+      .select("id, current_season, current_episode, current_chapter")
+      .eq("user_id", context.userId)
+      .eq("media_id", data.media_id)
+      .maybeSingle();
+    if (!entry) {
+      throw new Error("This title isn't in your library yet. Add it before saving progress.");
+    }
+
+    // 2. Media type from the global media cache — client never decides this.
+    const { data: media } = await context.supabase
+      .from("media")
+      .select("media_type")
+      .eq("id", data.media_id)
+      .single();
+    if (!media) throw new Error("Media record not found.");
+    const mediaType = media.media_type;
+
+    // 3. Type-specific combinations (negative/non-int values already
+    //    rejected by the zod validator).
+    const supplied =
+      data.current_season !== undefined ||
+      data.current_episode !== undefined ||
+      data.current_chapter !== undefined;
+    if (mediaType === "movie" && supplied) {
+      throw new Error("Movies don't support episode or chapter progress.");
+    }
+    if (
+      mediaType === "manga" &&
+      (data.current_season !== undefined || data.current_episode !== undefined)
+    ) {
+      throw new Error("Manga tracks chapters — season and episode don't apply.");
+    }
+    if ((mediaType === "tv" || mediaType === "anime") && data.current_chapter !== undefined) {
+      throw new Error("TV and anime track seasons and episodes — chapters don't apply.");
+    }
+
+    // 4. Partial update of only the fields that actually change.
+    const update: {
+      current_season?: number | null;
+      current_episode?: number | null;
+      current_chapter?: number | null;
+      progress_updated_at?: string;
+    } = {};
+    if (data.current_season !== undefined && data.current_season !== entry.current_season) {
+      update.current_season = data.current_season;
+    }
+    if (data.current_episode !== undefined && data.current_episode !== entry.current_episode) {
+      update.current_episode = data.current_episode;
+    }
+    if (data.current_chapter !== undefined && data.current_chapter !== entry.current_chapter) {
+      update.current_chapter = data.current_chapter;
+    }
+
+    if (Object.keys(update).length === 0) {
+      // No-op save — return the current state without touching timestamps.
+      const { data: unchanged, error: e } = await context.supabase
+        .from("user_media")
+        .select(PROGRESS_ROW_SELECT)
+        .eq("user_id", context.userId)
+        .eq("media_id", data.media_id)
+        .single();
+      if (e) throw e;
+      return unchanged;
+    }
+
+    update.progress_updated_at = new Date().toISOString();
+
+    const { data: row, error } = await context.supabase
+      .from("user_media")
+      .update(update)
+      .eq("user_id", context.userId)
+      .eq("media_id", data.media_id)
+      .select(PROGRESS_ROW_SELECT)
+      .single();
+    if (error) throw error;
+    return row;
+  });
+
+/**
+ * The dashboard's continue-watching/reading feed: this user's visible
+ * watching/rewatching records (movies excluded), at most 12, most recently
+ * updated progress first. One joined query — no per-card requests.
+ */
+export const getContinueWatching = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) => z.object({}).parse(input ?? {}))
+  .handler(async ({ context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("user_media")
+      .select(PROGRESS_ROW_SELECT)
+      .eq("user_id", context.userId)
+      .in("status", ["watching", "rewatching"])
+      .eq("hidden", false)
+      // .ne() isn't supported on embedded columns in this supabase-js —
+      // an .in() allowlist of non-movie types does the same job.
+      .in("media.media_type", ["tv", "anime", "manga"])
+      .order("progress_updated_at", { ascending: false, nullsFirst: false })
+      .order("updated_at", { ascending: false })
+      .limit(12);
+    if (error) throw error;
+    // Embedded join loses inferred Supabase types — cast to the shared row
+    // interface defined in progress-utils.
+    return (rows ?? []) as ContinueWatchingRow[];
   });
 
 // Seasons ------------------------------------------------------------
@@ -350,17 +535,30 @@ export const setSeasonStatus = createServerFn({ method: "POST" })
     // watching-type actions are activity-worthy — previously ANY non-
     // completed season action (planned/paused/skipped) logged
     // "started watching", which surfaced wrong entries in the feed.
-    const seasonKind = data.status === "completed" ? "completed"
-      : data.status === "watching" || data.status === "rewatching" ? "started"
-      : null;
-    if (seasonKind && (overallChanged || seriesStatusChanged || (data.status === "completed" && um.data?.status !== "completed"))) {
+    const seasonKind =
+      data.status === "completed"
+        ? "completed"
+        : data.status === "watching" || data.status === "rewatching"
+          ? "started"
+          : null;
+    if (
+      seasonKind &&
+      (overallChanged ||
+        seriesStatusChanged ||
+        (data.status === "completed" && um.data?.status !== "completed"))
+    ) {
       try {
-        await context.supabase.from("activity").insert({
-          user_id: context.userId,
-          kind: seasonKind,
-          media_id: data.media_id,
-        }).maybeSingle();
-      } catch { /* activity logging is non-critical */ }
+        await context.supabase
+          .from("activity")
+          .insert({
+            user_id: context.userId,
+            kind: seasonKind,
+            media_id: data.media_id,
+          })
+          .maybeSingle();
+      } catch {
+        /* activity logging is non-critical */
+      }
     }
 
     return { ok: true, overallChanged: overallChanged || seriesStatusChanged };
@@ -385,7 +583,15 @@ export interface ProfileStats {
   completionPct: number;
   hoursWatched: number;
   favoriteGenres: Array<{ genre: string; count: number }>;
-  topRatings: Array<{ title: string; rating: number; poster_url: string | null; media_id: string; media_type: string; source: string; external_id: string }>;
+  topRatings: Array<{
+    title: string;
+    rating: number;
+    poster_url: string | null;
+    media_id: string;
+    media_type: string;
+    source: string;
+    external_id: string;
+  }>;
   currentStreak: number;
   longestStreak: number;
 }
@@ -399,7 +605,9 @@ async function computeStatsInJs(
 ): Promise<Omit<ProfileStats, "currentStreak" | "longestStreak">> {
   const { data: rows, error } = await supabase
     .from("user_media")
-    .select("status, rating, favorite, media:media_id(id, media_type, runtime, title, poster_url, source, external_id, genres, season_count)")
+    .select(
+      "status, rating, favorite, media:media_id(id, media_type, runtime, title, poster_url, source, external_id, genres, season_count)",
+    )
     .eq("user_id", userId);
   if (error) throw error;
   // Embedded `media:media_id(...)` is a to-one join, but the untyped client
@@ -418,10 +626,14 @@ async function computeStatsInJs(
     tv: list.filter((r) => r.media?.media_type === "tv").length,
     anime: list.filter((r) => r.media?.media_type === "anime").length,
     manga: list.filter((r) => r.media?.media_type === "manga").length,
-    completedMovies: list.filter((r) => r.status === "completed" && r.media?.media_type === "movie").length,
-    completedTv: list.filter((r) => r.status === "completed" && r.media?.media_type === "tv").length,
-    completedAnime: list.filter((r) => r.status === "completed" && r.media?.media_type === "anime").length,
-    completedManga: list.filter((r) => r.status === "completed" && r.media?.media_type === "manga").length,
+    completedMovies: list.filter((r) => r.status === "completed" && r.media?.media_type === "movie")
+      .length,
+    completedTv: list.filter((r) => r.status === "completed" && r.media?.media_type === "tv")
+      .length,
+    completedAnime: list.filter((r) => r.status === "completed" && r.media?.media_type === "anime")
+      .length,
+    completedManga: list.filter((r) => r.status === "completed" && r.media?.media_type === "manga")
+      .length,
     completionPct: total > 0 ? Math.round((completed / total) * 100) : 0,
     hoursWatched: computeHoursWatched(list),
     favoriteGenres: computeFavoriteGenres(list),
@@ -430,8 +642,12 @@ async function computeStatsInJs(
       .map((r) => {
         const m = r.media;
         return {
-          title: m?.title ?? "", rating: r.rating!, poster_url: m?.poster_url ?? null,
-          media_id: m?.id ?? "", media_type: m?.media_type ?? "", source: m?.source ?? "",
+          title: m?.title ?? "",
+          rating: r.rating!,
+          poster_url: m?.poster_url ?? null,
+          media_id: m?.id ?? "",
+          media_type: m?.media_type ?? "",
+          source: m?.source ?? "",
           external_id: m?.external_id ?? "",
         };
       })
@@ -464,9 +680,10 @@ export const getStats = createServerFn({ method: "GET" })
         /get_profile_stats|schema cache|does not exist/i.test(statsRes.error.message ?? ""));
     if (statsRes.error && !rpcMissing) throw statsRes.error;
 
-    const stats = rpcMissing || !statsRes.data
-      ? await computeStatsInJs(context.supabase, context.userId)
-      : (statsRes.data as Omit<ProfileStats, "currentStreak" | "longestStreak">);
+    const stats =
+      rpcMissing || !statsRes.data
+        ? await computeStatsInJs(context.supabase, context.userId)
+        : (statsRes.data as Omit<ProfileStats, "currentStreak" | "longestStreak">);
 
     const { currentStreak, longestStreak } = computeStreaks(
       ((activityRes.data ?? []) as Array<{ created_at: string }>).map((a) => a.created_at),

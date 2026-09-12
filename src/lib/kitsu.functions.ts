@@ -37,7 +37,11 @@ interface KitsuMedia {
     canonicalTitle?: string | null;
     titles?: { en?: string | null; en_jp?: string | null } | null;
     synopsis?: string | null;
-    posterImage?: { large?: string | null; medium?: string | null; original?: string | null } | null;
+    posterImage?: {
+      large?: string | null;
+      medium?: string | null;
+      original?: string | null;
+    } | null;
     coverImage?: { large?: string | null; original?: string | null } | null;
     startDate?: string | null;
     averageRating?: string | null;
@@ -50,8 +54,14 @@ interface KitsuMedia {
   };
 }
 
-interface KitsuList { data: KitsuMedia[]; included?: { type: string; attributes: { title?: string | null } }[] }
-interface KitsuSingle { data: KitsuMedia; included?: { type: string; attributes: { title?: string | null } }[] }
+interface KitsuList {
+  data: KitsuMedia[];
+  included?: { type: string; attributes: { title?: string | null } }[];
+}
+interface KitsuSingle {
+  data: KitsuMedia;
+  included?: { type: string; attributes: { title?: string | null } }[];
+}
 
 function yearFrom(dateStr: string | null | undefined): number | null {
   if (!dateStr) return null;
@@ -74,7 +84,12 @@ function normalizeStatus(status: string | null | undefined): string | null {
 }
 
 function posterOf(m: KitsuMedia): string | null {
-  return m.attributes.posterImage?.large || m.attributes.posterImage?.medium || m.attributes.posterImage?.original || null;
+  return (
+    m.attributes.posterImage?.large ||
+    m.attributes.posterImage?.medium ||
+    m.attributes.posterImage?.original ||
+    null
+  );
 }
 
 function titleOf(m: KitsuMedia): string {
@@ -185,7 +200,9 @@ export async function seasonalAnimeViaKitsu(): Promise<MediaSummary[]> {
 // Kitsu has no cheap "relations" endpoint, so details return no relations —
 // the franchise / More Like This sections simply stay hidden on kitsu pages.
 
-function categoriesOf(included: { type: string; attributes: { title?: string | null } }[] | undefined): string[] {
+function categoriesOf(
+  included: { type: string; attributes: { title?: string | null } }[] | undefined,
+): string[] {
   return (included ?? [])
     .filter((inc) => inc.type === "categories")
     .map((inc) => inc.attributes.title ?? "")
@@ -196,7 +213,9 @@ function categoriesOf(included: { type: string; attributes: { title?: string | n
 export const getKitsuAnimeDetails = createServerFn({ method: "GET" })
   .validator((input) => z.object({ id: z.string() }).parse(input))
   .handler(async ({ data }) => {
-    const res = await kitsu<KitsuSingle>(`/anime/${encodeURIComponent(data.id)}?include=categories`);
+    const res = await kitsu<KitsuSingle>(
+      `/anime/${encodeURIComponent(data.id)}?include=categories`,
+    );
     const m = res.data;
     if (!m) throw new Error(`Anime not found (Kitsu ID: ${data.id})`);
     return {
@@ -218,7 +237,9 @@ export const getKitsuAnimeDetails = createServerFn({ method: "GET" })
 export const getKitsuMangaDetails = createServerFn({ method: "GET" })
   .validator((input) => z.object({ id: z.string() }).parse(input))
   .handler(async ({ data }) => {
-    const res = await kitsu<KitsuSingle>(`/manga/${encodeURIComponent(data.id)}?include=categories`);
+    const res = await kitsu<KitsuSingle>(
+      `/manga/${encodeURIComponent(data.id)}?include=categories`,
+    );
     const m = res.data;
     if (!m) throw new Error(`Manga not found (Kitsu ID: ${data.id})`);
     return {

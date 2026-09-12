@@ -157,7 +157,17 @@ function toMangaSummary(m: JikanMedia): MediaSummary {
  *  `mal_id` carries the MAL id (for jikan items the franchise links use
  *  source "jikan"). */
 function toRelations(m: JikanMedia, kinds: Set<string>) {
-  const out: { relation: string; entries: { mal_id: number; name: string; type: string | null; poster_url: string | null; episodes: number | null; format: string | null }[] }[] = [];
+  const out: {
+    relation: string;
+    entries: {
+      mal_id: number;
+      name: string;
+      type: string | null;
+      poster_url: string | null;
+      episodes: number | null;
+      format: string | null;
+    }[];
+  }[] = [];
   const seen = new Set<number>();
   for (const rel of m.relations ?? []) {
     const entries = rel.entry
@@ -183,7 +193,15 @@ function toRelations(m: JikanMedia, kinds: Set<string>) {
 }
 
 const ANIME_TYPES = new Set(["anime"]);
-const MANGA_TYPES = new Set(["manga", "manhwa", "manhua", "light_novel", "novel", "one_shot", "doujin"]);
+const MANGA_TYPES = new Set([
+  "manga",
+  "manhwa",
+  "manhua",
+  "light_novel",
+  "novel",
+  "one_shot",
+  "doujin",
+]);
 
 // ---- Plain helpers (shared with anilist.functions.ts fallbacks) ----
 
@@ -267,18 +285,17 @@ export async function topMangaViaJikan(
     });
     path = `/manga?${params.toString()}`;
   } else {
-    path = opts.type === "top"
-      ? `/top/manga?page=${page}&limit=20&sfw=true` // default ordering is by score
-      : `/top/manga?page=${page}&limit=20&filter=bypopularity&sfw=true`;
+    path =
+      opts.type === "top"
+        ? `/top/manga?page=${page}&limit=20&sfw=true` // default ordering is by score
+        : `/top/manga?page=${page}&limit=20&filter=bypopularity&sfw=true`;
   }
   const res = await jikan<{ data: JikanMedia[] }>(path);
   return (res.data ?? []).map(toMangaSummary);
 }
 
 export async function seasonalAnimeViaJikan(page = 1): Promise<MediaSummary[]> {
-  const res = await jikan<{ data: JikanMedia[] }>(
-    `/seasons/now?page=${page}&limit=20&sfw=true`,
-  );
+  const res = await jikan<{ data: JikanMedia[] }>(`/seasons/now?page=${page}&limit=20&sfw=true`);
   return (res.data ?? []).map(toAnimeSummary);
 }
 
@@ -307,9 +324,7 @@ export const jikanSeasonalAnime = createServerFn({ method: "GET" })
 export const getJikanAnimeDetails = createServerFn({ method: "GET" })
   .validator((input) => z.object({ id: z.string() }).parse(input))
   .handler(async ({ data }) => {
-    const res = await jikan<{ data: JikanMedia }>(
-      `/anime/${encodeURIComponent(data.id)}/full`,
-    );
+    const res = await jikan<{ data: JikanMedia }>(`/anime/${encodeURIComponent(data.id)}/full`);
     const m = res.data;
     if (!m) throw new Error(`Anime not found (MAL ID: ${data.id})`);
     return {
@@ -331,9 +346,7 @@ export const getJikanAnimeDetails = createServerFn({ method: "GET" })
 export const getJikanMangaDetails = createServerFn({ method: "GET" })
   .validator((input) => z.object({ id: z.string() }).parse(input))
   .handler(async ({ data }) => {
-    const res = await jikan<{ data: JikanMedia }>(
-      `/manga/${encodeURIComponent(data.id)}/full`,
-    );
+    const res = await jikan<{ data: JikanMedia }>(`/manga/${encodeURIComponent(data.id)}/full`);
     const m = res.data;
     if (!m) throw new Error(`Manga not found (MAL ID: ${data.id})`);
     return {
@@ -354,7 +367,9 @@ export const getJikanMangaDetails = createServerFn({ method: "GET" })
  * original anilist id for library identity, this is display data only.
  */
 export const getJikanDetailsByTitle = createServerFn({ method: "GET" })
-  .validator((input) => z.object({ title: z.string().min(1), type: z.enum(["anime", "manga"]) }).parse(input))
+  .validator((input) =>
+    z.object({ title: z.string().min(1), type: z.enum(["anime", "manga"]) }).parse(input),
+  )
   .handler(async ({ data }) => {
     const search = await jikan<{ data: JikanMedia[] }>(
       `/${data.type}?q=${encodeURIComponent(data.title)}&limit=5&sfw=true`,
@@ -366,8 +381,9 @@ export const getJikanDetailsByTitle = createServerFn({ method: "GET" })
     const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
     const target = norm(data.title);
     const best =
-      candidates.find((c) => norm(c.title_english ?? "") === target || norm(c.title ?? "") === target) ??
-      candidates[0];
+      candidates.find(
+        (c) => norm(c.title_english ?? "") === target || norm(c.title ?? "") === target,
+      ) ?? candidates[0];
 
     const res = await jikan<{ data: JikanMedia }>(
       `/${data.type}/${encodeURIComponent(String(best.mal_id))}/full`,

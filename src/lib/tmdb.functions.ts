@@ -3,6 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { cached } from "./api-cache";
 import type { MediaSummary, MediaType } from "./media-types";
+import type { Database } from "@/integrations/supabase/types";
 
 const TMDB_CACHE_TTL = 5 * 60_000; // 5 min — TMDB data (trending/details) barely changes faster
 
@@ -17,17 +18,130 @@ function placeholderPoster(title: string, variant: "poster" | "backdrop" = "post
 }
 
 const FALLBACK_MOVIES: MediaSummary[] = [
-  { external_id: "27205", source: "tmdb", media_type: "movie", title: "Inception", overview: "A skilled thief enters dream worlds to steal secrets and plant ideas.", poster_url: placeholderPoster("Inception"), backdrop_url: placeholderPoster("Inception", "backdrop"), release_year: 2010, vote_average: 8.4, genres: ["Sci-Fi", "Thriller"], runtime: 148, season_count: null, status: null },
-  { external_id: "13", source: "tmdb", media_type: "movie", title: "Forrest Gump", overview: "The life story of a kind-hearted man who witnesses major historical events.", poster_url: placeholderPoster("Forrest Gump"), backdrop_url: placeholderPoster("Forrest Gump", "backdrop"), release_year: 1994, vote_average: 8.5, genres: ["Drama", "Romance"], runtime: 142, season_count: null, status: null },
-  { external_id: "603", source: "tmdb", media_type: "movie", title: "The Matrix", overview: "A hacker discovers the true nature of reality and his place in it.", poster_url: placeholderPoster("The Matrix"), backdrop_url: placeholderPoster("The Matrix", "backdrop"), release_year: 1999, vote_average: 8.2, genres: ["Action", "Sci-Fi"], runtime: 136, season_count: null, status: null },
-  { external_id: "496243", source: "tmdb", media_type: "movie", title: "Parasite", overview: "A poor family and a wealthy family become entangled in a darkly comic social satire.", poster_url: placeholderPoster("Parasite"), backdrop_url: placeholderPoster("Parasite", "backdrop"), release_year: 2019, vote_average: 8.5, genres: ["Drama", "Thriller"], runtime: 132, season_count: null, status: null },
+  {
+    external_id: "27205",
+    source: "tmdb",
+    media_type: "movie",
+    title: "Inception",
+    overview: "A skilled thief enters dream worlds to steal secrets and plant ideas.",
+    poster_url: placeholderPoster("Inception"),
+    backdrop_url: placeholderPoster("Inception", "backdrop"),
+    release_year: 2010,
+    vote_average: 8.4,
+    genres: ["Sci-Fi", "Thriller"],
+    runtime: 148,
+    season_count: null,
+    status: null,
+  },
+  {
+    external_id: "13",
+    source: "tmdb",
+    media_type: "movie",
+    title: "Forrest Gump",
+    overview: "The life story of a kind-hearted man who witnesses major historical events.",
+    poster_url: placeholderPoster("Forrest Gump"),
+    backdrop_url: placeholderPoster("Forrest Gump", "backdrop"),
+    release_year: 1994,
+    vote_average: 8.5,
+    genres: ["Drama", "Romance"],
+    runtime: 142,
+    season_count: null,
+    status: null,
+  },
+  {
+    external_id: "603",
+    source: "tmdb",
+    media_type: "movie",
+    title: "The Matrix",
+    overview: "A hacker discovers the true nature of reality and his place in it.",
+    poster_url: placeholderPoster("The Matrix"),
+    backdrop_url: placeholderPoster("The Matrix", "backdrop"),
+    release_year: 1999,
+    vote_average: 8.2,
+    genres: ["Action", "Sci-Fi"],
+    runtime: 136,
+    season_count: null,
+    status: null,
+  },
+  {
+    external_id: "496243",
+    source: "tmdb",
+    media_type: "movie",
+    title: "Parasite",
+    overview:
+      "A poor family and a wealthy family become entangled in a darkly comic social satire.",
+    poster_url: placeholderPoster("Parasite"),
+    backdrop_url: placeholderPoster("Parasite", "backdrop"),
+    release_year: 2019,
+    vote_average: 8.5,
+    genres: ["Drama", "Thriller"],
+    runtime: 132,
+    season_count: null,
+    status: null,
+  },
 ];
 
 const FALLBACK_TV: MediaSummary[] = [
-  { external_id: "1396", source: "tmdb", media_type: "tv", title: "Breaking Bad", overview: "A chemistry teacher turns to crime to secure his family's future.", poster_url: placeholderPoster("Breaking Bad"), backdrop_url: placeholderPoster("Breaking Bad", "backdrop"), release_year: 2008, vote_average: 9.5, genres: ["Crime", "Drama"], runtime: 45, season_count: 5, status: "Ended" },
-  { external_id: "66732", source: "tmdb", media_type: "tv", title: "Stranger Things", overview: "A group of kids uncover supernatural forces in their small town.", poster_url: placeholderPoster("Stranger Things"), backdrop_url: placeholderPoster("Stranger Things", "backdrop"), release_year: 2016, vote_average: 8.7, genres: ["Sci-Fi", "Drama"], runtime: 60, season_count: 5, status: "Returning Series" },
-  { external_id: "2316", source: "tmdb", media_type: "tv", title: "The Office", overview: "A mockumentary about office life at a Dunder Mifflin branch.", poster_url: placeholderPoster("The Office"), backdrop_url: placeholderPoster("The Office", "backdrop"), release_year: 2005, vote_average: 8.9, genres: ["Comedy", "Mockumentary"], runtime: 22, season_count: 9, status: "Ended" },
-  { external_id: "73586", source: "tmdb", media_type: "tv", title: "Yellowstone", overview: "The Dutton family faces conflict over their Montana ranch.", poster_url: placeholderPoster("Yellowstone"), backdrop_url: placeholderPoster("Yellowstone", "backdrop"), release_year: 2018, vote_average: 8.3, genres: ["Drama", "Western"], runtime: 60, season_count: 5, status: "Returning Series" },
+  {
+    external_id: "1396",
+    source: "tmdb",
+    media_type: "tv",
+    title: "Breaking Bad",
+    overview: "A chemistry teacher turns to crime to secure his family's future.",
+    poster_url: placeholderPoster("Breaking Bad"),
+    backdrop_url: placeholderPoster("Breaking Bad", "backdrop"),
+    release_year: 2008,
+    vote_average: 9.5,
+    genres: ["Crime", "Drama"],
+    runtime: 45,
+    season_count: 5,
+    status: "Ended",
+  },
+  {
+    external_id: "66732",
+    source: "tmdb",
+    media_type: "tv",
+    title: "Stranger Things",
+    overview: "A group of kids uncover supernatural forces in their small town.",
+    poster_url: placeholderPoster("Stranger Things"),
+    backdrop_url: placeholderPoster("Stranger Things", "backdrop"),
+    release_year: 2016,
+    vote_average: 8.7,
+    genres: ["Sci-Fi", "Drama"],
+    runtime: 60,
+    season_count: 5,
+    status: "Returning Series",
+  },
+  {
+    external_id: "2316",
+    source: "tmdb",
+    media_type: "tv",
+    title: "The Office",
+    overview: "A mockumentary about office life at a Dunder Mifflin branch.",
+    poster_url: placeholderPoster("The Office"),
+    backdrop_url: placeholderPoster("The Office", "backdrop"),
+    release_year: 2005,
+    vote_average: 8.9,
+    genres: ["Comedy", "Mockumentary"],
+    runtime: 22,
+    season_count: 9,
+    status: "Ended",
+  },
+  {
+    external_id: "73586",
+    source: "tmdb",
+    media_type: "tv",
+    title: "Yellowstone",
+    overview: "The Dutton family faces conflict over their Montana ranch.",
+    poster_url: placeholderPoster("Yellowstone"),
+    backdrop_url: placeholderPoster("Yellowstone", "backdrop"),
+    release_year: 2018,
+    vote_average: 8.3,
+    genres: ["Drama", "Western"],
+    runtime: 60,
+    season_count: 5,
+    status: "Returning Series",
+  },
 ];
 
 const FALLBACK_TRENDING: MediaSummary[] = [...FALLBACK_MOVIES, ...FALLBACK_TV];
@@ -43,9 +157,13 @@ function fallbackMediaList(type: "movie" | "tv", category?: string): MediaSummar
 
 function tmdbHeaders(): Record<string, string> {
   const readToken = process.env.TMDB_READ_TOKEN;
-  if (readToken) return { Authorization: `Bearer ${readToken}`, "Content-Type": "application/json" };
+  if (readToken)
+    return { Authorization: `Bearer ${readToken}`, "Content-Type": "application/json" };
   const apiKey = process.env.TMDB_API_KEY;
-  if (!apiKey) throw new Error("TMDB_API_KEY is not configured — add TMDB_API_KEY or TMDB_READ_TOKEN to your .env file.");
+  if (!apiKey)
+    throw new Error(
+      "TMDB_API_KEY is not configured — add TMDB_API_KEY or TMDB_READ_TOKEN to your .env file.",
+    );
   return { "Content-Type": "application/json" };
 }
 
@@ -56,7 +174,8 @@ function tmdbUrl(path: string, params: Record<string, string | number | undefine
     const apiKey = process.env.TMDB_API_KEY;
     if (apiKey) url.searchParams.set("api_key", apiKey);
   }
-  for (const [k, v] of Object.entries(params)) if (v !== undefined) url.searchParams.set(k, String(v));
+  for (const [k, v] of Object.entries(params))
+    if (v !== undefined) url.searchParams.set(k, String(v));
   return url.toString();
 }
 
@@ -84,29 +203,51 @@ function recordFailure() {
   }
 }
 
-async function tmdb<T>(path: string, params: Record<string, string | number | undefined> = {}): Promise<T> {
+async function tmdb<T>(
+  path: string,
+  params: Record<string, string | number | undefined> = {},
+): Promise<T> {
   if (!breakerAllowsRequest()) {
     throw new Error("TMDB temporarily unavailable (circuit open)");
   }
   const key = `tmdb:${path}?${JSON.stringify(params)}`;
   return cached(key, TMDB_CACHE_TTL, async () => {
     const controller = new AbortController();
-    const timeout = setTimeout(() => { try { controller.abort(); } catch {} }, TMDB_TIMEOUT);
+    const timeout = setTimeout(() => {
+      try {
+        controller.abort();
+      } catch {
+        /* abort() throws if the signal already aborted — nothing to do */
+      }
+    }, TMDB_TIMEOUT);
     try {
-      const res = await fetch(tmdbUrl(path, params), { headers: tmdbHeaders(), signal: controller.signal });
+      const res = await fetch(tmdbUrl(path, params), {
+        headers: tmdbHeaders(),
+        signal: controller.signal,
+      });
       clearTimeout(timeout);
       if (res.status === 429) {
         // Honor Retry-After when present (capped) instead of a flat 1s.
         const retryAfterHeader = Number(res.headers.get("retry-after"));
-        const retryAfterMs = Number.isFinite(retryAfterHeader) && retryAfterHeader > 0
-          ? Math.min(retryAfterHeader * 1000, 10_000)
-          : 1000;
+        const retryAfterMs =
+          Number.isFinite(retryAfterHeader) && retryAfterHeader > 0
+            ? Math.min(retryAfterHeader * 1000, 10_000)
+            : 1000;
         await new Promise((r) => setTimeout(r, retryAfterMs));
         // Create a new controller for the retry with its own timeout
         const retryController = new AbortController();
-        const retryTimeout = setTimeout(() => { try { retryController.abort(); } catch {} }, TMDB_TIMEOUT);
+        const retryTimeout = setTimeout(() => {
+          try {
+            retryController.abort();
+          } catch {
+            /* abort() throws if the signal already aborted — nothing to do */
+          }
+        }, TMDB_TIMEOUT);
         try {
-          const retry = await fetch(tmdbUrl(path, params), { headers: tmdbHeaders(), signal: retryController.signal });
+          const retry = await fetch(tmdbUrl(path, params), {
+            headers: tmdbHeaders(),
+            signal: retryController.signal,
+          });
           clearTimeout(retryTimeout);
           if (!retry.ok) throw new Error(`TMDB ${retry.status}: ${await retry.text()}`);
           recordSuccess();
@@ -196,17 +337,24 @@ export const searchAll = createServerFn({ method: "GET" })
         tv: tv.results.slice(0, 12).map((m) => toSummary(m, "tv")),
       };
     } catch (error) {
-      console.warn('[TMDB] searchAll failed, using fallback media:', error);
-      return { movies: fallbackMediaList('movie').slice(0, 6), tv: fallbackMediaList('tv').slice(0, 6) };
+      console.warn("[TMDB] searchAll failed, using fallback media:", error);
+      return {
+        movies: fallbackMediaList("movie").slice(0, 6),
+        tv: fallbackMediaList("tv").slice(0, 6),
+      };
     }
   });
 
 export const trending = createServerFn({ method: "GET" })
-  .validator((input) => z.object({
-    type: z.enum(["movie", "tv", "all"]).default("all"),
-    page: z.number().int().min(1).default(1),
-    genre: z.string().optional(),
-  }).parse(input ?? {}))
+  .validator((input) =>
+    z
+      .object({
+        type: z.enum(["movie", "tv", "all"]).default("all"),
+        page: z.number().int().min(1).default(1),
+        genre: z.string().optional(),
+      })
+      .parse(input ?? {}),
+  )
   .handler(async ({ data }) => {
     try {
       // Trending endpoint doesn't support genre — use discover with popularity sort instead
@@ -218,25 +366,43 @@ export const trending = createServerFn({ method: "GET" })
         });
         return res.results.map((m) => toSummary(m, data.type as "movie" | "tv"));
       }
-      const res = await tmdb<{ results: TmdbMovie[] }>(`/trending/${data.type}/week`, { page: data.page });
+      const res = await tmdb<{ results: TmdbMovie[] }>(`/trending/${data.type}/week`, {
+        page: data.page,
+      });
       return res.results.map((m) => {
-        const mediaType: MediaType = (m as unknown as { media_type?: string }).media_type === "tv" ? "tv" : data.type === "tv" ? "tv" : "movie";
+        const mediaType: MediaType =
+          (m as unknown as { media_type?: string }).media_type === "tv"
+            ? "tv"
+            : data.type === "tv"
+              ? "tv"
+              : "movie";
         return toSummary(m, mediaType);
       });
     } catch (error) {
-      console.warn('[TMDB] trending failed, using fallback media:', error);
-      const fallback = fallbackMediaList(data.type === 'tv' ? 'tv' : 'movie', 'trending').slice(0, 12);
-      return data.genre ? fallback.filter((m) => data.genre?.split(",").some((g) => m.genres?.includes(g))) : fallback;
+      console.warn("[TMDB] trending failed, using fallback media:", error);
+      const fallback = fallbackMediaList(data.type === "tv" ? "tv" : "movie", "trending").slice(
+        0,
+        12,
+      );
+      return data.genre
+        ? fallback.filter((m) => data.genre?.split(",").some((g) => m.genres?.includes(g)))
+        : fallback;
     }
   });
 
 export const discover = createServerFn({ method: "GET" })
-  .validator((input) => z.object({
-    type: z.enum(["movie", "tv"]).default("movie"),
-    category: z.enum(["popular", "top_rated", "upcoming", "now_playing", "on_the_air"]).default("popular"),
-    page: z.number().int().min(1).default(1),
-    genre: z.string().optional(),
-  }).parse(input ?? {}))
+  .validator((input) =>
+    z
+      .object({
+        type: z.enum(["movie", "tv"]).default("movie"),
+        category: z
+          .enum(["popular", "top_rated", "upcoming", "now_playing", "on_the_air"])
+          .default("popular"),
+        page: z.number().int().min(1).default(1),
+        genre: z.string().optional(),
+      })
+      .parse(input ?? {}),
+  )
   .handler(async ({ data }) => {
     try {
       if (data.genre) {
@@ -283,7 +449,9 @@ export const getDetails = createServerFn({ method: "GET" })
       return { summary, seasons };
     } catch (error) {
       console.error("[TMDB] getDetails error:", error);
-      throw new Error(`Failed to load details: ${error instanceof Error ? error.message : "Unknown error"}`);
+      throw new Error(
+        `Failed to load details: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   });
 
@@ -346,9 +514,10 @@ export const getCast = createServerFn({ method: "GET" })
   .validator((input) => z.object({ type: z.enum(["movie", "tv"]), id: z.string() }).parse(input))
   .handler(async ({ data }) => {
     try {
-      const res = await tmdb<{ cast: CastMember[]; crew: { id: number; name: string; job: string }[] }>(
-        `/${data.type}/${data.id}/credits`,
-      );
+      const res = await tmdb<{
+        cast: CastMember[];
+        crew: { id: number; name: string; job: string }[];
+      }>(`/${data.type}/${data.id}/credits`);
       const topCast = (res.cast ?? []).slice(0, 15).map((c) => ({
         ...c,
         profile_path: imgUrl(c.profile_path, "w185"),
@@ -365,15 +534,17 @@ export const getCast = createServerFn({ method: "GET" })
 export const reclassifyMedia = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) =>
-    z.object({
-      media_id: z.string().uuid(),
-      new_type: z.enum(["movie", "tv", "anime", "manga"]),
-    }).parse(input),
+    z
+      .object({
+        media_id: z.string().uuid(),
+        new_type: z.enum(["movie", "tv", "anime", "manga"]),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("media")
-      .update({ media_type: data.new_type as any })
+      .update({ media_type: data.new_type as Database["public"]["Enums"]["media_type"] })
       .eq("id", data.media_id);
     if (error) throw new Error("Could not reclassify: " + error.message);
     return { ok: true };
@@ -387,7 +558,9 @@ export interface Genre {
 }
 
 export const getGenres = createServerFn({ method: "GET" })
-  .validator((input) => z.object({ type: z.enum(["movie", "tv"]).default("movie") }).parse(input ?? {}))
+  .validator((input) =>
+    z.object({ type: z.enum(["movie", "tv"]).default("movie") }).parse(input ?? {}),
+  )
   .handler(async ({ data }) => {
     try {
       const res = await tmdb<{ genres: Genre[] }>(`/genre/${data.type}/list`);
@@ -403,13 +576,14 @@ export const getTrailerKey = createServerFn({ method: "GET" })
   .validator((input) => z.object({ type: z.enum(["movie", "tv"]), id: z.string() }).parse(input))
   .handler(async ({ data }) => {
     try {
-      const res = await tmdb<{ results: Array<{ key: string; site: string; type: string; official?: boolean }> }>(
-        `/${data.type}/${data.id}/videos`,
-      );
+      const res = await tmdb<{
+        results: Array<{ key: string; site: string; type: string; official?: boolean }>;
+      }>(`/${data.type}/${data.id}/videos`);
       const videos = res.results ?? [];
-      const trailer = videos.find((v) => v.site === "YouTube" && v.type === "Trailer" && v.official)
-        ?? videos.find((v) => v.site === "YouTube" && v.type === "Trailer")
-        ?? videos.find((v) => v.site === "YouTube");
+      const trailer =
+        videos.find((v) => v.site === "YouTube" && v.type === "Trailer" && v.official) ??
+        videos.find((v) => v.site === "YouTube" && v.type === "Trailer") ??
+        videos.find((v) => v.site === "YouTube");
       return trailer?.key ?? null;
     } catch {
       return null;
@@ -425,7 +599,9 @@ export const getMediaByIds = createServerFn({ method: "GET" })
     if (data.ids.length === 0) return [];
     const { data: rows, error } = await context.supabase
       .from("media")
-      .select("id, media_type, source, external_id, title, poster_url, release_year, vote_average, genres")
+      .select(
+        "id, media_type, source, external_id, title, poster_url, release_year, vote_average, genres",
+      )
       .in("id", data.ids);
     if (error) throw error;
     return rows ?? [];

@@ -6,53 +6,61 @@ export const listNotifications = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     try {
-    const { data: rows, error } = await context.supabase
-      .from("notifications")
-      .select("id, kind, payload, read_at, created_at")
-      .eq("user_id", context.userId)
-      .order("created_at", { ascending: false })
-      .limit(50);
-    if (error) throw error;
+      const { data: rows, error } = await context.supabase
+        .from("notifications")
+        .select("id, kind, payload, read_at, created_at")
+        .eq("user_id", context.userId)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
 
-    interface NotificationRow {
-      id: string;
-      kind: string;
-      payload: Record<string, string> | null;
-      read_at: string | null;
-      created_at: string;
-    }
-    const notifications = (rows ?? []) as NotificationRow[];
+      interface NotificationRow {
+        id: string;
+        kind: string;
+        payload: Record<string, string> | null;
+        read_at: string | null;
+        created_at: string;
+      }
+      const notifications = (rows ?? []) as NotificationRow[];
 
-    // Resolve friend notification payloads into friendly, human-readable messages.
-    // Profile lookup is one batched .in() query over the distinct from_user_ids.
-    const friendKinds = ["friend_request", "friend_accept"];
-    const fromUserIds = Array.from(new Set(
-      notifications
-        .filter((n) => friendKinds.includes(n.kind))
-        .map((n) => (n.payload?.from_user_id ?? ""))
-        .filter(Boolean),
-    ));
+      // Resolve friend notification payloads into friendly, human-readable messages.
+      // Profile lookup is one batched .in() query over the distinct from_user_ids.
+      const friendKinds = ["friend_request", "friend_accept"];
+      const fromUserIds = Array.from(
+        new Set(
+          notifications
+            .filter((n) => friendKinds.includes(n.kind))
+            .map((n) => n.payload?.from_user_id ?? "")
+            .filter(Boolean),
+        ),
+      );
 
-    let pmap = new Map<string, { username: string; display_name: string | null }>();
-    if (fromUserIds.length > 0) {
-      const { data: profiles, error: pErr } = await context.supabase
-        .from("profiles")
-        .select("id, username, display_name")
-        .in("id", fromUserIds);
-      if (pErr) throw pErr;
-      pmap = new Map((profiles ?? []).map((p: { id: string; username: string; display_name: string | null }) => [p.id, p]));
-    }
+      let pmap = new Map<string, { username: string; display_name: string | null }>();
+      if (fromUserIds.length > 0) {
+        const { data: profiles, error: pErr } = await context.supabase
+          .from("profiles")
+          .select("id, username, display_name")
+          .in("id", fromUserIds);
+        if (pErr) throw pErr;
+        pmap = new Map(
+          (profiles ?? []).map(
+            (p: { id: string; username: string; display_name: string | null }) => [p.id, p],
+          ),
+        );
+      }
 
-    const enrich = (n: NotificationRow) => {
-      const payload = (n.payload ?? {}) as Record<string, string | null>;
-      const from = payload.from_user_id ? pmap.get(payload.from_user_id) : undefined;
-      const name = from?.display_name || from?.username || "Someone";
-      if (n.kind === "friend_request") return { ...n, payload: { ...payload, message: `${name} sent you a friend request` } };
-      if (n.kind === "friend_accept") return { ...n, payload: { ...payload, message: `${name} accepted your friend request` } };
-      return { ...n, payload };
-    };
+      const enrich = (n: NotificationRow) => {
+        const payload = (n.payload ?? {}) as Record<string, string | null>;
+        const from = payload.from_user_id ? pmap.get(payload.from_user_id) : undefined;
+        const name = from?.display_name || from?.username || "Someone";
+        if (n.kind === "friend_request")
+          return { ...n, payload: { ...payload, message: `${name} sent you a friend request` } };
+        if (n.kind === "friend_accept")
+          return { ...n, payload: { ...payload, message: `${name} accepted your friend request` } };
+        return { ...n, payload };
+      };
 
-    return notifications.map(enrich);
+      return notifications.map(enrich);
     } catch (err) {
       console.error("[listNotifications] failed:", err);
       throw new Error(`listNotifications: ${err instanceof Error ? err.message : String(err)}`);
@@ -62,7 +70,8 @@ export const listNotifications = createServerFn({ method: "GET" })
 export const markNotificationRead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) =>
-    z.object({ id: z.string().uuid().optional(), all: z.boolean().optional() })
+    z
+      .object({ id: z.string().uuid().optional(), all: z.boolean().optional() })
       .refine((v) => v.id || v.all, { message: "id or all required" })
       .parse(input),
   )

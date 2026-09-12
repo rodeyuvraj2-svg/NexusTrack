@@ -25,7 +25,9 @@ export const listActivity = createServerFn({ method: "GET" })
 
     const { data: rows, error } = await context.supabase
       .from("activity")
-      .select("id, kind, created_at, user_id, media:media_id(id, media_type, source, external_id, title, poster_url)")
+      .select(
+        "id, kind, created_at, user_id, media:media_id(id, media_type, source, external_id, title, poster_url)",
+      )
       .in("user_id", Array.from(friendIds))
       .order("created_at", { ascending: false })
       .limit(10);
@@ -36,7 +38,14 @@ export const listActivity = createServerFn({ method: "GET" })
       kind: string;
       created_at: string;
       user_id: string;
-      media: { id: string; media_type: string; source: string; external_id: string; title: string; poster_url: string | null } | null;
+      media: {
+        id: string;
+        media_type: string;
+        source: string;
+        external_id: string;
+        title: string;
+        poster_url: string | null;
+      } | null;
     }
     const typedRows = (rows ?? []) as ActivityRow[];
 
@@ -47,7 +56,14 @@ export const listActivity = createServerFn({ method: "GET" })
       .in("id", userIds);
     // Typed tuple so the Map values stay serializable (server functions
     // reject `unknown`), and so `p` isn't implicit any.
-    interface ProfileRow { id: string; username: string; display_name: string | null; avatar_url: string | null }
-    const pmap = new Map((profiles ?? []).map((p: ProfileRow): [string, ProfileRow] => [p.id, p]));
-    return typedRows.map((r) => ({ ...r, profile: pmap.get(r.user_id) }));
+    interface ProfileRow {
+      id: string;
+      username: string;
+      display_name: string | null;
+      avatar_url: string | null;
+    }
+    const pmap: Map<string, ProfileRow> = new Map(
+      ((profiles ?? []) as ProfileRow[]).map((p): [string, ProfileRow] => [p.id, p]),
+    );
+    return typedRows.map((r) => ({ ...r, profile: pmap.get(r.user_id) ?? null }));
   });

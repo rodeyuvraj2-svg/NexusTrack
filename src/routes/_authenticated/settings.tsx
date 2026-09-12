@@ -12,10 +12,23 @@ import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { useGuest } from "@/lib/guest";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Download, Upload, Trash2, User as UserIcon, Settings as SettingsIcon, Shield, Database } from "lucide-react";
+import {
+  Download,
+  Upload,
+  Trash2,
+  User as UserIcon,
+  Settings as SettingsIcon,
+  Shield,
+  Database,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/settings")({
-  head: () => ({ meta: [{ title: "Settings — NexusTrack" }, { name: "description", content: "Manage your account, privacy, and data." }] }),
+  head: () => ({
+    meta: [
+      { title: "Settings — NexusTrack" },
+      { name: "description", content: "Manage your account, privacy, and data." },
+    ],
+  }),
   errorComponent: RouteErrorBoundary,
   component: Settings,
 });
@@ -37,7 +50,14 @@ function Settings() {
   const deleteFn = useServerFn(deleteAccount);
 
   const [section, setSection] = useState<SectionKey>("profile");
-  const [profile, setProfile] = useState<{ id: string; username: string; display_name: string | null; bio: string | null; avatar_url: string | null; is_public: boolean } | null>(null);
+  const [profile, setProfile] = useState<{
+    id: string;
+    username: string;
+    display_name: string | null;
+    bio: string | null;
+    avatar_url: string | null;
+    is_public: boolean;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const [privacyBusy, setPrivacyBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -56,19 +76,28 @@ function Settings() {
   async function saveProfile() {
     if (!profile) return;
     setBusy(true);
-    const { error } = await supabase.from("profiles").update({
-      display_name: profile.display_name,
-      bio: profile.bio,
-    }).eq("id", profile.id);
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        display_name: profile.display_name,
+        bio: profile.bio,
+      })
+      .eq("id", profile.id);
     setBusy(false);
     if (error) toast.error(error.message);
-    else { toast.success("Settings saved"); qc.invalidateQueries({ queryKey: ["public-profile"] }); }
+    else {
+      toast.success("Settings saved");
+      qc.invalidateQueries({ queryKey: ["public-profile"] });
+    }
   }
 
   async function setPrivacy(isPublic: boolean) {
     if (!profile || privacyBusy) return;
     setPrivacyBusy(true);
-    const { error } = await supabase.from("profiles").update({ is_public: isPublic }).eq("id", profile.id);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ is_public: isPublic })
+      .eq("id", profile.id);
     setPrivacyBusy(false);
     if (error) {
       toast.error(error.message);
@@ -81,9 +110,17 @@ function Settings() {
 
   async function handleExport(format: "json" | "csv") {
     const data = (await exportFn()) as Array<{
-      title: string; media_type: string; source: string; external_id: string;
-      status: string; rating: number | null; favorite: boolean; hidden: boolean;
-      notes: string | null; created_at: string; updated_at: string;
+      title: string;
+      media_type: string;
+      source: string;
+      external_id: string;
+      status: string;
+      rating: number | null;
+      favorite: boolean;
+      hidden: boolean;
+      notes: string | null;
+      created_at: string;
+      updated_at: string;
     }>;
     let content: string;
     let mime: string;
@@ -91,9 +128,22 @@ function Settings() {
       content = JSON.stringify(data, null, 2);
       mime = "application/json";
     } else {
-      const headers = "title,media_type,source,external_id,status,rating,favorite,hidden,notes,created_at,updated_at";
+      const headers =
+        "title,media_type,source,external_id,status,rating,favorite,hidden,notes,created_at,updated_at";
       const rows = data.map((r) =>
-        [r.title, r.media_type, r.source, r.external_id, r.status, r.rating ?? "", r.favorite, r.hidden, (r.notes ?? "").replace(/,/g, ";"), r.created_at, r.updated_at].join(",")
+        [
+          r.title,
+          r.media_type,
+          r.source,
+          r.external_id,
+          r.status,
+          r.rating ?? "",
+          r.favorite,
+          r.hidden,
+          (r.notes ?? "").replace(/,/g, ";"),
+          r.created_at,
+          r.updated_at,
+        ].join(","),
       );
       content = [headers, ...rows].join("\n");
       mime = "text/csv";
@@ -128,7 +178,10 @@ function Settings() {
           description="Customize your profile, manage your data, and control your privacy."
           variant="panel"
           action={
-            <Link to="/auth" className="inline-block rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white">
+            <Link
+              to="/auth"
+              className="inline-block rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white"
+            >
               Sign in
             </Link>
           }
@@ -151,7 +204,12 @@ function Settings() {
   }
 
   async function handleDeleteAccount() {
-    if (!confirm("This will permanently delete your account and all data. This cannot be undone. Are you sure?")) return;
+    if (
+      !confirm(
+        "This will permanently delete your account and all data. This cannot be undone. Are you sure?",
+      )
+    )
+      return;
     if (!profile) return;
     setBusy(true);
     try {
@@ -160,7 +218,9 @@ function Settings() {
       window.location.href = "/";
     } catch (error) {
       await supabase.auth.signOut();
-      toast.error(error instanceof Error ? error.message : "Please contact support to delete your account");
+      toast.error(
+        error instanceof Error ? error.message : "Please contact support to delete your account",
+      );
     } finally {
       setBusy(false);
     }
@@ -216,22 +276,54 @@ function Settings() {
               </div>
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="settings-username" className="text-xs uppercase tracking-wider text-muted-foreground">Username</label>
-                  <input id="settings-username" value={profile.username} disabled
-                    className="mt-1 w-full rounded-lg border border-input bg-muted/30 px-3 py-2 text-sm text-muted-foreground" />
+                  <label
+                    htmlFor="settings-username"
+                    className="text-xs uppercase tracking-wider text-muted-foreground"
+                  >
+                    Username
+                  </label>
+                  <input
+                    id="settings-username"
+                    value={profile.username}
+                    disabled
+                    className="mt-1 w-full rounded-lg border border-input bg-muted/30 px-3 py-2 text-sm text-muted-foreground"
+                  />
                 </div>
                 <div>
-                  <label htmlFor="settings-display-name" className="text-xs uppercase tracking-wider text-muted-foreground">Display name</label>
-                  <input id="settings-display-name" value={profile.display_name ?? ""} onChange={(e) => setProfile({ ...profile, display_name: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-input bg-background/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                  <label
+                    htmlFor="settings-display-name"
+                    className="text-xs uppercase tracking-wider text-muted-foreground"
+                  >
+                    Display name
+                  </label>
+                  <input
+                    id="settings-display-name"
+                    value={profile.display_name ?? ""}
+                    onChange={(e) => setProfile({ ...profile, display_name: e.target.value })}
+                    className="mt-1 w-full rounded-lg border border-input bg-background/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
                 </div>
                 <div>
-                  <label htmlFor="settings-bio" className="text-xs uppercase tracking-wider text-muted-foreground">Bio</label>
-                  <textarea id="settings-bio" value={profile.bio ?? ""} onChange={(e) => setProfile({ ...profile, bio: e.target.value })} rows={3} maxLength={500}
-                    className="mt-1 w-full rounded-lg border border-input bg-background/40 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                  <label
+                    htmlFor="settings-bio"
+                    className="text-xs uppercase tracking-wider text-muted-foreground"
+                  >
+                    Bio
+                  </label>
+                  <textarea
+                    id="settings-bio"
+                    value={profile.bio ?? ""}
+                    onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                    rows={3}
+                    maxLength={500}
+                    className="mt-1 w-full rounded-lg border border-input bg-background/40 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
                 </div>
-                <button onClick={saveProfile} disabled={busy}
-                  className="rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white disabled:opacity-60">
+                <button
+                  onClick={saveProfile}
+                  disabled={busy}
+                  className="rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                >
                   {busy ? "Saving…" : "Save changes"}
                 </button>
               </div>
@@ -248,7 +340,8 @@ function Settings() {
                 <div>
                   <p className="text-sm font-medium">Public profile</p>
                   <p className="mt-0.5 text-sm text-muted-foreground">
-                    Public profiles can be viewed by anyone with your username. Private profiles are only visible to you and your friends.
+                    Public profiles can be viewed by anyone with your username. Private profiles are
+                    only visible to you and your friends.
                   </p>
                 </div>
                 <button
@@ -262,10 +355,12 @@ function Settings() {
                     profile.is_public ? "bg-primary" : "bg-muted-foreground/30",
                   )}
                 >
-                  <span className={cn(
-                    "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all",
-                    profile.is_public ? "left-[22px]" : "left-0.5",
-                  )} />
+                  <span
+                    className={cn(
+                      "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all",
+                      profile.is_public ? "left-[22px]" : "left-0.5",
+                    )}
+                  />
                 </button>
               </div>
             </section>
@@ -277,21 +372,41 @@ function Settings() {
                 <Database className="h-5 w-5 text-primary" />
                 <h2 className="text-lg font-bold">Your data</h2>
               </div>
-              <p className="mb-4 text-sm text-muted-foreground">Export your library as backup. Import a previously exported JSON file to restore it.</p>
+              <p className="mb-4 text-sm text-muted-foreground">
+                Export your library as backup. Import a previously exported JSON file to restore it.
+              </p>
               <div className="flex flex-wrap gap-3">
-                <button onClick={() => handleExport("json")} className="flex items-center gap-2 rounded-lg glass px-4 py-2 text-sm font-medium hover:bg-muted/40">
+                <button
+                  onClick={() => handleExport("json")}
+                  className="flex items-center gap-2 rounded-lg glass px-4 py-2 text-sm font-medium hover:bg-muted/40"
+                >
                   <Download className="h-4 w-4" /> Export JSON
                 </button>
-                <button onClick={() => handleExport("csv")} className="flex items-center gap-2 rounded-lg glass px-4 py-2 text-sm font-medium hover:bg-muted/40">
+                <button
+                  onClick={() => handleExport("csv")}
+                  className="flex items-center gap-2 rounded-lg glass px-4 py-2 text-sm font-medium hover:bg-muted/40"
+                >
                   <Download className="h-4 w-4" /> Export CSV
                 </button>
-                <button onClick={() => fileRef.current?.click()} disabled={mImport.isPending}
-                  className="flex items-center gap-2 rounded-lg bg-gradient-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
-                  <Upload className="h-4 w-4" /> {mImport.isPending ? "Importing…" : "Upload & Import"}
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  disabled={mImport.isPending}
+                  className="flex items-center gap-2 rounded-lg bg-gradient-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  <Upload className="h-4 w-4" />{" "}
+                  {mImport.isPending ? "Importing…" : "Upload & Import"}
                 </button>
-                <input ref={fileRef} type="file" accept=".json,.csv" onChange={handleImportFile} className="hidden" />
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".json,.csv"
+                  onChange={handleImportFile}
+                  className="hidden"
+                />
               </div>
-              {mImport.isPending ? <p className="mt-3 text-xs text-muted-foreground">Importing items…</p> : null}
+              {mImport.isPending ? (
+                <p className="mt-3 text-xs text-muted-foreground">Importing items…</p>
+              ) : null}
             </section>
           )}
 
@@ -301,9 +416,15 @@ function Settings() {
                 <Trash2 className="h-5 w-5 text-destructive" />
                 <h2 className="text-lg font-bold text-destructive">Danger zone</h2>
               </div>
-              <p className="mb-4 text-sm text-muted-foreground">Permanently delete your account and all associated data. This action cannot be undone.</p>
-              <button onClick={handleDeleteAccount} disabled={busy}
-                className="rounded-lg bg-destructive px-5 py-2 text-sm font-semibold text-destructive-foreground hover:bg-destructive/90 disabled:opacity-60">
+              <p className="mb-4 text-sm text-muted-foreground">
+                Permanently delete your account and all associated data. This action cannot be
+                undone.
+              </p>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={busy}
+                className="rounded-lg bg-destructive px-5 py-2 text-sm font-semibold text-destructive-foreground hover:bg-destructive/90 disabled:opacity-60"
+              >
                 Delete my account
               </button>
             </section>

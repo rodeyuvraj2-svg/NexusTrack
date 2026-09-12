@@ -9,7 +9,13 @@ interface SafeImageProps {
   loading?: "lazy" | "eager";
 }
 
-export function SafeImage({ src, alt, className, wrapperClassName, loading = "lazy" }: SafeImageProps) {
+export function SafeImage({
+  src,
+  alt,
+  className,
+  wrapperClassName,
+  loading = "lazy",
+}: SafeImageProps) {
   const [error, setError] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const imageRef = useRef<HTMLImageElement | null>(null);
@@ -26,7 +32,12 @@ export function SafeImage({ src, alt, className, wrapperClassName, loading = "la
 
   if (!src || error) {
     return (
-      <div className={cn("flex items-center justify-center bg-muted/50", wrapperClassName || className)}>
+      <div
+        className={cn(
+          "flex items-center justify-center bg-muted/50",
+          wrapperClassName || className,
+        )}
+      >
         <div className="text-center p-4">
           <div className="mx-auto mb-1 h-8 w-8 rounded-full bg-gradient-accent/30 grid place-items-center text-xs font-bold text-muted-foreground">
             {alt ? alt.charAt(0).toUpperCase() : "?"}
@@ -39,9 +50,7 @@ export function SafeImage({ src, alt, className, wrapperClassName, loading = "la
 
   return (
     <div className={cn("relative overflow-hidden", wrapperClassName || className)}>
-      {!loaded && (
-        <div className="absolute inset-0 animate-pulse bg-muted/50" />
-      )}
+      {!loaded && <div className="absolute inset-0 animate-pulse bg-muted/50" />}
       <img
         ref={imageRef}
         src={src}

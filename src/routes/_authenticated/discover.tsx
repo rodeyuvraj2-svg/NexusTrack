@@ -32,12 +32,30 @@ const SORTS: { id: SortMode; label: string }[] = [
 ];
 
 const ANIME_GENRES = [
-  "Action", "Adventure", "Comedy", "Drama", "Fantasy", "Horror",
-  "Mystery", "Romance", "Sci-Fi", "Slice of Life", "Sports", "Thriller",
+  "Action",
+  "Adventure",
+  "Comedy",
+  "Drama",
+  "Fantasy",
+  "Horror",
+  "Mystery",
+  "Romance",
+  "Sci-Fi",
+  "Slice of Life",
+  "Sports",
+  "Thriller",
 ];
 
 export const Route = createFileRoute("/_authenticated/discover")({
-  head: () => ({ meta: [{ title: "Discover — NexusTrack" }, { name: "description", content: "Discover trending and popular across movies, TV, anime, and manga." }] }),
+  head: () => ({
+    meta: [
+      { title: "Discover — NexusTrack" },
+      {
+        name: "description",
+        content: "Discover trending and popular across movies, TV, anime, and manga.",
+      },
+    ],
+  }),
   errorComponent: RouteErrorBoundary,
   component: Discover,
 });
@@ -96,7 +114,8 @@ function Discover() {
         return topAnimeFn({ data: { page, genre: genreParam, sort: animeSort } });
       }
       if (tab === "manga") {
-        if (sort === "trending") return topMangaFn({ data: { page, genre: genreParam, type: "top" } });
+        if (sort === "trending")
+          return topMangaFn({ data: { page, genre: genreParam, type: "top" } });
         return topMangaFn({ data: { page, genre: genreParam, type: "popular" } });
       }
       // Movie / TV
@@ -157,7 +176,12 @@ function Discover() {
       {/* Sort: Trending / Popular */}
       <div className="mb-4 flex gap-1.5">
         {SORTS.map((s) => (
-          <Chip key={s.id} active={sort === s.id} onClick={() => setSort(s.id)} className="px-4 py-1.5 text-xs normal-case tracking-normal">
+          <Chip
+            key={s.id}
+            active={sort === s.id}
+            onClick={() => setSort(s.id)}
+            className="px-4 py-1.5 text-xs normal-case tracking-normal"
+          >
             {s.label}
           </Chip>
         ))}
@@ -167,7 +191,11 @@ function Discover() {
       {genreChips.length > 0 && (
         <div className="mb-6">
           <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-            <Chip active={selectedGenres.length === 0} onClick={() => setSelectedGenres([])} className="px-3 py-1.5 text-xs normal-case tracking-normal">
+            <Chip
+              active={selectedGenres.length === 0}
+              onClick={() => setSelectedGenres([])}
+              className="px-3 py-1.5 text-xs normal-case tracking-normal"
+            >
               All
             </Chip>
             {genreChips.map((chip) => (
@@ -176,7 +204,11 @@ function Discover() {
                 tone="accent"
                 active={selectedGenres.includes(chip.id)}
                 onClick={() =>
-                  setSelectedGenres((prev) => prev.includes(chip.id) ? prev.filter((id) => id !== chip.id) : [...prev, chip.id])
+                  setSelectedGenres((prev) =>
+                    prev.includes(chip.id)
+                      ? prev.filter((id) => id !== chip.id)
+                      : [...prev, chip.id],
+                  )
                 }
                 className="px-3 py-1.5 text-xs normal-case tracking-normal"
               >
@@ -187,14 +219,26 @@ function Discover() {
           {selectedGenres.length > 0 && (
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               {selectedGenres.map((id) => (
-                <span key={id} className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-2.5 py-0.5 text-[11px] font-medium text-accent">
+                <span
+                  key={id}
+                  className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-2.5 py-0.5 text-[11px] font-medium text-accent"
+                >
                   {genreIdToName[id] ?? id}
-                  <button onClick={() => setSelectedGenres((prev) => prev.filter((i) => i !== id))} className="hover:text-accent/70">
+                  <button
+                    onClick={() => setSelectedGenres((prev) => prev.filter((i) => i !== id))}
+                    aria-label={`Remove ${genreIdToName[id] ?? id} filter`}
+                    className="grid h-6 w-6 place-items-center rounded-full hover:bg-accent/20 hover:text-accent/80"
+                  >
                     <X className="h-3 w-3" />
                   </button>
                 </span>
               ))}
-              <button onClick={() => setSelectedGenres([])} className="text-[11px] text-destructive hover:underline ml-1">Clear all</button>
+              <button
+                onClick={() => setSelectedGenres([])}
+                className="text-[11px] text-destructive hover:underline ml-1"
+              >
+                Clear all
+              </button>
             </div>
           )}
         </div>
@@ -209,7 +253,10 @@ function Discover() {
           tone="destructive"
           title="Failed to load content. Try again."
           action={
-            <button onClick={() => q.refetch()} className="rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white shadow-lg btn-press">
+            <button
+              onClick={() => q.refetch()}
+              className="rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white shadow-lg btn-press"
+            >
               Try again
             </button>
           }
@@ -218,7 +265,11 @@ function Discover() {
         <EmptyState
           variant="panel"
           icon={Film}
-          title={selectedGenres.length > 0 ? "No content matches those genres." : "No content available right now."}
+          title={
+            selectedGenres.length > 0
+              ? "No content matches those genres."
+              : "No content available right now."
+          }
           description=""
         />
       ) : (
@@ -226,7 +277,10 @@ function Discover() {
           <MediaGrid items={items} />
           <div ref={sentinelRef} className="flex justify-center py-8">
             {q.isFetchingNextPage ? (
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-label="Loading more" />
+              <Loader2
+                className="h-6 w-6 animate-spin text-muted-foreground"
+                aria-label="Loading more"
+              />
             ) : q.hasNextPage ? (
               <span className="text-xs text-muted-foreground">Scroll for more</span>
             ) : items.length > 0 ? (

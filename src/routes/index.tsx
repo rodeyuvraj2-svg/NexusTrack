@@ -5,9 +5,16 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "NexusTrack — Movies, TV & Anime Tracker" },
-      { name: "description", content: "Track movies, TV, and anime in one place. Unified search, season-level progress, friends' libraries — free forever." },
+      {
+        name: "description",
+        content:
+          "Track movies, TV, and anime in one place. Unified search, season-level progress, friends' libraries — free forever.",
+      },
       { property: "og:title", content: "NexusTrack — Track everything you watch" },
-      { property: "og:description", content: "Movies, TV shows, anime — one library, every screen." },
+      {
+        property: "og:description",
+        content: "Movies, TV shows, anime — one library, every screen.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -16,10 +23,26 @@ export const Route = createFileRoute("/")({
 });
 
 const FEATURES = [
-  { Icon: Search, title: "Unified search", body: "Movies, TV, and anime results side by side from TMDB and MyAnimeList." },
-  { Icon: Heart, title: "Season-level tracking", body: "Mark seasons, not episodes. Rollups happen automatically." },
-  { Icon: Star, title: "Favorites & ratings", body: "Star what you love, rate on a 10-point scale, add private notes." },
-  { Icon: Users, title: "Friends' libraries", body: "See what friends are watching and copy any title with one click." },
+  {
+    Icon: Search,
+    title: "Unified search",
+    body: "Movies, TV, and anime results side by side from TMDB and MyAnimeList.",
+  },
+  {
+    Icon: Heart,
+    title: "Season-level tracking",
+    body: "Mark seasons, not episodes. Rollups happen automatically.",
+  },
+  {
+    Icon: Star,
+    title: "Favorites & ratings",
+    body: "Star what you love, rate on a 10-point scale, add private notes.",
+  },
+  {
+    Icon: Users,
+    title: "Friends' libraries",
+    body: "See what friends are watching and copy any title with one click.",
+  },
 ];
 
 function Landing() {
@@ -31,10 +54,15 @@ function Landing() {
           <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-accent shadow-lg">
             <span className="text-sm font-black text-white">N</span>
           </div>
-          <span className="text-lg font-bold">Nexus<span className="text-primary">Track</span></span>
+          <span className="text-lg font-bold">
+            Nexus<span className="text-primary">Track</span>
+          </span>
         </Link>
         <div className="flex items-center gap-2 sm:gap-3">
-          <Link to="/auth" className="hidden sm:inline-block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5">
+          <Link
+            to="/auth"
+            className="hidden sm:inline-block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5"
+          >
             Sign in
           </Link>
           <Link
@@ -58,7 +86,7 @@ function Landing() {
           {/* Badge */}
           <div
             className="mb-8 inline-flex items-center gap-2 rounded-full border border-border/40 bg-card/50 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur-sm animate-hero-fade-in"
-            style={{ animationDelay: '0s' }}
+            style={{ animationDelay: "0s" }}
           >
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
@@ -70,10 +98,9 @@ function Landing() {
           {/* Heading */}
           <h1
             className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black leading-[1.05] sm:leading-[0.9] tracking-tighter animate-hero-fade-in"
-            style={{ animationDelay: '0.1s' }}
+            style={{ animationDelay: "0.1s" }}
           >
-            Track{" "}
-            <span className="text-primary">Movies.</span>
+            Track <span className="text-primary">Movies.</span>
             <br />
             <span className="text-primary">TV Shows.</span>{" "}
             <span className="text-accent">Anime.</span>
@@ -83,14 +110,15 @@ function Landing() {
 
           <p
             className="mt-6 mx-auto max-w-xl text-base sm:text-lg text-muted-foreground/90 leading-relaxed animate-hero-fade-in"
-            style={{ animationDelay: '0.2s' }}
+            style={{ animationDelay: "0.2s" }}
           >
-            Stop juggling five apps. Track what you watch, discover what's next, and copy titles straight from your friends. Free, forever.
+            Stop juggling five apps. Track what you watch, discover what's next, and copy titles
+            straight from your friends. Free, forever.
           </p>
 
           <div
             className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 animate-hero-fade-in"
-            style={{ animationDelay: '0.3s' }}
+            style={{ animationDelay: "0.3s" }}
           >
             <Link
               to="/auth"
@@ -116,7 +144,7 @@ function Landing() {
         {/* Mock preview */}
         <div
           className="relative z-10 mt-10 sm:mt-20 w-full max-w-5xl mx-auto animate-hero-fade-in"
-          style={{ animationDelay: '0.4s' }}
+          style={{ animationDelay: "0.4s" }}
         >
           <div className="glass-strong rounded-2xl p-3 md:p-4 shadow-2xl image-glow-border">
             <div className="flex items-center gap-2 mb-3 px-2">
@@ -129,7 +157,10 @@ function Landing() {
             </div>
             <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-3">
               {PREVIEW_ITEMS.map((item, i) => (
-                <div key={item.title} className="group relative rounded-xl overflow-hidden bg-muted/40 aspect-[2/3]">
+                <div
+                  key={item.title}
+                  className="group relative rounded-xl overflow-hidden bg-muted/40 aspect-[2/3]"
+                >
                   <img
                     src={item.img}
                     alt={item.title}
@@ -137,9 +168,13 @@ function Landing() {
                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent p-2">
-                    <p className="text-xs font-semibold text-white truncate drop-shadow-sm">{item.title}</p>
+                    <p className="text-xs font-semibold text-white truncate drop-shadow-sm">
+                      {item.title}
+                    </p>
                     <div className="flex items-center gap-1 mt-0.5">
-                      <span className="text-[9px] uppercase tracking-wider text-white/70">{item.type}</span>
+                      <span className="text-[9px] uppercase tracking-wider text-white/70">
+                        {item.type}
+                      </span>
                       <span className="ml-auto flex items-center gap-0.5 text-[10px] text-warning font-medium">
                         <Star className="h-2.5 w-2.5 fill-current" /> {item.rating}
                       </span>
@@ -159,10 +194,7 @@ function Landing() {
             preserveAspectRatio="none"
             fill="currentColor"
           >
-            <path
-              className="fill-background"
-              d="M1200 0L0 0 598.97 114.72 1200 0z"
-            />
+            <path className="fill-background" d="M1200 0L0 0 598.97 114.72 1200 0z" />
           </svg>
         </div>
       </section>
@@ -175,7 +207,8 @@ function Landing() {
               Built the way you actually watch.
             </h2>
             <p className="mt-4 text-muted-foreground max-w-xl mx-auto">
-              One unified library for everything you watch — no matter the screen, genre, or language.
+              One unified library for everything you watch — no matter the screen, genre, or
+              language.
             </p>
           </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -223,9 +256,7 @@ function Landing() {
             </div>
             NexusTrack
           </div>
-          <p className="text-xs text-muted-foreground/60">
-            Data from TMDB & AniList.
-          </p>
+          <p className="text-xs text-muted-foreground/60">Data from TMDB & AniList.</p>
         </div>
       </footer>
     </div>
@@ -233,10 +264,40 @@ function Landing() {
 }
 
 const PREVIEW_ITEMS = [
-  { title: "Interstellar", type: "Movie", rating: "9.0", img: "https://image.tmdb.org/t/p/w342/yQvGrMoipbRoddT0ZR8tPoR7NfX.jpg" },
-  { title: "Breaking Bad", type: "TV", rating: "9.5", img: "https://image.tmdb.org/t/p/w342/anFx9aTOOYqgS3v7x3R84Kz67ly.jpg" },
-  { title: "One Piece", type: "Anime", rating: "8.8", img: "https://image.tmdb.org/t/p/w342/blWCPEqDGLBuLB9u89CxP9ORQP4.jpg" },
-  { title: "Stranger Things", type: "TV", rating: "8.7", img: "https://image.tmdb.org/t/p/w342/uOOtwVbSr4QDjAGIifLDwpb2Pdl.jpg" },
-  { title: "Your Name", type: "Anime", rating: "8.8", img: "https://image.tmdb.org/t/p/w342/q719jXXEzOoYaps6babgKnONONX.jpg" },
-  { title: "The Batman", type: "Movie", rating: "8.3", img: "https://image.tmdb.org/t/p/w342/74xTEgt7R36Fpooo50r9T25onhq.jpg" },
+  {
+    title: "Interstellar",
+    type: "Movie",
+    rating: "9.0",
+    img: "https://image.tmdb.org/t/p/w342/yQvGrMoipbRoddT0ZR8tPoR7NfX.jpg",
+  },
+  {
+    title: "Breaking Bad",
+    type: "TV",
+    rating: "9.5",
+    img: "https://image.tmdb.org/t/p/w342/anFx9aTOOYqgS3v7x3R84Kz67ly.jpg",
+  },
+  {
+    title: "One Piece",
+    type: "Anime",
+    rating: "8.8",
+    img: "https://image.tmdb.org/t/p/w342/blWCPEqDGLBuLB9u89CxP9ORQP4.jpg",
+  },
+  {
+    title: "Stranger Things",
+    type: "TV",
+    rating: "8.7",
+    img: "https://image.tmdb.org/t/p/w342/uOOtwVbSr4QDjAGIifLDwpb2Pdl.jpg",
+  },
+  {
+    title: "Your Name",
+    type: "Anime",
+    rating: "8.8",
+    img: "https://image.tmdb.org/t/p/w342/q719jXXEzOoYaps6babgKnONONX.jpg",
+  },
+  {
+    title: "The Batman",
+    type: "Movie",
+    rating: "8.3",
+    img: "https://image.tmdb.org/t/p/w342/74xTEgt7R36Fpooo50r9T25onhq.jpg",
+  },
 ];

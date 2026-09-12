@@ -1,0 +1,399 @@
+import { useServerFn } from "@tanstack/react-start";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { formatDistanceToNow } from "date-fns";
+import { Check, Minus, Plus, Save } from "lucide-react";
+import { toast } from "sonner";
+import { updateMediaProgress } from "@/lib/library.functions";
+import {
+  calculateProgressPercent,
+  formatChapterProgress,
+  formatEpisodeProgress,
+  formatNextItemLabel,
+  getSeasonEpisodeTotal,
+  type ContinueWatchingRow,
+} from "@/lib/progress-utils";
+import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+
+/** Saved progress state from the user's library entry for this title. */
+export interface ProgressEntryState {
+  status: string;
+  current_season: number | null;
+  current_episode: number | null;
+  current_chapter: number | null;
+  progress_updated_at: string | null;
+}
+
+/** Media identity needed to insert an optimistic continue-watching row. */
+interface ProgressMediaInfo {
+  media_type: string;
+  source: string;
+  external_id: string;
+  title: string;
+  poster_url: string | null;
+  release_year: number | null;
+  vote_average: number | null;
+  season_count: number | null;
+  chapter_count: number | null;
+}
+
+interface ProgressPanelProps {
+  mediaId: string;
+  /** tv / anime / manga — the caller never renders this panel for movies. */
+  mediaType: "tv" | "anime" | "manga";
+  /** undefined = library entry still loading; null = not in library. */
+  entry: ProgressEntryState | null | undefined;
+  /** Known season metadata (listSeasonsWithProgress rows), when available. */
+  seasons: Array<{ season_number: number; episode_count: number | null; name: string | null }>;
+  /** Total chapter count for manga, when known. */
+  chapterTotal: number | null;
+  media: ProgressMediaInfo;
+}
+
+/** "" → null; anything non-numeric/negative → null (treated as "not set"). */
+function parseCount(text: string): number | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  const n = Number(trimmed);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.trunc(n);
+}
+
+function toText(value: number | null | undefined): string {
+  return value != null ? String(value) : "";
+}
+
+/**
+ * "Your progress" panel for the media detail page — a compact season/
+ * episode (tv, anime) or chapter (manga) tracker. Saves go through
+ * updateMediaProgress and patch ["library", "all"] and
+ * ["continue-watching"] optimistically, rolling both back on error.
+ */
+export function ProgressPanel({
+  mediaId,
+  mediaType,
+  entry,
+  seasons,
+  chapterTotal,
+  media,
+}: ProgressPanelProps) {
+  const qc = useQueryClient();
+  const progressFn = useServerFn(updateMediaProgress);
+  const isManga = mediaType === "manga";
+
+  // Local editable copies of the saved values (strings so an in-progress
+  // "12" → "120" edit or an emptied field never crashes rendering).
+  const [seasonText, setSeasonText] = useState(() => toText(entry?.current_season));
+  const [episodeText, setEpisodeText] = useState(() => toText(entry?.current_episode));
+  const [chapterText, setChapterText] = useState(() => toText(entry?.current_chapter));
+  const [savedFlash, setSavedFlash] = useState(false);
+
+  // Re-sync when the authoritative saved values change (refetch after save,
+  // or another tab/client touching the same entry). Typing isn't clobbered
+  // because the saved values don't change while the user types.
+  useEffect(() => {
+    setSeasonText(toText(entry?.current_season));
+    setEpisodeText(toText(entry?.current_episode));
+    setChapterText(toText(entry?.current_chapter));
+  }, [entry?.current_season, entry?.current_episode, entry?.current_chapter]);
+
+  useEffect(() => {
+    if (!savedFlash) return;
+    const t = setTimeout(() => setSavedFlash(false), 2000);
+    return () => clearTimeout(t);
+  }, [savedFlash]);
+
+  const season = parseCount(seasonText);
+  const episode = parseCount(episodeText);
+  const chapter = parseCount(chapterText);
+
+  // Known totals drive the "of N" suffix and the progress bar.
+  const episodeTotal = getSeasonEpisodeTotal(seasons, season);
+  const pct = isManga
+    ? calculateProgressPercent(chapter, chapterTotal)
+    : calculateProgressPercent(episode, episodeTotal);
+  const formatted = isManga
+    ? formatChapterProgress(chapter, chapterTotal)
+    : formatEpisodeProgress(season, episode, episodeTotal);
+  const nextLabel = isManga
+    ? formatNextItemLabel("manga", { chapter })
+    : formatNextItemLabel(mediaType, { episode });
+
+  const savedSeason = entry?.current_season ?? null;
+  const savedEpisode = entry?.current_episode ?? null;
+  const savedChapter = entry?.current_chapter ?? null;
+  const dirty = isManga
+    ? chapter !== savedChapter
+    : season !== savedSeason || episode !== savedEpisode;
+
+  const mProgress = useMutation({
+    mutationFn: (payload: {
+      current_season?: number | null;
+      current_episode?: number | null;
+      current_chapter?: number | null;
+    }) => progressFn({ data: { media_id: mediaId, ...payload } }),
+    onMutate: async (payload) => {
+      await qc.cancelQueries({ queryKey: ["library", "all"] });
+      await qc.cancelQueries({ queryKey: ["continue-watching"] });
+      // Rollback snapshots for both touched caches.
+      const prevLibrary = qc.getQueryData(["library", "all"]);
+      const prevContinue = qc.getQueryData(["continue-watching"]);
+      const now = new Date().toISOString();
+
+      // Patch the shared library list in place.
+      qc.setQueryData(["library", "all"], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((row) => {
+          const r = row as { media?: { id?: string } };
+          return r.media?.id === mediaId ? { ...row, ...payload, progress_updated_at: now } : row;
+        });
+      });
+
+      // Patch (or insert at the front of) the matching continue-watching row.
+      // An insert only happens while the title is actively watched/read —
+      // the server query would exclude it otherwise.
+      qc.setQueryData<ContinueWatchingRow[]>(["continue-watching"], (old) => {
+        if (!old) return old;
+        const idx = old.findIndex((r) => r.media_id === mediaId);
+        if (idx >= 0) {
+          const row = { ...old[idx], ...payload, progress_updated_at: now };
+          return [row, ...old.slice(0, idx), ...old.slice(idx + 1)];
+        }
+        const isWatchKind = entry?.status === "watching" || entry?.status === "rewatching";
+        if (!isWatchKind) return old;
+        const row: ContinueWatchingRow = {
+          id: "optimistic",
+          media_id: mediaId,
+          status: entry?.status ?? "watching",
+          current_season: payload.current_season ?? null,
+          current_episode: payload.current_episode ?? null,
+          current_chapter: payload.current_chapter ?? null,
+          progress_updated_at: now,
+          updated_at: now,
+          media: { id: mediaId, ...media },
+        };
+        return [row, ...old].slice(0, 12);
+      });
+
+      return { prevLibrary, prevContinue };
+    },
+    onError: (e, _payload, ctx) => {
+      if (ctx?.prevLibrary !== undefined) qc.setQueryData(["library", "all"], ctx.prevLibrary);
+      if (ctx?.prevContinue !== undefined) qc.setQueryData(["continue-watching"], ctx.prevContinue);
+      toast.error(e instanceof Error ? e.message : "Couldn't save progress. Please try again.");
+    },
+    onSuccess: () => {
+      // Subtle confirmation only — progress saves are frequent, so no toast.
+      setSavedFlash(true);
+    },
+    onSettled: () => {
+      // Refetch for authoritative ordering (continue-watching is sorted by
+      // progress_updated_at server-side) and a fresh library-entry row.
+      qc.invalidateQueries({ queryKey: ["continue-watching"] });
+      qc.invalidateQueries({ queryKey: ["library-entry", mediaId] });
+      qc.invalidateQueries({ queryKey: ["library"] });
+    },
+  });
+
+  const save = () => {
+    if (!dirty || mProgress.isPending) return;
+    if (isManga) mProgress.mutate({ current_chapter: chapter });
+    else mProgress.mutate({ current_season: season, current_episode: episode });
+  };
+
+  // ── Not in library: controls stay hidden until the title is added. ──────
+  if (!entry) {
+    return (
+      <div className="glass rounded-xl p-4">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground">Your progress</p>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          Add this title to your library to start tracking your {isManga ? "chapter" : "episode"}{" "}
+          progress.
+        </p>
+      </div>
+    );
+  }
+
+  const stepperButton = (label: string, onDecrement: () => void, onIncrement: () => void) => (
+    <div className="flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={onDecrement}
+        aria-label={label}
+        className="grid h-11 w-11 place-items-center rounded-lg glass hover:bg-muted/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+      >
+        <Minus className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={onIncrement}
+        aria-label={`Increase ${label.toLowerCase()}`}
+        className="grid h-11 w-11 place-items-center rounded-lg glass hover:bg-muted/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+      >
+        <Plus className="h-4 w-4" />
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="glass rounded-xl p-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground">Your progress</p>
+        {savedFlash ? (
+          <span className="flex items-center gap-1 text-xs font-medium text-success">
+            <Check className="h-3.5 w-3.5" aria-hidden="true" /> Saved
+          </span>
+        ) : null}
+      </div>
+
+      {isManga ? (
+        // ── Manga: a single chapter control ──
+        <div className="mt-2.5 flex items-end justify-between gap-3">
+          <div>
+            <label htmlFor="progress-chapter" className="text-sm font-medium">
+              Chapter
+            </label>
+            <input
+              id="progress-chapter"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              value={chapterText}
+              onChange={(e) => setChapterText(e.target.value)}
+              className="mt-1 block h-11 w-28 rounded-lg border border-border/40 bg-card/40 px-3 text-center text-sm tabular-nums focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50"
+            />
+            {chapterTotal ? (
+              <p className="mt-1 text-xs text-muted-foreground">{chapterTotal} chapters total</p>
+            ) : null}
+          </div>
+          {stepperButton(
+            "Decrease chapter",
+            () => setChapterText(String(Math.max(0, (chapter ?? 0) - 1))),
+            () => setChapterText(String((chapter ?? 0) + 1)),
+          )}
+        </div>
+      ) : (
+        // ── TV / anime: season + episode ──
+        <div className="mt-2.5 flex flex-wrap items-end gap-3">
+          {seasons.length > 0 ? (
+            <div>
+              <label htmlFor="progress-season" className="text-sm font-medium">
+                Season
+              </label>
+              <Select
+                value={seasonText || "none"}
+                onValueChange={(v) => setSeasonText(v === "none" ? "" : v)}
+              >
+                <SelectTrigger
+                  id="progress-season"
+                  aria-label="Season"
+                  className="mt-1 h-11 w-40 rounded-lg border border-border/40 bg-card/40 px-3 text-sm focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl bg-card/90 backdrop-blur-xl border-border/40">
+                  <SelectItem value="none">Not set</SelectItem>
+                  {seasons.map((s) => (
+                    <SelectItem key={s.season_number} value={String(s.season_number)}>
+                      {s.name || `Season ${s.season_number}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            // No season metadata cached (common for anime) — manual entry.
+            <div>
+              <label htmlFor="progress-season" className="text-sm font-medium">
+                Season
+              </label>
+              <input
+                id="progress-season"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                value={seasonText}
+                onChange={(e) => setSeasonText(e.target.value)}
+                placeholder="—"
+                className="mt-1 block h-11 w-24 rounded-lg border border-border/40 bg-card/40 px-3 text-center text-sm tabular-nums focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50"
+              />
+            </div>
+          )}
+          <div>
+            <label htmlFor="progress-episode" className="text-sm font-medium">
+              Episode
+            </label>
+            <input
+              id="progress-episode"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              value={episodeText}
+              onChange={(e) => setEpisodeText(e.target.value)}
+              className="mt-1 block h-11 w-24 rounded-lg border border-border/40 bg-card/40 px-3 text-center text-sm tabular-nums focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50"
+            />
+          </div>
+          {stepperButton(
+            "Decrease episode",
+            () => setEpisodeText(String(Math.max(0, (episode ?? 0) - 1))),
+            () => setEpisodeText(String((episode ?? 0) + 1)),
+          )}
+        </div>
+      )}
+
+      {/* Formatted position + thin bar when a total is known */}
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <p className="text-sm font-medium">
+          {formatted ?? <span className="text-muted-foreground">Not started</span>}
+        </p>
+        {pct !== null ? <p className="text-xs tabular-nums text-muted-foreground">{pct}%</p> : null}
+      </div>
+      {pct !== null ? (
+        <Progress
+          value={pct}
+          className="mt-1.5 h-1.5"
+          aria-label={
+            isManga
+              ? `Chapter ${chapter ?? 0}${chapterTotal ? ` of ${chapterTotal}` : ""}`
+              : `Episode ${episode ?? 0}${episodeTotal ? ` of ${episodeTotal}` : ""}`
+          }
+        />
+      ) : null}
+
+      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">{nextLabel}</p>
+        <div className="flex items-center gap-3">
+          {entry.progress_updated_at ? (
+            <time
+              className="text-xs text-muted-foreground/70"
+              title={new Date(entry.progress_updated_at).toLocaleString()}
+            >
+              Updated{" "}
+              {formatDistanceToNow(new Date(entry.progress_updated_at), { addSuffix: true })}
+            </time>
+          ) : null}
+          <button
+            type="button"
+            onClick={save}
+            disabled={!dirty || mProgress.isPending}
+            className={cn(
+              "inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-4 text-sm font-semibold transition-colors disabled:opacity-40",
+              dirty ? "bg-gradient-accent text-white" : "glass text-muted-foreground",
+            )}
+          >
+            <Save className="h-4 w-4" aria-hidden="true" />
+            {mProgress.isPending ? "Saving…" : "Save progress"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

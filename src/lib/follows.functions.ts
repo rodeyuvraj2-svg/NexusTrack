@@ -59,8 +59,14 @@ export const getFollowCounts = createServerFn({ method: "GET" })
   .validator((input) => z.object({ user_id: uuid }).parse(input))
   .handler(async ({ context, data }) => {
     const [followerCount, followingCount] = await Promise.all([
-      context.supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", data.user_id),
-      context.supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", data.user_id),
+      context.supabase
+        .from("follows")
+        .select("*", { count: "exact", head: true })
+        .eq("following_id", data.user_id),
+      context.supabase
+        .from("follows")
+        .select("*", { count: "exact", head: true })
+        .eq("follower_id", data.user_id),
     ]);
     if (followerCount.error) throw followerCount.error;
     if (followingCount.error) throw followingCount.error;
@@ -80,8 +86,14 @@ export const getFollowState = createServerFn({ method: "GET" })
   .validator((input) => z.object({ user_id: uuid }).parse(input))
   .handler(async ({ context, data }) => {
     const [followerCount, followingCount, isFollowing] = await Promise.all([
-      context.supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", data.user_id),
-      context.supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", data.user_id),
+      context.supabase
+        .from("follows")
+        .select("*", { count: "exact", head: true })
+        .eq("following_id", data.user_id),
+      context.supabase
+        .from("follows")
+        .select("*", { count: "exact", head: true })
+        .eq("follower_id", data.user_id),
       // head:true returns no rows — the answer is in `count`, so it must be
       // requested explicitly (a bare head query leaves count undefined and
       // makes this always read as "not following").

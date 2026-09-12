@@ -2,13 +2,24 @@ import { useParams, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  getDetails, cacheMedia, getRecommendations, getCast, reclassifyMedia
+  getDetails,
+  cacheMedia,
+  getRecommendations,
+  getCast,
+  reclassifyMedia,
 } from "@/lib/tmdb.functions";
 import {
-  getAnimeDetails, getMultipleAnimeDetails, getMangaDetails, getMultipleMangaDetails
+  getAnimeDetails,
+  getMultipleAnimeDetails,
+  getMangaDetails,
+  getMultipleMangaDetails,
 } from "@/lib/anilist.functions";
 import {
-  getLibraryItem, upsertLibraryItem, removeLibraryItem, listSeasonsWithProgress, setSeasonStatus
+  getLibraryItem,
+  upsertLibraryItem,
+  removeLibraryItem,
+  listSeasonsWithProgress,
+  setSeasonStatus,
 } from "@/lib/library.functions";
 import { listReviews, upsertReview, deleteReview, toggleReviewLike } from "@/lib/reviews.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -71,16 +82,35 @@ export function useMediaDetail() {
   const detailsData = isManga
     ? { summary: mangaDetailsQ.data?.summary, extra: mangaDetailsQ.data?.extra }
     : isAnime
-    ? { summary: animeDetailsQ.data?.summary, extra: animeDetailsQ.data?.extra }
-    : { summary: tmdbDetailsQ.data?.summary, seasons: tmdbDetailsQ.data?.seasons, extra: undefined };
+      ? { summary: animeDetailsQ.data?.summary, extra: animeDetailsQ.data?.extra }
+      : {
+          summary: tmdbDetailsQ.data?.summary,
+          seasons: tmdbDetailsQ.data?.seasons,
+          extra: undefined,
+        };
 
-  const detailsLoading = isManga ? mangaDetailsQ.isLoading : isAnime ? animeDetailsQ.isLoading : tmdbDetailsQ.isLoading;
-  const detailsError = isManga ? mangaDetailsQ.isError : isAnime ? animeDetailsQ.isError : tmdbDetailsQ.isError;
+  const detailsLoading = isManga
+    ? mangaDetailsQ.isLoading
+    : isAnime
+      ? animeDetailsQ.isLoading
+      : tmdbDetailsQ.isLoading;
+  const detailsError = isManga
+    ? mangaDetailsQ.isError
+    : isAnime
+      ? animeDetailsQ.isError
+      : tmdbDetailsQ.isError;
 
   // ---- Cache/Library ----
   const cached = useQuery({
     queryKey: ["cache", type, source, id],
-    queryFn: () => cacheFn({ data: { type: type as "movie" | "tv" | "anime" | "manga", source: source as "tmdb" | "anilist", external_id: id } }),
+    queryFn: () =>
+      cacheFn({
+        data: {
+          type: type as "movie" | "tv" | "anime" | "manga",
+          source: source as "tmdb" | "anilist",
+          external_id: id,
+        },
+      }),
     retry: 1,
     staleTime: 60_000,
   });
@@ -114,8 +144,14 @@ export function useMediaDetail() {
   });
 
   const mUpsert = useMutation({
-    mutationFn: (payload: { media_id: string; status?: WatchStatus; rating?: number | null; favorite?: boolean; hidden?: boolean; notes?: string | null }) =>
-      upsertFn({ data: payload }),
+    mutationFn: (payload: {
+      media_id: string;
+      status?: WatchStatus;
+      rating?: number | null;
+      favorite?: boolean;
+      hidden?: boolean;
+      notes?: string | null;
+    }) => upsertFn({ data: payload }),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["library-entry", mediaId] });
       qc.invalidateQueries({ queryKey: ["library"] });
@@ -135,7 +171,9 @@ export function useMediaDetail() {
 
   const mSetSeason = useMutation({
     mutationFn: (payload: { season_id: string; status: WatchStatus }) =>
-      setSeasonFn({ data: { media_id: mediaId!, season_id: payload.season_id, status: payload.status } }),
+      setSeasonFn({
+        data: { media_id: mediaId!, season_id: payload.season_id, status: payload.status },
+      }),
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ["seasons", mediaId] });
       qc.invalidateQueries({ queryKey: ["library-entry", mediaId] });
@@ -145,7 +183,10 @@ export function useMediaDetail() {
 
   return {
     // Params & State
-    type, source, id, mediaId,
+    type,
+    source,
+    id,
+    mediaId,
     details: detailsData,
     detailsLoading,
     detailsError,

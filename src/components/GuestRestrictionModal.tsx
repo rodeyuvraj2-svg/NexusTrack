@@ -24,8 +24,8 @@ export function GuestRestrictionModal() {
         <DialogHeader>
           <DialogTitle className="text-xl">Create an account to continue</DialogTitle>
           <DialogDescription className="mt-2 text-sm leading-relaxed">
-            Save your progress, build your library, connect with friends, and sync everything
-            across devices.
+            Save your progress, build your library, connect with friends, and sync everything across
+            devices.
           </DialogDescription>
         </DialogHeader>
         <div className="mt-4 flex flex-col gap-2">

@@ -77,7 +77,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "NexusTrack — One list, every screen" },
-      { name: "description", content: "Track movies, TV, and anime together. Season-level progress, unified search, friends' libraries. Free forever." },
+      {
+        name: "description",
+        content:
+          "Track movies, TV, and anime together. Season-level progress, unified search, friends' libraries. Free forever.",
+      },
       { name: "author", content: "NexusTrack" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -90,7 +94,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://media.kitsu.app" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap",
+      },
       { rel: "icon", href: "/favicon.svg?v=2", type: "image/svg+xml" },
     ],
   }),
