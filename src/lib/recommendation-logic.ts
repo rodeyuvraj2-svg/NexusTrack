@@ -27,7 +27,10 @@ export function assertNotSelf(senderId: string, recipientId: string): void {
  * Recipients must be an accepted friend (either direction) or a followed /
  * following user (either direction), matching the existing relationship model.
  */
-export function isRecommendableRecipient(relatedUserIds: ReadonlySet<string>, recipientId: string): boolean {
+export function isRecommendableRecipient(
+  relatedUserIds: ReadonlySet<string>,
+  recipientId: string,
+): boolean {
   return relatedUserIds.has(recipientId);
 }
 
@@ -46,18 +49,27 @@ export function assertNotFallbackMedia(isFallback: boolean | undefined): void {
 }
 
 /** Sender or recipient may delete; anyone else must be rejected. */
-export function canDeleteRecommendation(userId: string, rec: Pick<RecommendationRecord, "sender_id" | "recipient_id">): boolean {
+export function canDeleteRecommendation(
+  userId: string,
+  rec: Pick<RecommendationRecord, "sender_id" | "recipient_id">,
+): boolean {
   return userId === rec.sender_id || userId === rec.recipient_id;
 }
 
 /** Only the recipient changes read/dismissed status. */
-export function canUpdateRecommendation(userId: string, rec: Pick<RecommendationRecord, "recipient_id">): boolean {
+export function canUpdateRecommendation(
+  userId: string,
+  rec: Pick<RecommendationRecord, "recipient_id">,
+): boolean {
   return userId === rec.recipient_id;
 }
 
 /** Expired recommendations are cleaned up server-side; this is the same rule
  *  used to filter them out of reads so the feed and the cleanup agree. */
-export function isExpired(rec: Pick<RecommendationRecord, "expires_at">, now: Date = new Date()): boolean {
+export function isExpired(
+  rec: Pick<RecommendationRecord, "expires_at">,
+  now: Date = new Date(),
+): boolean {
   if (!rec.expires_at) return false;
   return new Date(rec.expires_at).getTime() <= now.getTime();
 }

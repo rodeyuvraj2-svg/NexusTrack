@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { computeStreaks, computeHoursWatched, computeFavoriteGenres, type StatRow } from "./stats-utils";
+import {
+  computeStreaks,
+  computeHoursWatched,
+  computeFavoriteGenres,
+  type StatRow,
+} from "./stats-utils";
 
 // ── computeStreaks ───────────────────────────────────────────────────────────
 
@@ -36,7 +41,11 @@ describe("computeStreaks", () => {
   test("gap breaks the current streak but keeps the longest", () => {
     // 5-day run ending 3 days ago, plus today.
     const dates = [
-      iso(2026, 9, 1), iso(2026, 9, 2), iso(2026, 9, 3), iso(2026, 9, 4), iso(2026, 9, 5),
+      iso(2026, 9, 1),
+      iso(2026, 9, 2),
+      iso(2026, 9, 3),
+      iso(2026, 9, 4),
+      iso(2026, 9, 5),
       iso(2026, 9, 6),
     ];
     const r = computeStreaks(dates, NOW);
@@ -48,7 +57,10 @@ describe("computeStreaks", () => {
   test("longest streak survives a gap that breaks the current streak", () => {
     // Runs: Sep 1–4 (4 days), gap, Sep 6 (today).
     const dates = [
-      iso(2026, 9, 1), iso(2026, 9, 2), iso(2026, 9, 3), iso(2026, 9, 4),
+      iso(2026, 9, 1),
+      iso(2026, 9, 2),
+      iso(2026, 9, 3),
+      iso(2026, 9, 4),
       iso(2026, 9, 6),
     ];
     const r = computeStreaks(dates, NOW);
@@ -79,9 +91,15 @@ describe("computeHoursWatched", () => {
     rating: null,
     favorite: false,
     media: {
-      id: "m1", media_type: "movie", runtime: 120, title: "T",
-      poster_url: null, source: "tmdb", external_id: "1",
-      genres: null, season_count: null,
+      id: "m1",
+      media_type: "movie",
+      runtime: 120,
+      title: "T",
+      poster_url: null,
+      source: "tmdb",
+      external_id: "1",
+      genres: null,
+      season_count: null,
     },
     ...partial,
   });
@@ -98,9 +116,15 @@ describe("computeHoursWatched", () => {
     // 24 min × 12 episodes = 288 min ≈ 4.8 → rounds to 5
     const anime = row({
       media: {
-        id: "a1", media_type: "anime", runtime: 24, title: "A",
-        poster_url: null, source: "anilist", external_id: "2",
-        genres: null, season_count: 12, // anilist stores episode count here
+        id: "a1",
+        media_type: "anime",
+        runtime: 24,
+        title: "A",
+        poster_url: null,
+        source: "anilist",
+        external_id: "2",
+        genres: null,
+        season_count: 12, // anilist stores episode count here
       },
     });
     expect(computeHoursWatched([anime])).toBe(5);
@@ -109,9 +133,15 @@ describe("computeHoursWatched", () => {
   test("missing season_count falls back to a single episode", () => {
     const tv = row({
       media: {
-        id: "t1", media_type: "tv", runtime: 60, title: "V",
-        poster_url: null, source: "tmdb", external_id: "3",
-        genres: null, season_count: null,
+        id: "t1",
+        media_type: "tv",
+        runtime: 60,
+        title: "V",
+        poster_url: null,
+        source: "tmdb",
+        external_id: "3",
+        genres: null,
+        season_count: null,
       },
     });
     expect(computeHoursWatched([tv])).toBe(1);
@@ -127,11 +157,19 @@ describe("computeHoursWatched", () => {
 describe("computeFavoriteGenres", () => {
   test("counts and ranks genres, top 8", () => {
     const mk = (genres: string[]): StatRow => ({
-      status: "completed", rating: null, favorite: false,
+      status: "completed",
+      rating: null,
+      favorite: false,
       media: {
-        id: "x", media_type: "movie", runtime: null, title: "x",
-        poster_url: null, source: "tmdb", external_id: "x",
-        genres, season_count: null,
+        id: "x",
+        media_type: "movie",
+        runtime: null,
+        title: "x",
+        poster_url: null,
+        source: "tmdb",
+        external_id: "x",
+        genres,
+        season_count: null,
       },
     });
     const rows = [
@@ -147,6 +185,8 @@ describe("computeFavoriteGenres", () => {
   });
 
   test("no genres → empty array", () => {
-    expect(computeFavoriteGenres([{ status: "planned", rating: null, favorite: false, media: null }])).toEqual([]);
+    expect(
+      computeFavoriteGenres([{ status: "planned", rating: null, favorite: false, media: null }]),
+    ).toEqual([]);
   });
 });

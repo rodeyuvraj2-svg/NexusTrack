@@ -1,471 +1,471 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
+    PostgrestVersion: "14.5";
+  };
   public: {
     Tables: {
       activity: {
         Row: {
-          created_at: string
-          id: string
-          kind: Database["public"]["Enums"]["activity_kind"]
-          media_id: string | null
-          payload: Json | null
-          user_id: string
-        }
+          created_at: string;
+          id: string;
+          kind: Database["public"]["Enums"]["activity_kind"];
+          media_id: string | null;
+          payload: Json | null;
+          user_id: string;
+        };
         Insert: {
-          created_at?: string
-          id?: string
-          kind: Database["public"]["Enums"]["activity_kind"]
-          media_id?: string | null
-          payload?: Json | null
-          user_id: string
-        }
+          created_at?: string;
+          id?: string;
+          kind: Database["public"]["Enums"]["activity_kind"];
+          media_id?: string | null;
+          payload?: Json | null;
+          user_id: string;
+        };
         Update: {
-          created_at?: string
-          id?: string
-          kind?: Database["public"]["Enums"]["activity_kind"]
-          media_id?: string | null
-          payload?: Json | null
-          user_id?: string
-        }
+          created_at?: string;
+          id?: string;
+          kind?: Database["public"]["Enums"]["activity_kind"];
+          media_id?: string | null;
+          payload?: Json | null;
+          user_id?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "activity_media_id_fkey"
-            columns: ["media_id"]
-            isOneToOne: false
-            referencedRelation: "media"
-            referencedColumns: ["id"]
+            foreignKeyName: "activity_media_id_fkey";
+            columns: ["media_id"];
+            isOneToOne: false;
+            referencedRelation: "media";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       friendships: {
         Row: {
-          addressee_id: string
-          created_at: string
-          id: string
-          requester_id: string
-          status: Database["public"]["Enums"]["friend_status"]
-          updated_at: string
-        }
+          addressee_id: string;
+          created_at: string;
+          id: string;
+          requester_id: string;
+          status: Database["public"]["Enums"]["friend_status"];
+          updated_at: string;
+        };
         Insert: {
-          addressee_id: string
-          created_at?: string
-          id?: string
-          requester_id: string
-          status?: Database["public"]["Enums"]["friend_status"]
-          updated_at?: string
-        }
+          addressee_id: string;
+          created_at?: string;
+          id?: string;
+          requester_id: string;
+          status?: Database["public"]["Enums"]["friend_status"];
+          updated_at?: string;
+        };
         Update: {
-          addressee_id?: string
-          created_at?: string
-          id?: string
-          requester_id?: string
-          status?: Database["public"]["Enums"]["friend_status"]
-          updated_at?: string
-        }
-        Relationships: []
-      }
+          addressee_id?: string;
+          created_at?: string;
+          id?: string;
+          requester_id?: string;
+          status?: Database["public"]["Enums"]["friend_status"];
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       follows: {
         Row: {
-          id: string
-          follower_id: string
-          following_id: string
-          created_at: string
-        }
+          id: string;
+          follower_id: string;
+          following_id: string;
+          created_at: string;
+        };
         Insert: {
-          id?: string
-          follower_id: string
-          following_id: string
-          created_at?: string
-        }
+          id?: string;
+          follower_id: string;
+          following_id: string;
+          created_at?: string;
+        };
         Update: {
-          id?: string
-          follower_id?: string
-          following_id?: string
-          created_at?: string
-        }
-        Relationships: []
-      }
+          id?: string;
+          follower_id?: string;
+          following_id?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       media: {
         Row: {
-          backdrop_url: string | null
-          cached_at: string
-          chapter_count: number | null
-          external_id: string
-          genres: string[] | null
-          id: string
-          media_type: Database["public"]["Enums"]["media_type"]
-          original_title: string | null
-          overview: string | null
-          poster_url: string | null
-          raw: Json | null
-          release_year: number | null
-          runtime: number | null
-          season_count: number | null
-          source: string
-          status: string | null
-          title: string
-          volume_count: number | null
-          vote_average: number | null
-        }
+          backdrop_url: string | null;
+          cached_at: string;
+          chapter_count: number | null;
+          external_id: string;
+          genres: string[] | null;
+          id: string;
+          media_type: Database["public"]["Enums"]["media_type"];
+          original_title: string | null;
+          overview: string | null;
+          poster_url: string | null;
+          raw: Json | null;
+          release_year: number | null;
+          runtime: number | null;
+          season_count: number | null;
+          source: string;
+          status: string | null;
+          title: string;
+          volume_count: number | null;
+          vote_average: number | null;
+        };
         Insert: {
-          backdrop_url?: string | null
-          cached_at?: string
-          chapter_count?: number | null
-          external_id: string
-          genres?: string[] | null
-          id?: string
-          media_type: Database["public"]["Enums"]["media_type"]
-          original_title?: string | null
-          overview?: string | null
-          poster_url?: string | null
-          raw?: Json | null
-          release_year?: number | null
-          runtime?: number | null
-          season_count?: number | null
-          source?: string
-          status?: string | null
-          title: string
-          volume_count?: number | null
-          vote_average?: number | null
-        }
+          backdrop_url?: string | null;
+          cached_at?: string;
+          chapter_count?: number | null;
+          external_id: string;
+          genres?: string[] | null;
+          id?: string;
+          media_type: Database["public"]["Enums"]["media_type"];
+          original_title?: string | null;
+          overview?: string | null;
+          poster_url?: string | null;
+          raw?: Json | null;
+          release_year?: number | null;
+          runtime?: number | null;
+          season_count?: number | null;
+          source?: string;
+          status?: string | null;
+          title: string;
+          volume_count?: number | null;
+          vote_average?: number | null;
+        };
         Update: {
-          backdrop_url?: string | null
-          cached_at?: string
-          chapter_count?: number | null
-          external_id?: string
-          genres?: string[] | null
-          id?: string
-          media_type?: Database["public"]["Enums"]["media_type"]
-          original_title?: string | null
-          overview?: string | null
-          poster_url?: string | null
-          raw?: Json | null
-          release_year?: number | null
-          runtime?: number | null
-          season_count?: number | null
-          source?: string
-          status?: string | null
-          title?: string
-          volume_count?: number | null
-          vote_average?: number | null
-        }
-        Relationships: []
-      }
+          backdrop_url?: string | null;
+          cached_at?: string;
+          chapter_count?: number | null;
+          external_id?: string;
+          genres?: string[] | null;
+          id?: string;
+          media_type?: Database["public"]["Enums"]["media_type"];
+          original_title?: string | null;
+          overview?: string | null;
+          poster_url?: string | null;
+          raw?: Json | null;
+          release_year?: number | null;
+          runtime?: number | null;
+          season_count?: number | null;
+          source?: string;
+          status?: string | null;
+          title?: string;
+          volume_count?: number | null;
+          vote_average?: number | null;
+        };
+        Relationships: [];
+      };
       notifications: {
         Row: {
-          created_at: string
-          id: string
-          kind: string
-          payload: Json | null
-          read_at: string | null
-          user_id: string
-        }
+          created_at: string;
+          id: string;
+          kind: string;
+          payload: Json | null;
+          read_at: string | null;
+          user_id: string;
+        };
         Insert: {
-          created_at?: string
-          id?: string
-          kind: string
-          payload?: Json | null
-          read_at?: string | null
-          user_id: string
-        }
+          created_at?: string;
+          id?: string;
+          kind: string;
+          payload?: Json | null;
+          read_at?: string | null;
+          user_id: string;
+        };
         Update: {
-          created_at?: string
-          id?: string
-          kind?: string
-          payload?: Json | null
-          read_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
+          created_at?: string;
+          id?: string;
+          kind?: string;
+          payload?: Json | null;
+          read_at?: string | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       profiles: {
         Row: {
-          avatar_url: string | null
-          bio: string | null
-          created_at: string
-          display_name: string | null
-          id: string
-          is_public: boolean
-          updated_at: string
-          username: string
-        }
+          avatar_url: string | null;
+          bio: string | null;
+          created_at: string;
+          display_name: string | null;
+          id: string;
+          is_public: boolean;
+          updated_at: string;
+          username: string;
+        };
         Insert: {
-          avatar_url?: string | null
-          bio?: string | null
-          created_at?: string
-          display_name?: string | null
-          id: string
-          is_public?: boolean
-          updated_at?: string
-          username: string
-        }
+          avatar_url?: string | null;
+          bio?: string | null;
+          created_at?: string;
+          display_name?: string | null;
+          id: string;
+          is_public?: boolean;
+          updated_at?: string;
+          username: string;
+        };
         Update: {
-          avatar_url?: string | null
-          bio?: string | null
-          created_at?: string
-          display_name?: string | null
-          id?: string
-          is_public?: boolean
-          updated_at?: string
-          username?: string
-        }
-        Relationships: []
-      }
+          avatar_url?: string | null;
+          bio?: string | null;
+          created_at?: string;
+          display_name?: string | null;
+          id?: string;
+          is_public?: boolean;
+          updated_at?: string;
+          username?: string;
+        };
+        Relationships: [];
+      };
       review_likes: {
         Row: {
-          created_at: string
-          id: string
-          review_id: string
-          user_id: string
-        }
+          created_at: string;
+          id: string;
+          review_id: string;
+          user_id: string;
+        };
         Insert: {
-          created_at?: string
-          id?: string
-          review_id: string
-          user_id: string
-        }
+          created_at?: string;
+          id?: string;
+          review_id: string;
+          user_id: string;
+        };
         Update: {
-          created_at?: string
-          id?: string
-          review_id?: string
-          user_id?: string
-        }
+          created_at?: string;
+          id?: string;
+          review_id?: string;
+          user_id?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "review_likes_review_id_fkey"
-            columns: ["review_id"]
-            isOneToOne: false
-            referencedRelation: "reviews"
-            referencedColumns: ["id"]
+            foreignKeyName: "review_likes_review_id_fkey";
+            columns: ["review_id"];
+            isOneToOne: false;
+            referencedRelation: "reviews";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       reviews: {
         Row: {
-          body: string
-          created_at: string
-          id: string
-          likes: number
-          media_id: string
-          updated_at: string
-          user_id: string
-        }
+          body: string;
+          created_at: string;
+          id: string;
+          likes: number;
+          media_id: string;
+          updated_at: string;
+          user_id: string;
+        };
         Insert: {
-          body: string
-          created_at?: string
-          id?: string
-          likes?: number
-          media_id: string
-          updated_at?: string
-          user_id: string
-        }
+          body: string;
+          created_at?: string;
+          id?: string;
+          likes?: number;
+          media_id: string;
+          updated_at?: string;
+          user_id: string;
+        };
         Update: {
-          body?: string
-          created_at?: string
-          id?: string
-          likes?: number
-          media_id?: string
-          updated_at?: string
-          user_id?: string
-        }
+          body?: string;
+          created_at?: string;
+          id?: string;
+          likes?: number;
+          media_id?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "reviews_media_id_fkey"
-            columns: ["media_id"]
-            isOneToOne: false
-            referencedRelation: "media"
-            referencedColumns: ["id"]
+            foreignKeyName: "reviews_media_id_fkey";
+            columns: ["media_id"];
+            isOneToOne: false;
+            referencedRelation: "media";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       seasons: {
         Row: {
-          air_date: string | null
-          episode_count: number | null
-          id: string
-          media_id: string
-          name: string | null
-          overview: string | null
-          poster_url: string | null
-          season_number: number
-        }
+          air_date: string | null;
+          episode_count: number | null;
+          id: string;
+          media_id: string;
+          name: string | null;
+          overview: string | null;
+          poster_url: string | null;
+          season_number: number;
+        };
         Insert: {
-          air_date?: string | null
-          episode_count?: number | null
-          id?: string
-          media_id: string
-          name?: string | null
-          overview?: string | null
-          poster_url?: string | null
-          season_number: number
-        }
+          air_date?: string | null;
+          episode_count?: number | null;
+          id?: string;
+          media_id: string;
+          name?: string | null;
+          overview?: string | null;
+          poster_url?: string | null;
+          season_number: number;
+        };
         Update: {
-          air_date?: string | null
-          episode_count?: number | null
-          id?: string
-          media_id?: string
-          name?: string | null
-          overview?: string | null
-          poster_url?: string | null
-          season_number?: number
-        }
+          air_date?: string | null;
+          episode_count?: number | null;
+          id?: string;
+          media_id?: string;
+          name?: string | null;
+          overview?: string | null;
+          poster_url?: string | null;
+          season_number?: number;
+        };
         Relationships: [
           {
-            foreignKeyName: "seasons_media_id_fkey"
-            columns: ["media_id"]
-            isOneToOne: false
-            referencedRelation: "media"
-            referencedColumns: ["id"]
+            foreignKeyName: "seasons_media_id_fkey";
+            columns: ["media_id"];
+            isOneToOne: false;
+            referencedRelation: "media";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       user_media: {
         Row: {
-          created_at: string
-          favorite: boolean
-          hidden: boolean
-          id: string
-          media_id: string
-          notes: string | null
-          progress: number
-          rating: number | null
-          status: Database["public"]["Enums"]["watch_status"]
-          updated_at: string
-          user_id: string
-        }
+          created_at: string;
+          current_chapter: number | null;
+          current_episode: number | null;
+          current_season: number | null;
+          favorite: boolean;
+          hidden: boolean;
+          id: string;
+          media_id: string;
+          notes: string | null;
+          progress: number;
+          progress_updated_at: string | null;
+          rating: number | null;
+          status: Database["public"]["Enums"]["watch_status"];
+          updated_at: string;
+          user_id: string;
+        };
         Insert: {
-          created_at?: string
-          favorite?: boolean
-          hidden?: boolean
-          id?: string
-          media_id: string
-          notes?: string | null
-          progress?: number
-          rating?: number | null
-          status?: Database["public"]["Enums"]["watch_status"]
-          updated_at?: string
-          user_id: string
-        }
+          created_at?: string;
+          current_chapter?: number | null;
+          current_episode?: number | null;
+          current_season?: number | null;
+          favorite?: boolean;
+          hidden?: boolean;
+          id?: string;
+          media_id: string;
+          notes?: string | null;
+          progress?: number;
+          progress_updated_at?: string | null;
+          rating?: number | null;
+          status?: Database["public"]["Enums"]["watch_status"];
+          updated_at?: string;
+          user_id: string;
+        };
         Update: {
-          created_at?: string
-          favorite?: boolean
-          hidden?: boolean
-          id?: string
-          media_id?: string
-          notes?: string | null
-          progress?: number
-          rating?: number | null
-          status?: Database["public"]["Enums"]["watch_status"]
-          updated_at?: string
-          user_id?: string
-        }
+          created_at?: string;
+          current_chapter?: number | null;
+          current_episode?: number | null;
+          current_season?: number | null;
+          favorite?: boolean;
+          hidden?: boolean;
+          id?: string;
+          media_id?: string;
+          notes?: string | null;
+          progress?: number;
+          progress_updated_at?: string | null;
+          rating?: number | null;
+          status?: Database["public"]["Enums"]["watch_status"];
+          updated_at?: string;
+          user_id?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "user_media_media_id_fkey"
-            columns: ["media_id"]
-            isOneToOne: false
-            referencedRelation: "media"
-            referencedColumns: ["id"]
+            foreignKeyName: "user_media_media_id_fkey";
+            columns: ["media_id"];
+            isOneToOne: false;
+            referencedRelation: "media";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       user_seasons: {
         Row: {
-          id: string
-          season_id: string
-          status: Database["public"]["Enums"]["watch_status"]
-          updated_at: string
-          user_id: string
-          user_media_id: string
-        }
+          id: string;
+          season_id: string;
+          status: Database["public"]["Enums"]["watch_status"];
+          updated_at: string;
+          user_id: string;
+          user_media_id: string;
+        };
         Insert: {
-          id?: string
-          season_id: string
-          status?: Database["public"]["Enums"]["watch_status"]
-          updated_at?: string
-          user_id: string
-          user_media_id: string
-        }
+          id?: string;
+          season_id: string;
+          status?: Database["public"]["Enums"]["watch_status"];
+          updated_at?: string;
+          user_id: string;
+          user_media_id: string;
+        };
         Update: {
-          id?: string
-          season_id?: string
-          status?: Database["public"]["Enums"]["watch_status"]
-          updated_at?: string
-          user_id?: string
-          user_media_id?: string
-        }
+          id?: string;
+          season_id?: string;
+          status?: Database["public"]["Enums"]["watch_status"];
+          updated_at?: string;
+          user_id?: string;
+          user_media_id?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "user_seasons_season_id_fkey"
-            columns: ["season_id"]
-            isOneToOne: false
-            referencedRelation: "seasons"
-            referencedColumns: ["id"]
+            foreignKeyName: "user_seasons_season_id_fkey";
+            columns: ["season_id"];
+            isOneToOne: false;
+            referencedRelation: "seasons";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "user_seasons_user_media_id_fkey"
-            columns: ["user_media_id"]
-            isOneToOne: false
-            referencedRelation: "user_media"
-            referencedColumns: ["id"]
+            foreignKeyName: "user_seasons_user_media_id_fkey";
+            columns: ["user_media_id"];
+            isOneToOne: false;
+            referencedRelation: "user_media";
+            referencedColumns: ["id"];
           },
-        ]
-      }
-    }
+        ];
+      };
+    };
     Views: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     Functions: {
-      are_friends: { Args: { a: string; b: string }; Returns: boolean }
-      get_profile_stats: { Args: { p_user_id: string }; Returns: Json }
+      are_friends: { Args: { a: string; b: string }; Returns: boolean };
+      get_profile_stats: { Args: { p_user_id: string }; Returns: Json };
       upsert_media: {
         Args: {
-          p_media_type: string
-          p_source: string
-          p_external_id: string
-          p_title: string
-          p_overview?: string | null
-          p_poster_url?: string | null
-          p_backdrop_url?: string | null
-          p_release_year?: number | null
-          p_vote_average?: number | null
-          p_genres?: string[] | null
-          p_runtime?: number | null
-          p_season_count?: number | null
-          p_status?: string | null
-        }
-        Returns: string
-      }
+          p_media_type: string;
+          p_source: string;
+          p_external_id: string;
+          p_title: string;
+          p_overview?: string | null;
+          p_poster_url?: string | null;
+          p_backdrop_url?: string | null;
+          p_release_year?: number | null;
+          p_vote_average?: number | null;
+          p_genres?: string[] | null;
+          p_runtime?: number | null;
+          p_season_count?: number | null;
+          p_status?: string | null;
+        };
+        Returns: string;
+      };
       upsert_seasons: {
         Args: {
-          p_media_id: string
-          p_seasons: string
-        }
-        Returns: void
-      }
-    }
+          p_media_id: string;
+          p_seasons: string;
+        };
+        Returns: void;
+      };
+    };
     Enums: {
-      activity_kind:
-        | "started"
-        | "completed"
-        | "added"
-        | "favorited"
-        | "rated"
-        | "friend_joined"
-      friend_status: "pending" | "accepted" | "blocked"
-      media_type: "movie" | "tv" | "anime" | "manga"
+      activity_kind: "started" | "completed" | "added" | "favorited" | "rated" | "friend_joined";
+      friend_status: "pending" | "accepted" | "blocked";
+      media_type: "movie" | "tv" | "anime" | "manga";
       watch_status:
         | "watching"
         | "completed"
@@ -473,142 +473,133 @@ export type Database = {
         | "paused"
         | "dropped"
         | "skipped"
-        | "rewatching"
-    }
+        | "rewatching";
+    };
     CompositeTypes: {
-      [_ in never]: never
-    }
-  }
-}
+      [_ in never]: never;
+    };
+  };
+};
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">];
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
       DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R
+      Row: infer R;
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R;
       }
       ? R
       : never
-    : never
+    : never;
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
+      Insert: infer I;
     }
     ? I
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
     ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
+        Insert: infer I;
       }
       ? I
       : never
-    : never
+    : never;
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
+      Update: infer U;
     }
     ? U
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
     ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
+        Update: infer U;
       }
       ? U
       : never
-    : never
+    : never;
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
+    : never;
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
+    : never;
 
 export const Constants = {
   public: {
     Enums: {
-      activity_kind: [
-        "started",
-        "completed",
-        "added",
-        "favorited",
-        "rated",
-        "friend_joined",
-      ],
+      activity_kind: ["started", "completed", "added", "favorited", "rated", "friend_joined"],
       friend_status: ["pending", "accepted", "blocked"],
       media_type: ["movie", "tv", "anime"],
       watch_status: [
@@ -622,4 +613,4 @@ export const Constants = {
       ],
     },
   },
-} as const
+} as const;

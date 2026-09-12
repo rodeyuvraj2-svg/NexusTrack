@@ -31,7 +31,8 @@ export const Route = createFileRoute("/_authenticated")({
       // refresh must not destroy the local session — the user would be
       // logged out by a momentary offline blip. Redirecting to /auth is
       // fine either way; the login page will pick the session back up.
-      const authFailure = !!error && /refresh|invalid|revoked|expired|bad.?jwt/i.test(error.message);
+      const authFailure =
+        !!error && /refresh|invalid|revoked|expired|bad.?jwt/i.test(error.message);
       if (authFailure) {
         await supabase.auth.signOut();
       }

@@ -6,7 +6,9 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", ".output", ".vinxi"] },
+  // .claude holds a vendored Astro template whose .prettierrc references a
+  // plugin this project doesn't install; .vercel is build output.
+  { ignores: ["dist", ".output", ".vinxi", ".vercel", ".claude"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],

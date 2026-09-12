@@ -24,8 +24,20 @@ export function ErrorPanel({
 }) {
   return (
     <div className={cn("glass rounded-2xl p-12 text-center animate-fade-in", className)}>
-      <Icon className={cn("mx-auto mb-3 h-8 w-8", tone === "destructive" ? "text-destructive" : "text-muted-foreground")} />
-      <p className={cn("text-sm", tone === "destructive" ? "text-foreground" : "text-muted-foreground")}>{title}</p>
+      <Icon
+        className={cn(
+          "mx-auto mb-3 h-8 w-8",
+          tone === "destructive" ? "text-destructive" : "text-muted-foreground",
+        )}
+      />
+      <p
+        className={cn(
+          "text-sm",
+          tone === "destructive" ? "text-foreground" : "text-muted-foreground",
+        )}
+      >
+        {title}
+      </p>
       {detail ? <p className="mt-1 text-xs text-muted-foreground">{detail}</p> : null}
       {action ? <div className="mt-4">{action}</div> : null}
     </div>

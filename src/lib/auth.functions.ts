@@ -20,7 +20,7 @@ export const deleteAccount = createServerFn({ method: "POST" })
     if (!supabaseAdmin?.from) {
       throw new Error(
         "Account deletion requires SUPABASE_SERVICE_ROLE_KEY in your .env file. " +
-        "Get it from your Supabase dashboard: Settings → API → service_role key"
+          "Get it from your Supabase dashboard: Settings → API → service_role key",
       );
     }
     if (!context.userId) {

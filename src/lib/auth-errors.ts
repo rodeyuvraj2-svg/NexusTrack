@@ -5,7 +5,8 @@ export const AUTH_ERROR_MESSAGES: Record<string, string> = {
   network_error: "Unable to connect. Check your internet connection.",
   user_not_found: "No account found with this email address.",
   email_taken: "An account with this email already exists.",
-  weak_password: "Password is too weak. Use at least 8 characters with a mix of letters and numbers.",
+  weak_password:
+    "Password is too weak. Use at least 8 characters with a mix of letters and numbers.",
   session_expired: "Your session has expired. Please sign in again.",
 };
 
@@ -14,7 +15,8 @@ const FALLBACK_MESSAGE = "Something went wrong. Please try again.";
 export function getAuthErrorMessage(error: unknown): string {
   if (!error) return FALLBACK_MESSAGE;
 
-  const message = typeof error === "string" ? error : error instanceof Error ? error.message : String(error);
+  const message =
+    typeof error === "string" ? error : error instanceof Error ? error.message : String(error);
   const lower = message.toLowerCase();
 
   // Network errors
@@ -23,7 +25,11 @@ export function getAuthErrorMessage(error: unknown): string {
   }
 
   // Supabase-specific error codes/messages
-  if (lower.includes("email_rate_limit") || lower.includes("too many requests") || lower.includes("retry")) {
+  if (
+    lower.includes("email_rate_limit") ||
+    lower.includes("too many requests") ||
+    lower.includes("retry")
+  ) {
     return AUTH_ERROR_MESSAGES.email_rate_limit;
   }
 
@@ -59,12 +65,14 @@ export function parseRetryAfter(error: unknown): number | null {
   if (!error) return null;
 
   // Supabase returns retry_after_seconds in the error object or message
-  const err = error as any;
+  const err = error as { retry_after_seconds?: number | string };
   if (typeof err.retry_after_seconds === "number") return err.retry_after_seconds;
-  if (typeof err.retry_after_seconds === "string") return parseInt(err.retry_after_seconds, 10) || null;
+  if (typeof err.retry_after_seconds === "string")
+    return parseInt(err.retry_after_seconds, 10) || null;
 
   // Try to extract from error message
-  const message = typeof error === "string" ? error : error instanceof Error ? error.message : String(error);
+  const message =
+    typeof error === "string" ? error : error instanceof Error ? error.message : String(error);
   const match = message.match(/retry.*?(\d+)/i);
   if (match) return parseInt(match[1], 10);
 

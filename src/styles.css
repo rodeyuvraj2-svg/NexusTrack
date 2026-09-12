@@ -52,6 +52,10 @@ html {
 :root {
   --radius: 0.75rem;
 
+  /* Mobile top bar height — the fixed top bar and the mobile menu that
+     slides under it both derive from this so they can never drift apart. */
+  --topbar-h: 57px;
+
   /* ── Core palette (original) ── */
   --background: oklch(0.13 0.015 270);       /* #0F172A */
   --foreground: oklch(0.98 0.005 270);        /* #F8FAFC */
@@ -198,6 +202,12 @@ html {
 }
 .scrollbar-none::-webkit-scrollbar {
   display: none;
+}
+
+/* Bottom inset for fixed bars on notched phones (used by the mobile
+   bottom nav so the OS home indicator never overlaps nav items). */
+@utility safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @utility text-accent {

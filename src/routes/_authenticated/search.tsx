@@ -11,7 +11,16 @@ import { FilterTabs } from "@/components/FilterTabs";
 import { SkeletonGrid } from "@/components/Skeletons";
 import { ErrorPanel } from "@/components/ErrorPanel";
 import { EmptyState } from "@/components/EmptyState";
-import { Search as SearchIcon, Loader2, AlertCircle, Film, Tv, Sparkles, BookmarkIcon, Layers } from "lucide-react";
+import {
+  Search as SearchIcon,
+  Loader2,
+  AlertCircle,
+  Film,
+  Tv,
+  Sparkles,
+  BookmarkIcon,
+  Layers,
+} from "lucide-react";
 import { z } from "zod";
 
 // ── URL search params schema ──────────────────────────────────────────────────
@@ -21,7 +30,11 @@ const searchParamsSchema = z.object({
   type: z.enum(["all", "movie", "tv", "anime", "manga"]).optional().default("all"),
 });
 
-const CATEGORY_TABS: { id: "all" | "movie" | "tv" | "anime" | "manga"; label: string; Icon: typeof Layers }[] = [
+const CATEGORY_TABS: {
+  id: "all" | "movie" | "tv" | "anime" | "manga";
+  label: string;
+  Icon: typeof Layers;
+}[] = [
   { id: "all", label: "All Types", Icon: Layers },
   { id: "movie", label: "Movies", Icon: Film },
   { id: "tv", label: "Series / TV", Icon: Tv },
@@ -30,7 +43,12 @@ const CATEGORY_TABS: { id: "all" | "movie" | "tv" | "anime" | "manga"; label: st
 ];
 
 export const Route = createFileRoute("/_authenticated/search")({
-  head: () => ({ meta: [{ title: "Search — NexusTrack" }, { name: "description", content: "Search movies, TV, and anime from one place." }] }),
+  head: () => ({
+    meta: [
+      { title: "Search — NexusTrack" },
+      { name: "description", content: "Search movies, TV, and anime from one place." },
+    ],
+  }),
   validateSearch: searchParamsSchema,
   errorComponent: RouteErrorBoundary,
   component: SearchPage,
@@ -65,7 +83,9 @@ function SearchPage() {
   }
 
   // Focus input on mount
-  useEffect(() => { inputRef.current?.focus(); }, []);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const debounced = q.trim();
   const isIdle = debounced.length < 2;
@@ -75,7 +95,8 @@ function SearchPage() {
     // forth doesn't refetch, and we only hit the APIs the filter needs.
     queryKey: ["search", debounced, activeType],
     queryFn: async () => {
-      const wants = (t: "movie" | "tv" | "anime" | "manga") => activeType === "all" || activeType === t;
+      const wants = (t: "movie" | "tv" | "anime" | "manga") =>
+        activeType === "all" || activeType === t;
       const wantsTmdb = wants("movie") || wants("tv");
       const emptyTmdb = { movies: [], tv: [] };
       const [tmdb, anime, manga] = await Promise.allSettled([
@@ -103,10 +124,13 @@ function SearchPage() {
   const hasError = query.isError;
   const data = query.data;
 
-  const showMovies = (activeType === "all" || activeType === "movie") && (data?.movies.length ?? 0) > 0;
+  const showMovies =
+    (activeType === "all" || activeType === "movie") && (data?.movies.length ?? 0) > 0;
   const showTv = (activeType === "all" || activeType === "tv") && (data?.tv.length ?? 0) > 0;
-  const showAnime = (activeType === "all" || activeType === "anime") && (data?.anime.length ?? 0) > 0;
-  const showManga = (activeType === "all" || activeType === "manga") && (data?.manga.length ?? 0) > 0;
+  const showAnime =
+    (activeType === "all" || activeType === "anime") && (data?.anime.length ?? 0) > 0;
+  const showManga =
+    (activeType === "all" || activeType === "manga") && (data?.manga.length ?? 0) > 0;
   const hasResults = showMovies || showTv || showAnime || showManga;
 
   return (
@@ -125,8 +149,11 @@ function SearchPage() {
           aria-label="Search movies, TV, anime, and manga"
           className="flex-1 bg-transparent px-2 py-2 text-base outline-none placeholder:text-muted-foreground"
         />
-        {(isLoading || isFetching) ? (
-          <Loader2 className="mr-3 h-5 w-5 animate-spin text-muted-foreground shrink-0" aria-label="Searching" />
+        {isLoading || isFetching ? (
+          <Loader2
+            className="mr-3 h-5 w-5 animate-spin text-muted-foreground shrink-0"
+            aria-label="Searching"
+          />
         ) : q.length > 0 ? (
           <button
             onClick={() => {
@@ -134,7 +161,8 @@ function SearchPage() {
               if (inputRef.current) inputRef.current.value = "";
               inputRef.current?.focus();
             }}
-            className="mr-2 text-muted-foreground hover:text-foreground text-xs btn-press"
+            aria-label="Clear search"
+            className="mr-2 h-11 px-2 text-muted-foreground hover:text-foreground text-xs btn-press"
           >
             Clear
           </button>
@@ -156,7 +184,10 @@ function SearchPage() {
           <div>
             <h4 className="font-semibold text-sm">TV/Movie results are currently unavailable</h4>
             <p className="text-xs text-warning/80 mt-1">
-              This is because your TMDB API Key is not configured. Please add <code className="bg-black/20 rounded px-1.5 py-0.5">TMDB_API_KEY="your_key"</code> to your <code className="bg-black/20 rounded px-1.5 py-0.5">.env</code> file, then restart your dev server.
+              This is because your TMDB API Key is not configured. Please add{" "}
+              <code className="bg-black/20 rounded px-1.5 py-0.5">TMDB_API_KEY="your_key"</code> to
+              your <code className="bg-black/20 rounded px-1.5 py-0.5">.env</code> file, then
+              restart your dev server.
             </p>
           </div>
         </div>
@@ -192,7 +223,10 @@ function SearchPage() {
           title="Search failed. Please try again."
           detail={query.error?.message}
           action={
-            <button onClick={() => query.refetch()} className="rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white btn-press">
+            <button
+              onClick={() => query.refetch()}
+              className="rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white btn-press"
+            >
               Try again
             </button>
           }

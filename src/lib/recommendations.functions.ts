@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import {
   RecommendationError,
   RECOMMENDATION_MESSAGE_MAX,
@@ -32,7 +34,12 @@ export interface RecommendationItem {
   status: "unread" | "read" | "dismissed";
   created_at: string;
   read_at: string | null;
-  sender: { id: string; username: string; display_name: string | null; avatar_url: string | null } | null;
+  sender: {
+    id: string;
+    username: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
   recipient_id: string;
   media: {
     id: string;
@@ -44,15 +51,21 @@ export interface RecommendationItem {
   } | null;
 }
 
-interface FriendshipEdge { requester_id: string; addressee_id: string }
-interface FollowEdge { follower_id: string; following_id: string }
+interface FriendshipEdge {
+  requester_id: string;
+  addressee_id: string;
+}
+interface FollowEdge {
+  follower_id: string;
+  following_id: string;
+}
 
 /**
  * Users the given user may recommend to: accepted friends (either
  * direction) plus followed/following users (either direction) — the same
  * relationship model the friends page uses.
  */
-async function loadRelatedUserIds(supabase: any, userId: string): Promise<Set<string>> {
+async function loadRelatedUserIds(supabase: SupabaseClient, userId: string): Promise<Set<string>> {
   const [friendsRes, followsRes] = await Promise.all([
     supabase
       .from("friendships")
@@ -108,13 +121,19 @@ export const createRecommendation = createServerFn({ method: "POST" })
 
     const related = await loadRelatedUserIds(context.supabase, context.userId);
     if (!isRecommendableRecipient(related, data.recipient_id)) {
-      throw new RecommendationError("You can only recommend media to friends or people you follow.");
+      throw new RecommendationError(
+        "You can only recommend media to friends or people you follow.",
+      );
     }
 
     // Trusted provisioning: fetch authoritative metadata from the source
     // API — never client-supplied strings (world-readable shared table).
     const { provisionMedia } = await import("@/lib/media-provision");
-    const mediaId = await provisionMedia(data.media.media_type, data.media.source, data.media.external_id);
+    const mediaId = await provisionMedia(
+      data.media.media_type,
+      data.media.source,
+      data.media.external_id,
+    );
 
     // Duplicate guard (the partial unique index is the hard guarantee).
     const { data: dup } = await context.supabase
@@ -133,7 +152,7 @@ export const createRecommendation = createServerFn({ method: "POST" })
         sender_id: context.userId,
         recipient_id: data.recipient_id,
         media_id: mediaId,
-        media_type: data.media.media_type as any,
+        media_type: data.media.media_type as Database["public"]["Enums"]["media_type"],
         source: data.media.source,
         external_id: data.media.external_id,
         message: data.message ?? null,
@@ -143,7 +162,8 @@ export const createRecommendation = createServerFn({ method: "POST" })
       .single();
     if (error) {
       // 23505: lost the race against the unique active-recommendation index.
-      if (error.code === "23505") throw new RecommendationError("You already recommended this to that user.");
+      if (error.code === "23505")
+        throw new RecommendationError("You already recommended this to that user.");
       throw error;
     }
     return { id: row.id as string };
@@ -159,10 +179,12 @@ export const listReceivedRecommendations = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data: rows, error } = await context.supabase
       .from("media_recommendations")
-      .select(`
+      .select(
+        `
         id, message, status, created_at, read_at, expires_at, recipient_id, sender_id,
         media:media_id(id, media_type, source, external_id, title, poster_url)
-      `)
+      `,
+      )
       .eq("recipient_id", context.userId)
       .neq("status", "dismissed")
       .gt("expires_at", new Date().toISOString())
@@ -177,10 +199,12 @@ export const listSentRecommendations = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data: rows, error } = await context.supabase
       .from("media_recommendations")
-      .select(`
+      .select(
+        `
         id, message, status, created_at, read_at, expires_at, recipient_id, sender_id,
         media:media_id(id, media_type, source, external_id, title, poster_url)
-      `)
+      `,
+      )
       .eq("sender_id", context.userId)
       .neq("status", "dismissed")
       .gt("expires_at", new Date().toISOString())
@@ -196,7 +220,10 @@ export const listSentRecommendations = createServerFn({ method: "GET" })
  * username/avatar — senders are resolved with a second batched profiles
  * query (same pattern as follows.functions).
  */
-async function mapRecommendationRows(supabase: any, rows: unknown): Promise<RecommendationItem[]> {
+async function mapRecommendationRows(
+  supabase: SupabaseClient,
+  rows: unknown,
+): Promise<RecommendationItem[]> {
   // Embedded to-one joins arrive untyped (and modeled as arrays by the
   // untyped client) — normalize to the serializable item shape.
   const raw = (rows ?? []) as unknown as Array<{
@@ -208,7 +235,14 @@ async function mapRecommendationRows(supabase: any, rows: unknown): Promise<Reco
     expires_at: string;
     recipient_id: string;
     sender_id: string;
-    media: { id: string; media_type: string; source: string; external_id: string; title: string; poster_url: string | null } | null;
+    media: {
+      id: string;
+      media_type: string;
+      source: string;
+      external_id: string;
+      title: string;
+      poster_url: string | null;
+    } | null;
   }>;
 
   const senderIds = Array.from(new Set(raw.map((r) => r.sender_id)));
@@ -219,7 +253,9 @@ async function mapRecommendationRows(supabase: any, rows: unknown): Promise<Reco
       .select("id, username, display_name, avatar_url")
       .in("id", senderIds);
     if (pErr) throw pErr;
-    pmap = new Map((profiles ?? []).map((p: RecommendableUser): [string, RecommendableUser] => [p.id, p]));
+    pmap = new Map(
+      (profiles ?? []).map((p: RecommendableUser): [string, RecommendableUser] => [p.id, p]),
+    );
   }
 
   return raw

@@ -1,14 +1,48 @@
 import { createFileRoute, useParams, Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient, useMutation, type UseQueryResult } from "@tanstack/react-query";
-import { getDetails, cacheMedia, getRecommendations, getCast, reclassifyMedia, getTrailerKey } from "@/lib/tmdb.functions";
-import { getAnimeDetails, getMultipleAnimeDetails, getMangaDetails, getMultipleMangaDetails } from "@/lib/anilist.functions";
-import { getJikanAnimeDetails, getJikanMangaDetails, getMultipleJikanAnimeDetails, getMultipleJikanMangaDetails, getJikanDetailsByTitle } from "@/lib/jikan.functions";
+import {
+  getDetails,
+  cacheMedia,
+  getRecommendations,
+  getCast,
+  reclassifyMedia,
+  getTrailerKey,
+} from "@/lib/tmdb.functions";
+import {
+  getAnimeDetails,
+  getMultipleAnimeDetails,
+  getMangaDetails,
+  getMultipleMangaDetails,
+} from "@/lib/anilist.functions";
+import {
+  getJikanAnimeDetails,
+  getJikanMangaDetails,
+  getMultipleJikanAnimeDetails,
+  getMultipleJikanMangaDetails,
+  getJikanDetailsByTitle,
+} from "@/lib/jikan.functions";
 import { getKitsuAnimeDetails, getKitsuMangaDetails } from "@/lib/kitsu.functions";
-import { getLibraryItem, upsertLibraryItem, removeLibraryItem, listSeasonsWithProgress, setSeasonStatus, getMediaRowByExternal } from "@/lib/library.functions";
+import {
+  getLibraryItem,
+  upsertLibraryItem,
+  removeLibraryItem,
+  listSeasonsWithProgress,
+  getMediaRowByExternal,
+} from "@/lib/library.functions";
 import { listReviews, upsertReview, deleteReview, toggleReviewLike } from "@/lib/reviews.functions";
-import { createRecommendation, listRecommendableUsers, type RecommendableUser } from "@/lib/recommendations.functions";
-import { STATUS_LABELS, STATUS_COLORS, getStatusLabel, type WatchStatus, type MediaSummary } from "@/lib/media-types";
+import {
+  createRecommendation,
+  listRecommendableUsers,
+  type RecommendableUser,
+} from "@/lib/recommendations.functions";
+import {
+  STATUS_LABELS,
+  STATUS_COLORS,
+  getStatusLabel,
+  type WatchStatus,
+  type MediaSummary,
+} from "@/lib/media-types";
 import { MediaGrid } from "@/components/MediaCard";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { SectionHeader } from "@/components/PageHeader";
@@ -16,8 +50,26 @@ import { ErrorPanel } from "@/components/ErrorPanel";
 import { EmptyState } from "@/components/EmptyState";
 import { SkeletonRow } from "@/components/Skeletons";
 import { SafeImage } from "@/components/SafeImage";
+import { ProgressPanel } from "@/components/ProgressPanel";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Star, Heart, Trash2, Check, ThumbsUp, MessageSquare, List, Play, CircleCheck, ArrowLeft, ExternalLink, Globe, BookmarkPlus, X, AlertCircle, Info, Send } from "lucide-react";
+import {
+  Star,
+  Heart,
+  Trash2,
+  Check,
+  ThumbsUp,
+  MessageSquare,
+  List,
+  Play,
+  ArrowLeft,
+  ExternalLink,
+  Globe,
+  BookmarkPlus,
+  X,
+  AlertCircle,
+  Info,
+  Send,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,18 +78,20 @@ import { useGuest } from "@/lib/guest";
 import type { RestrictedAction } from "@/lib/guest";
 
 export const Route = createFileRoute("/_authenticated/media/$type/$source/$id")({
-  head: () => ({ meta: [{ title: "Details — NexusTrack" }, { name: "description", content: "Track this title in your library, mark seasons, and see friends' progress." }] }),
+  head: () => ({
+    meta: [
+      { title: "Details — NexusTrack" },
+      {
+        name: "description",
+        content: "Track this title in your library, mark seasons, and see friends' progress.",
+      },
+    ],
+  }),
   errorComponent: RouteErrorBoundary,
   component: MediaDetail,
 });
 
 const STATUS_OPTIONS: WatchStatus[] = ["planned", "watching", "completed"];
-
-const SEASON_STATUS_ACTIONS: Array<{ key: WatchStatus; label: string; icon: typeof Play | typeof CircleCheck }> = [
-  { key: "watching", label: "Watching", icon: Play },
-  { key: "completed", label: "Completed", icon: CircleCheck },
-  { key: "planned", label: "Plan to Read", icon: Play },
-];
 
 interface ReviewData {
   id: string;
@@ -50,22 +104,43 @@ interface ReviewData {
   liked_by_me: boolean;
 }
 
+// Extra detail fields from whichever provider supplied the data. The three
+// providers return subtly different shapes (jikan manga relations carry
+// `chapters`, anilist's carry `episodes`, etc.) — keep every provider-only
+// field optional so the union typechecks regardless of source.
 interface AnimeDetailsExtra {
   studios: string[];
   episodes: number | null;
   rating: string | null;
   duration: string | null;
   source: string | null;
+  format?: string | null;
+  season?: string | null;
+  seasonYear?: number | null;
   relations: Array<{
     relation: string;
-    entries: Array<{ mal_id: number; name: string }>;
+    entries: Array<{
+      mal_id: number;
+      name: string;
+      poster_url?: string | null;
+      episodes?: number | null;
+      chapters?: number | null;
+      format?: string | null;
+    }>;
   }>;
 }
 
 interface MangaDetailsExtra {
   relations: Array<{
     relation: string;
-    entries: Array<{ mal_id: number; name: string; poster_url: string | null; chapters: number | null; format: string | null }>;
+    entries: Array<{
+      mal_id: number;
+      name: string;
+      poster_url?: string | null;
+      episodes?: number | null;
+      chapters?: number | null;
+      format?: string | null;
+    }>;
   }>;
   chapters: number | null;
   volumes: number | null;
@@ -97,7 +172,6 @@ interface RelatedItem {
   genres?: { name: string }[];
   relation?: string;
 }
-
 
 // ---- Main Component ----
 
@@ -133,7 +207,6 @@ function MediaDetail() {
   const upsertFn = useServerFn(upsertLibraryItem);
   const removeFn = useServerFn(removeLibraryItem);
   const seasonsFn = useServerFn(listSeasonsWithProgress);
-  const setSeasonFn = useServerFn(setSeasonStatus);
   const recsFn = useServerFn(getRecommendations);
   const castFn = useServerFn(getCast);
   const reviewsFn = useServerFn(listReviews);
@@ -176,7 +249,9 @@ function MediaDetail() {
   // ---- Local State ----
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
-  useEffect(() => { supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null)); }, []);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null));
+  }, []);
 
   // ---- Reclassify mutation ----
   const mReclassify = useMutation({
@@ -210,10 +285,24 @@ function MediaDetail() {
 
   const animeDetailsQ = useQuery({
     queryKey: ["anime-details", source, id],
-    queryFn: () => {
-      if (isJikan) return jikanAnimeDetailsFn({ data: { id } });
-      if (isKitsu) return kitsuAnimeDetailsFn({ data: { id } });
-      return animeDetailsFn({ data: { id } });
+    // Explicit payload type — the three providers' return types are close but
+    // not identical, so their union can't satisfy useQuery's inference. Cast
+    // at the fetch site (the project convention for embedded/joined shapes).
+    queryFn: async (): Promise<{ summary: MediaSummary; extra: AnimeDetailsExtra }> => {
+      if (isJikan)
+        return (await jikanAnimeDetailsFn({ data: { id } })) as unknown as {
+          summary: MediaSummary;
+          extra: AnimeDetailsExtra;
+        };
+      if (isKitsu)
+        return (await kitsuAnimeDetailsFn({ data: { id } })) as unknown as {
+          summary: MediaSummary;
+          extra: AnimeDetailsExtra;
+        };
+      return (await animeDetailsFn({ data: { id } })) as unknown as {
+        summary: MediaSummary;
+        extra: AnimeDetailsExtra;
+      };
     },
     enabled: isAnime,
     retry: 1,
@@ -222,25 +311,60 @@ function MediaDetail() {
 
   const mangaDetailsQ = useQuery({
     queryKey: ["manga-details", source, id],
-    queryFn: () => {
-      if (isJikan) return jikanMangaDetailsFn({ data: { id } });
-      if (isKitsu) return kitsuMangaDetailsFn({ data: { id } });
-      return mangaDetailsFn({ data: { id } });
+    // Same cast rationale as animeDetailsQ above.
+    queryFn: async (): Promise<{ summary: MediaSummary; extra: MangaDetailsExtra }> => {
+      if (isJikan)
+        return (await jikanMangaDetailsFn({ data: { id } })) as unknown as {
+          summary: MediaSummary;
+          extra: MangaDetailsExtra;
+        };
+      if (isKitsu)
+        return (await kitsuMangaDetailsFn({ data: { id } })) as unknown as {
+          summary: MediaSummary;
+          extra: MangaDetailsExtra;
+        };
+      return (await mangaDetailsFn({ data: { id } })) as unknown as {
+        summary: MediaSummary;
+        extra: MangaDetailsExtra;
+      };
     },
     enabled: isManga,
     retry: 1,
     staleTime: 300_000,
   });
 
-  const detailsLoading = isManga ? mangaDetailsQ.isLoading : isAnime ? animeDetailsQ.isLoading : tmdbDetailsQ.isLoading;
-  const detailsError = isManga ? mangaDetailsQ.isError : isAnime ? animeDetailsQ.isError : tmdbDetailsQ.isError;
-  const detailsErrorMsg = isManga ? mangaDetailsQ.error?.message : isAnime ? animeDetailsQ.error?.message : tmdbDetailsQ.error?.message;
-  const refetchDetails = isManga ? () => mangaDetailsQ.refetch() : isAnime ? () => animeDetailsQ.refetch() : () => tmdbDetailsQ.refetch();
+  const detailsLoading = isManga
+    ? mangaDetailsQ.isLoading
+    : isAnime
+      ? animeDetailsQ.isLoading
+      : tmdbDetailsQ.isLoading;
+  const detailsError = isManga
+    ? mangaDetailsQ.isError
+    : isAnime
+      ? animeDetailsQ.isError
+      : tmdbDetailsQ.isError;
+  const detailsErrorMsg = isManga
+    ? mangaDetailsQ.error?.message
+    : isAnime
+      ? animeDetailsQ.error?.message
+      : tmdbDetailsQ.error?.message;
+  const refetchDetails = isManga
+    ? () => mangaDetailsQ.refetch()
+    : isAnime
+      ? () => animeDetailsQ.refetch()
+      : () => tmdbDetailsQ.refetch();
 
   // ---- Cache / Media ID (for library features) ----
   const cached = useQuery({
     queryKey: ["cache", type, source, id],
-    queryFn: () => cacheFn({ data: { type: type as "movie" | "tv" | "anime" | "manga", source: source as "tmdb" | "anilist" | "jikan" | "kitsu", external_id: id } }),
+    queryFn: () =>
+      cacheFn({
+        data: {
+          type: type as "movie" | "tv" | "anime" | "manga",
+          source: source as "tmdb" | "anilist" | "jikan" | "kitsu",
+          external_id: id,
+        },
+      }),
     retry: 1,
     staleTime: 60_000,
     // Don't fail the whole page if caching fails — it just means no library features
@@ -250,7 +374,14 @@ function MediaDetail() {
   // metadata when the details API is down, even if cacheMedia above fails.
   const mediaRowQ = useQuery({
     queryKey: ["media-row", type, source, id],
-    queryFn: () => mediaRowFn({ data: { source: source as "tmdb" | "anilist" | "jikan" | "kitsu", media_type: type as "movie" | "tv" | "anime" | "manga", external_id: id } }),
+    queryFn: () =>
+      mediaRowFn({
+        data: {
+          source: source as "tmdb" | "anilist" | "jikan" | "kitsu",
+          media_type: type as "movie" | "tv" | "anime" | "manga",
+          external_id: id,
+        },
+      }),
     retry: 1,
     staleTime: 60_000,
   });
@@ -264,7 +395,8 @@ function MediaDetail() {
   const jikanByTitleFn = useServerFn(getJikanDetailsByTitle);
   const crossDetailsQ = useQuery({
     queryKey: ["cross-details", source, id, mediaRowTitle],
-    queryFn: () => jikanByTitleFn({ data: { title: mediaRowTitle!, type: isManga ? "manga" : "anime" } }),
+    queryFn: () =>
+      jikanByTitleFn({ data: { title: mediaRowTitle!, type: isManga ? "manga" : "anime" } }),
     enabled: detailsError && source === "anilist" && !!mediaRowTitle,
     retry: 0,
     staleTime: 300_000,
@@ -276,13 +408,17 @@ function MediaDetail() {
   const ownDetails = isManga
     ? { summary: mangaDetailsQ.data?.summary, extra: mangaDetailsQ.data?.extra }
     : isAnime
-    ? { summary: animeDetailsQ.data?.summary, extra: animeDetailsQ.data?.extra }
-    : { summary: tmdbDetailsQ.data?.summary, seasons: tmdbDetailsQ.data?.seasons, extra: undefined };
+      ? { summary: animeDetailsQ.data?.summary, extra: animeDetailsQ.data?.extra }
+      : {
+          summary: tmdbDetailsQ.data?.summary,
+          seasons: tmdbDetailsQ.data?.seasons,
+          extra: undefined,
+        };
   const detailsData = ownDetails.summary
     ? ownDetails
     : crossDetailsQ.data?.summary
-    ? { summary: crossDetailsQ.data.summary, extra: crossDetailsQ.data.extra }
-    : ownDetails;
+      ? { summary: crossDetailsQ.data.summary, extra: crossDetailsQ.data.extra }
+      : ownDetails;
 
   // Which provider the loaded relations/ids belong to — franchise links and
   // the related-details batch fetch must use the SAME provider's ids.
@@ -318,15 +454,18 @@ function MediaDetail() {
   const summary: MediaSummary | undefined = detailsData.summary ?? fallbackSummary;
 
   // ---- Clipboard Helper ----
-  const copyTitle = useCallback(async (label: string) => {
-    if (!summary?.title) return;
-    try {
-      await navigator.clipboard.writeText(label);
-      toast.success(`Copied "${label}" to clipboard.`);
-    } catch {
-      // Clipboard permission denied — continue silently
-    }
-  }, [summary?.title]);
+  const copyTitle = useCallback(
+    async (label: string) => {
+      if (!summary?.title) return;
+      try {
+        await navigator.clipboard.writeText(label);
+        toast.success(`Copied "${label}" to clipboard.`);
+      } catch {
+        // Clipboard permission denied — continue silently
+      }
+    },
+    [summary?.title],
+  );
 
   // ---- TMDB Watch Providers ----
 
@@ -352,7 +491,9 @@ function MediaDetail() {
       if (isManga) {
         return (relationsSource === "jikan"
           ? multipleJikanMangaDetailsFn({ data: { ids: relatedIds } })
-          : multipleMangaDetailsFn({ data: { ids: relatedIds.map(Number) } })) as unknown as RelatedItem[];
+          : multipleMangaDetailsFn({
+              data: { ids: relatedIds.map(Number) },
+            })) as unknown as RelatedItem[];
       }
       return (relationsSource === "jikan"
         ? multipleJikanAnimeDetailsFn({ data: { ids: relatedIds } })
@@ -366,10 +507,13 @@ function MediaDetail() {
   // Organize related entries by relation type for display
   const franchiseMap = useMemo(() => {
     if (relations.length === 0) return null;
-    return relations.reduce((acc, rel) => {
-      acc[rel.relation] = rel.entries;
-      return acc;
-    }, {} as Record<string, Array<{ mal_id: number; name: string }>>);
+    return relations.reduce(
+      (acc, rel) => {
+        acc[rel.relation] = rel.entries;
+        return acc;
+      },
+      {} as Record<string, Array<{ mal_id: number; name: string }>>,
+    );
   }, [relations]);
 
   // ---- Library Entry ----
@@ -436,11 +580,13 @@ function MediaDetail() {
       const allExternalIds = [id, ...relatedIds];
       const { data, error } = await supabase
         .from("user_media")
-        .select(`
+        .select(
+          `
           status,
           favorite,
           media:media_id!inner(external_id, source)
-        `)
+        `,
+        )
         .eq("user_id", currentUserId!)
         .in("media.source", ["anilist", "jikan", "kitsu"])
         .in("media.external_id", allExternalIds);
@@ -527,7 +673,14 @@ function MediaDetail() {
   }, [summary, isAnime, isManga, id, relatedDetailsQ.data, relations]);
 
   // ---- Mutations ----
-  type UpsertPayload = { media_id: string; status?: WatchStatus; rating?: number | null; favorite?: boolean; hidden?: boolean; notes?: string | null };
+  type UpsertPayload = {
+    media_id: string;
+    status?: WatchStatus;
+    rating?: number | null;
+    favorite?: boolean;
+    hidden?: boolean;
+    notes?: string | null;
+  };
 
   const { requireAuth } = useGuest();
 
@@ -537,7 +690,17 @@ function MediaDetail() {
       await qc.cancelQueries({ queryKey: ["library-entry", mediaId] });
       const prev = qc.getQueryData(["library-entry", mediaId]);
       qc.setQueryData(["library-entry", mediaId], (old: unknown) => {
-        const base = (old as { status?: WatchStatus; favorite?: boolean; rating?: number | null; notes?: string | null } | null) ?? { status: "planned" as WatchStatus, favorite: false, rating: null, notes: null };
+        const base = (old as {
+          status?: WatchStatus;
+          favorite?: boolean;
+          rating?: number | null;
+          notes?: string | null;
+        } | null) ?? {
+          status: "planned" as WatchStatus,
+          favorite: false,
+          rating: null,
+          notes: null,
+        };
         return { ...base, ...payload };
       });
       return { prev };
@@ -549,6 +712,8 @@ function MediaDetail() {
       qc.invalidateQueries({ queryKey: ["library-entry", mediaId] });
       qc.invalidateQueries({ queryKey: ["library"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
+      // Status changes move titles in/out of the dashboard's continue feed.
+      qc.invalidateQueries({ queryKey: ["continue-watching"] });
     },
   });
 
@@ -567,20 +732,9 @@ function MediaDetail() {
       qc.invalidateQueries({ queryKey: ["library-entry", mediaId] });
       qc.invalidateQueries({ queryKey: ["library"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
+      // Removing a title takes it out of the dashboard's continue feed.
+      qc.invalidateQueries({ queryKey: ["continue-watching"] });
       toast.success("Removed from library");
-    },
-  });
-
-  const mSetSeason = useMutation({
-    mutationFn: (payload: { season_id: string; status: WatchStatus }) =>
-      setSeasonFn({ data: { media_id: mediaId!, season_id: payload.season_id, status: payload.status } }),
-    onSuccess: (result) => {
-      qc.invalidateQueries({ queryKey: ["seasons", mediaId] });
-      qc.invalidateQueries({ queryKey: ["library-entry", mediaId] });
-      qc.invalidateQueries({ queryKey: ["library"] });
-      if (result.overallChanged) {
-        toast.success("All seasons completed — series marked as watched!");
-      }
     },
   });
 
@@ -617,7 +771,12 @@ function MediaDetail() {
   });
 
   const handleStatusChange = (opt: WatchStatus) => {
-    const action = opt === "watching" ? "markWatching" : opt === "completed" ? "markCompleted" : "addToWatchlist";
+    const action =
+      opt === "watching"
+        ? "markWatching"
+        : opt === "completed"
+          ? "markCompleted"
+          : "addToWatchlist";
     if (!requireAuth(action)) return;
     if (opt === "planned" && (isAnime || isManga) && franchiseList.length > 0) {
       const mainAnime = franchiseList[0];
@@ -641,8 +800,15 @@ function MediaDetail() {
         detail={detailsErrorMsg || "The API might be temporarily unavailable."}
         action={
           <div className="flex gap-2 justify-center">
-            <button onClick={() => refetchDetails()} className="rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white">Try again</button>
-            <Link to="/dashboard" className="rounded-lg glass px-5 py-2 text-sm font-medium">Go home</Link>
+            <button
+              onClick={() => refetchDetails()}
+              className="rounded-lg bg-gradient-accent px-5 py-2 text-sm font-semibold text-white"
+            >
+              Try again
+            </button>
+            <Link to="/dashboard" className="rounded-lg glass px-5 py-2 text-sm font-medium">
+              Go home
+            </Link>
           </div>
         }
       />
@@ -652,6 +818,46 @@ function MediaDetail() {
   const entry = libraryEntry.data;
   const seasonList = (seasons.data ?? []) as SeasonWithStatus[];
   const entryFavorited = entry?.favorite ?? false;
+
+  // "Your progress" panel — tv/anime/manga only, once the library entry has
+  // settled (undefined while loading → not rendered; null → add-to-library hint).
+  const progressPanel =
+    type !== "movie" && mediaId && libraryEntry.isSuccess ? (
+      <ProgressPanel
+        mediaId={mediaId}
+        mediaType={type as "tv" | "anime" | "manga"}
+        entry={
+          entry
+            ? {
+                status: entry.status,
+                current_season: entry.current_season ?? null,
+                current_episode: entry.current_episode ?? null,
+                current_chapter: entry.current_chapter ?? null,
+                progress_updated_at: entry.progress_updated_at ?? null,
+              }
+            : null
+        }
+        seasons={seasonList.map((s) => ({
+          season_number: s.season_number,
+          episode_count: s.episode_count,
+          name: s.name,
+        }))}
+        chapterTotal={
+          summary.chapter_count ?? (isManga ? (mangaDetailsQ.data?.extra?.chapters ?? null) : null)
+        }
+        media={{
+          media_type: summary.media_type,
+          source: summary.source,
+          external_id: summary.external_id,
+          title: summary.title,
+          poster_url: summary.poster_url ?? null,
+          release_year: summary.release_year ?? null,
+          vote_average: summary.vote_average ?? null,
+          season_count: summary.season_count ?? null,
+          chapter_count: summary.chapter_count ?? null,
+        }}
+      />
+    ) : null;
 
   const handleFavorite = () => {
     if (!requireAuth("addFavorite")) return;
@@ -678,8 +884,16 @@ function MediaDetail() {
         <div className="mb-3 rounded-xl border border-warning/30 bg-warning/10 px-4 py-2.5 text-xs text-warning flex items-center gap-2">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>
-            The {source === "jikan" ? "Jikan" : source === "kitsu" ? "Kitsu" : source === "anilist" ? "AniList" : "TMDB"} API is unreachable right now —
-            showing your saved info. Some details (studios, related titles) may be missing.
+            The{" "}
+            {source === "jikan"
+              ? "Jikan"
+              : source === "kitsu"
+                ? "Kitsu"
+                : source === "anilist"
+                  ? "AniList"
+                  : "TMDB"}{" "}
+            API is unreachable right now — showing your saved info. Some details (studios, related
+            titles) may be missing.
           </span>
         </div>
       ) : null}
@@ -707,8 +921,15 @@ function MediaDetail() {
         {/* Backdrop photo (background layer) */}
         <div className="absolute inset-0 overflow-hidden">
           {summary.backdrop_url ? (
-            <SafeImage src={summary.backdrop_url} alt="" wrapperClassName="h-full w-full" className="h-full w-full object-cover opacity-30" />
-          ) : <div className="h-full w-full bg-gradient-to-br from-primary/20 to-accent/20" />}
+            <SafeImage
+              src={summary.backdrop_url}
+              alt=""
+              wrapperClassName="h-full w-full"
+              className="h-full w-full object-cover opacity-30"
+            />
+          ) : (
+            <div className="h-full w-full bg-gradient-to-br from-primary/20 to-accent/20" />
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
         </div>
 
@@ -735,7 +956,9 @@ function MediaDetail() {
             {mediaId && !mReclassify.isPending ? (
               <select
                 value={type}
-                onChange={(e) => mReclassify.mutate(e.target.value as "movie" | "tv" | "anime" | "manga")}
+                onChange={(e) =>
+                  mReclassify.mutate(e.target.value as "movie" | "tv" | "anime" | "manga")
+                }
                 className="rounded-md border border-border/60 bg-background/40 px-2 py-0.5 text-xs font-semibold text-accent focus:outline-none focus:ring-1 focus:ring-primary/50 cursor-pointer"
               >
                 <option value="movie">MOVIE</option>
@@ -749,13 +972,19 @@ function MediaDetail() {
             {summary.release_year ? <span>· {summary.release_year}</span> : null}
             {isManga ? (
               <>
-                {mangaDetailsQ.data?.extra?.chapters ? <span>· {mangaDetailsQ.data.extra.chapters} chapters</span> : null}
-                {mangaDetailsQ.data?.extra?.volumes ? <span>· {mangaDetailsQ.data.extra.volumes} volumes</span> : null}
+                {mangaDetailsQ.data?.extra?.chapters ? (
+                  <span>· {mangaDetailsQ.data.extra.chapters} chapters</span>
+                ) : null}
+                {mangaDetailsQ.data?.extra?.volumes ? (
+                  <span>· {mangaDetailsQ.data.extra.volumes} volumes</span>
+                ) : null}
               </>
             ) : (
               <>
                 {summary.runtime ? <span>· {summary.runtime}m</span> : null}
-                {isAnime && animeDetailsQ.data?.extra?.duration ? <span>· {animeDetailsQ.data.extra.duration}</span> : null}
+                {isAnime && animeDetailsQ.data?.extra?.duration ? (
+                  <span>· {animeDetailsQ.data.extra.duration}</span>
+                ) : null}
               </>
             )}
           </div>
@@ -766,24 +995,35 @@ function MediaDetail() {
           {/* Rating */}
           {summary.vote_average ? (
             <div className="mt-2 flex items-center justify-center gap-1 text-warning">
-              <Star className="h-5 w-5 fill-current" /> <span className="font-semibold text-lg">{summary.vote_average.toFixed(1)}</span>
+              <Star className="h-5 w-5 fill-current" />{" "}
+              <span className="font-semibold text-lg">{summary.vote_average.toFixed(1)}</span>
               <span className="text-muted-foreground text-sm ml-1">/ 10</span>
             </div>
           ) : null}
 
           {/* Director */}
-          {castQ.data?.director ? <p className="mt-1 text-sm text-muted-foreground text-center">Directed by {castQ.data.director}</p> : null}
+          {castQ.data?.director ? (
+            <p className="mt-1 text-sm text-muted-foreground text-center">
+              Directed by {castQ.data.director}
+            </p>
+          ) : null}
 
           {/* Genres */}
           {summary.genres?.length ? (
             <div className="mt-3 flex flex-wrap justify-center gap-2">
-              {summary.genres.map((g) => <span key={g} className="rounded-full glass px-3 py-0.5 text-xs">{g}</span>)}
+              {summary.genres.map((g) => (
+                <span key={g} className="rounded-full glass px-3 py-0.5 text-xs">
+                  {g}
+                </span>
+              ))}
             </div>
           ) : null}
 
           {/* Overview */}
           {summary.overview ? (
-            <p className="mt-4 w-full text-base text-muted-foreground leading-relaxed text-center max-w-2xl mx-auto">{summary.overview}</p>
+            <p className="mt-4 w-full text-base text-muted-foreground leading-relaxed text-center max-w-2xl mx-auto">
+              {summary.overview}
+            </p>
           ) : null}
         </div>
 
@@ -811,7 +1051,7 @@ function MediaDetail() {
                       onClick={() => handleStatusChange(opt)}
                       className={cn(
                         "w-full min-h-[44px] rounded-lg text-sm font-medium transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5",
-                        active ? "bg-gradient-accent text-white" : "glass hover:bg-muted/40"
+                        active ? "bg-gradient-accent text-white" : "glass hover:bg-muted/40",
                       )}
                     >
                       {active ? <Check className="h-4 w-4" /> : null}
@@ -824,7 +1064,7 @@ function MediaDetail() {
                   onClick={handleFavorite}
                   className={cn(
                     "w-full min-h-[44px] rounded-lg text-sm font-medium transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5",
-                    entryFavorited ? "bg-accent/25 text-accent" : "glass hover:bg-muted/40"
+                    entryFavorited ? "bg-accent/25 text-accent" : "glass hover:bg-muted/40",
                   )}
                 >
                   <Heart className={cn("h-4 w-4", entryFavorited && "fill-current")} />
@@ -866,19 +1106,40 @@ function MediaDetail() {
 
         {/* No mediaId message */}
         {!mediaId && !cached.isLoading ? (
-          <p className="mt-3 text-xs text-muted-foreground text-center px-4">Library features require the service role to be configured.</p>
+          <p className="mt-3 text-xs text-muted-foreground text-center px-4">
+            Library features require the service role to be configured.
+          </p>
+        ) : null}
+
+        {/* Progress (tv/anime/manga, in-library or not) */}
+        {progressPanel ? (
+          <div className="px-4 mt-6 max-w-xl mx-auto w-full">{progressPanel}</div>
         ) : null}
 
         {/* Rating (if in library) */}
         {entry ? (
           <div className="px-4 mt-6">
-            <label className="text-xs uppercase tracking-wider text-muted-foreground">Your rating</label>
-            <div className="mt-1 flex gap-1.5 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-muted">
+            <label className="text-xs uppercase tracking-wider text-muted-foreground">
+              Your rating
+            </label>
+            {/* 2×5 grid on small screens so all ten buttons fit without
+                horizontal scroll; single row from sm up. */}
+            <div className="mt-1 grid grid-cols-5 gap-1.5 sm:flex sm:gap-1.5">
               {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-                <button key={n}
+                <button
+                  key={n}
                   onClick={() => handleRating(n)}
-                  className={cn("h-9 w-9 shrink-0 rounded-md text-sm font-semibold transition-colors", entry.rating && entry.rating >= n ? "bg-warning text-background" : "glass hover:bg-muted/40")}
-                >{n}</button>
+                  aria-label={`Rate ${n} out of 10`}
+                  aria-pressed={entry.rating === n}
+                  className={cn(
+                    "h-9 w-full shrink-0 rounded-md text-sm font-semibold transition-colors sm:w-9",
+                    entry.rating && entry.rating >= n
+                      ? "bg-warning text-background"
+                      : "glass hover:bg-muted/40",
+                  )}
+                >
+                  {n}
+                </button>
               ))}
             </div>
           </div>
@@ -887,11 +1148,18 @@ function MediaDetail() {
         {/* Notes (if in library) */}
         {entry ? (
           <div className="px-4 mt-6">
-            <label className="text-xs uppercase tracking-wider text-muted-foreground">Private notes</label>
+            <label className="text-xs uppercase tracking-wider text-muted-foreground">
+              Private notes
+            </label>
             <textarea
-              value={notes} onChange={(e) => setNotes(e.target.value)}
-              onBlur={() => notes !== (entry.notes ?? "") && mUpsert.mutate({ media_id: mediaId!, notes: notes || null })}
-              rows={3} maxLength={1000}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              onBlur={() =>
+                notes !== (entry.notes ?? "") &&
+                mUpsert.mutate({ media_id: mediaId!, notes: notes || null })
+              }
+              rows={3}
+              maxLength={1000}
               className="mt-1 w-full rounded-lg border border-input bg-background/40 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
               placeholder="Thoughts, favorite scenes, watch date…"
             />
@@ -931,63 +1199,86 @@ function MediaDetail() {
             {summary.release_year ? <span>· {summary.release_year}</span> : null}
             {isManga ? (
               <>
-                {mangaDetailsQ.data?.extra?.chapters ? <span>· {mangaDetailsQ.data.extra.chapters} chapters</span> : null}
-                {mangaDetailsQ.data?.extra?.volumes ? <span>· {mangaDetailsQ.data.extra.volumes} volumes</span> : null}
+                {mangaDetailsQ.data?.extra?.chapters ? (
+                  <span>· {mangaDetailsQ.data.extra.chapters} chapters</span>
+                ) : null}
+                {mangaDetailsQ.data?.extra?.volumes ? (
+                  <span>· {mangaDetailsQ.data.extra.volumes} volumes</span>
+                ) : null}
               </>
             ) : (
               <>
                 {summary.runtime ? <span>· {summary.runtime}m</span> : null}
-                {isAnime && animeDetailsQ.data?.extra?.duration ? <span>· {animeDetailsQ.data.extra.duration}</span> : null}
+                {isAnime && animeDetailsQ.data?.extra?.duration ? (
+                  <span>· {animeDetailsQ.data.extra.duration}</span>
+                ) : null}
               </>
             )}
           </div>
           <h1 className="mt-2 text-5xl font-black">{summary.title}</h1>
           {summary.vote_average ? (
             <div className="mt-2 flex items-center gap-1 text-warning">
-              <Star className="h-4 w-4 fill-current" /> <span className="font-semibold">{summary.vote_average.toFixed(1)}</span>
+              <Star className="h-4 w-4 fill-current" />{" "}
+              <span className="font-semibold">{summary.vote_average.toFixed(1)}</span>
               <span className="text-muted-foreground text-sm ml-1">/ 10</span>
             </div>
           ) : null}
-          {castQ.data?.director ? <p className="mt-1 text-sm text-muted-foreground">Directed by {castQ.data.director}</p> : null}
+          {castQ.data?.director ? (
+            <p className="mt-1 text-sm text-muted-foreground">Directed by {castQ.data.director}</p>
+          ) : null}
           {summary.genres?.length ? (
             <div className="mt-3 flex flex-wrap gap-2">
-              {summary.genres.map((g) => <span key={g} className="rounded-full glass px-3 py-0.5 text-xs">{g}</span>)}
+              {summary.genres.map((g) => (
+                <span key={g} className="rounded-full glass px-3 py-0.5 text-xs">
+                  {g}
+                </span>
+              ))}
             </div>
           ) : null}
           <p className="mt-4 max-w-2xl text-muted-foreground leading-relaxed">{summary.overview}</p>
 
           {/* Actions */}
           <div className="mt-6 flex flex-wrap gap-2">
-            {(entry?.id ? STATUS_OPTIONS : STATUS_OPTIONS.filter((o) => o === "planned")).map((opt) => {
-              const mainAnime = franchiseList[0];
-              const isPlannedRedirection = opt === "planned" && isAnime && mainAnime && mainAnime.mal_id !== Number(id);
+            {(entry?.id ? STATUS_OPTIONS : STATUS_OPTIONS.filter((o) => o === "planned")).map(
+              (opt) => {
+                const mainAnime = franchiseList[0];
+                const isPlannedRedirection =
+                  opt === "planned" && isAnime && mainAnime && mainAnime.mal_id !== Number(id);
 
-              const active = isPlannedRedirection
-                ? statusMap.get(String(mainAnime.mal_id))?.status === "planned"
-                : entry?.status === opt;
+                const active = isPlannedRedirection
+                  ? statusMap.get(String(mainAnime.mal_id))?.status === "planned"
+                  : entry?.status === opt;
 
-              const disabled = isPlannedRedirection
-                ? markMainAnimeAsPlanned.isPending
-                : mUpsert.isPending || !mediaId;
+                const disabled = isPlannedRedirection
+                  ? markMainAnimeAsPlanned.isPending
+                  : mUpsert.isPending || !mediaId;
 
-              return (
-                <button
-                  key={opt}
-                  disabled={disabled}
-                  onClick={() => handleStatusChange(opt)}
-                  className={cn("rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-40", active ? "bg-gradient-accent text-white" : "glass hover:bg-muted/40")}
-                >
-                  {active ? <Check className="inline h-4 w-4 mr-1" /> : null}
-                  {getStatusLabel(opt, summary?.media_type)}
-                </button>
-              );
-            })}
+                return (
+                  <button
+                    key={opt}
+                    disabled={disabled}
+                    onClick={() => handleStatusChange(opt)}
+                    className={cn(
+                      "rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-40",
+                      active ? "bg-gradient-accent text-white" : "glass hover:bg-muted/40",
+                    )}
+                  >
+                    {active ? <Check className="inline h-4 w-4 mr-1" /> : null}
+                    {getStatusLabel(opt, summary?.media_type)}
+                  </button>
+                );
+              },
+            )}
             <button
               disabled={mUpsert.isPending || !mediaId}
               onClick={handleFavorite}
-              className={cn("rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-40", entryFavorited ? "bg-accent/25 text-accent" : "glass hover:bg-muted/40")}
+              className={cn(
+                "rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-40",
+                entryFavorited ? "bg-accent/25 text-accent" : "glass hover:bg-muted/40",
+              )}
             >
-              <Heart className={cn("inline h-4 w-4 mr-1", entryFavorited && "fill-current")} /> {entryFavorited ? "Favorited" : "Favorite"}
+              <Heart className={cn("inline h-4 w-4 mr-1", entryFavorited && "fill-current")} />{" "}
+              {entryFavorited ? "Favorited" : "Favorite"}
             </button>
             {!summary?.is_fallback ? (
               <button
@@ -998,7 +1289,11 @@ function MediaDetail() {
               </button>
             ) : null}
             {entry ? (
-              <button onClick={handleRemove} disabled={mRemove.isPending} className="rounded-lg px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/10">
+              <button
+                onClick={handleRemove}
+                disabled={mRemove.isPending}
+                className="rounded-lg px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/10"
+              >
                 <Trash2 className="inline h-4 w-4 mr-1" /> Remove
               </button>
             ) : null}
@@ -1014,19 +1309,38 @@ function MediaDetail() {
 
           {/* No mediaId message */}
           {!mediaId && !cached.isLoading ? (
-            <p className="mt-3 text-xs text-muted-foreground">Library features require the service role to be configured.</p>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Library features require the service role to be configured.
+            </p>
           ) : null}
+
+          {/* Progress (tv/anime/manga, in-library or not) */}
+          {progressPanel ? <div className="mt-6 max-w-xl">{progressPanel}</div> : null}
 
           {/* Rating */}
           {entry ? (
             <div className="mt-6">
-              <label className="text-xs uppercase tracking-wider text-muted-foreground">Your rating</label>
-              <div className="mt-1 flex gap-1">
+              <label className="text-xs uppercase tracking-wider text-muted-foreground">
+                Your rating
+              </label>
+              {/* Same 2×5→flex grid as the mobile variant so both layouts
+                  behave identically (and aria matches). */}
+              <div className="mt-1 grid grid-cols-5 gap-1.5 sm:flex sm:gap-1">
                 {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-                  <button key={n}
+                  <button
+                    key={n}
                     onClick={() => handleRating(n)}
-                    className={cn("h-8 w-8 rounded-md text-xs font-semibold transition-colors", entry.rating && entry.rating >= n ? "bg-warning text-background" : "glass hover:bg-muted/40")}
-                  >{n}</button>
+                    aria-label={`Rate ${n} out of 10`}
+                    aria-pressed={entry.rating === n}
+                    className={cn(
+                      "h-9 w-full shrink-0 rounded-md text-sm font-semibold transition-colors sm:w-9",
+                      entry.rating && entry.rating >= n
+                        ? "bg-warning text-background"
+                        : "glass hover:bg-muted/40",
+                    )}
+                  >
+                    {n}
+                  </button>
                 ))}
               </div>
             </div>
@@ -1035,11 +1349,18 @@ function MediaDetail() {
           {/* Notes */}
           {entry ? (
             <div className="mt-6 max-w-xl">
-              <label className="text-xs uppercase tracking-wider text-muted-foreground">Private notes</label>
+              <label className="text-xs uppercase tracking-wider text-muted-foreground">
+                Private notes
+              </label>
               <textarea
-                value={notes} onChange={(e) => setNotes(e.target.value)}
-                onBlur={() => notes !== (entry.notes ?? "") && mUpsert.mutate({ media_id: mediaId!, notes: notes || null })}
-                rows={3} maxLength={1000}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                onBlur={() =>
+                  notes !== (entry.notes ?? "") &&
+                  mUpsert.mutate({ media_id: mediaId!, notes: notes || null })
+                }
+                rows={3}
+                maxLength={1000}
                 className="mt-1 w-full rounded-lg border border-input bg-background/40 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                 placeholder="Thoughts, favorite scenes, watch date…"
               />
@@ -1055,7 +1376,12 @@ function MediaDetail() {
         <section className="mt-6 md:mt-12 px-4 md:px-0">
           <SectionHeader
             className="mb-3 md:mb-4"
-            title={<span className="flex items-center gap-2"><ExternalLink className="h-5 w-5 text-primary" /> {isManga ? "Read online" : "Watch online"}</span>}
+            title={
+              <span className="flex items-center gap-2">
+                <ExternalLink className="h-5 w-5 text-primary" />{" "}
+                {isManga ? "Read online" : "Watch online"}
+              </span>
+            }
           />
           <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory md:flex-wrap md:snap-none md:overflow-visible">
             {(isManga
@@ -1065,17 +1391,17 @@ function MediaDetail() {
                   { name: "MangaFire", url: "https://mangafire.to" },
                 ]
               : isAnime
-              ? [
-                  { name: "AnimeX", url: "https://animex.one" },
-                  { name: "AnimePahe", url: "https://animepahe.pw" },
-                  { name: "Anikoto", url: "https://anikoto.cz" },
-                ]
-              : [
-                  { name: "Cinevaro", url: "https://cinevaro.app" },
-                  { name: "Attacker", url: "https://attacker.bz" },
-                  { name: "NightFlix", url: "https://www.nightflix.to" },
-                  { name: "MoviesJoy", url: "https://moviesjoy.bz" },
-                ]
+                ? [
+                    { name: "AnimeX", url: "https://animex.one" },
+                    { name: "AnimePahe", url: "https://animepahe.pw" },
+                    { name: "Anikoto", url: "https://anikoto.cz" },
+                  ]
+                : [
+                    { name: "Cinevaro", url: "https://cinevaro.app" },
+                    { name: "Attacker", url: "https://attacker.bz" },
+                    { name: "NightFlix", url: "https://www.nightflix.to" },
+                    { name: "MoviesJoy", url: "https://moviesjoy.bz" },
+                  ]
             ).map((site) => (
               <button
                 key={site.name}
@@ -1098,19 +1424,31 @@ function MediaDetail() {
         <section className="mt-6 md:mt-12 px-4 md:px-0">
           <SectionHeader
             className="mb-3 md:mb-4"
-            title={<span className="flex items-center gap-2"><List className="h-5 w-5 text-warning" /> {isManga ? "Related manga" : "Seasons, OVAs & Movies"}</span>}
+            title={
+              <span className="flex items-center gap-2">
+                <List className="h-5 w-5 text-warning" />{" "}
+                {isManga ? "Related manga" : "Seasons, OVAs & Movies"}
+              </span>
+            }
           />
-          <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-muted">
+          <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-none">
             {franchiseList.map((item) => {
               const itemStatus = statusMap.get(String(item.mal_id));
               return (
                 <Link
                   key={item.mal_id}
                   to="/media/$type/$source/$id"
-                  params={{ type: (isManga ? "manga" : "anime") as "manga" | "anime", source: (item.isCurrent ? source : relationsSource) as "anilist" | "jikan" | "kitsu", id: String(item.mal_id) }}
+                  params={{
+                    type: (isManga ? "manga" : "anime") as "manga" | "anime",
+                    source: (item.isCurrent ? source : relationsSource) as
+                      | "anilist"
+                      | "jikan"
+                      | "kitsu",
+                    id: String(item.mal_id),
+                  }}
                   className={cn(
                     "group relative flex w-40 shrink-0 snap-start flex-col overflow-hidden rounded-xl glass hover:ring-2 hover:ring-accent transition-all",
-                    item.isCurrent && "ring-2 ring-primary bg-primary/10"
+                    item.isCurrent && "ring-2 ring-primary bg-primary/10",
                   )}
                 >
                   <div className="aspect-[2/3] bg-muted overflow-hidden relative animate-fade-in">
@@ -1125,10 +1463,13 @@ function MediaDetail() {
                       <div className="h-full w-full bg-gradient-to-br from-primary/10 to-accent/10" />
                     )}
                     {itemStatus?.status ? (
-                      <span className={cn(
-                        "absolute top-2 right-2 rounded-full px-2 py-0.5 text-[9px] uppercase tracking-wider font-semibold shadow-md",
-                        STATUS_COLORS[itemStatus.status as WatchStatus] || "bg-muted text-muted-foreground"
-                      )}>
+                      <span
+                        className={cn(
+                          "absolute top-2 right-2 rounded-full px-2 py-0.5 text-[9px] uppercase tracking-wider font-semibold shadow-md",
+                          STATUS_COLORS[itemStatus.status as WatchStatus] ||
+                            "bg-muted text-muted-foreground",
+                        )}
+                      >
                         {getStatusLabel(itemStatus.status as WatchStatus, summary?.media_type)}
                       </span>
                     ) : null}
@@ -1158,14 +1499,22 @@ function MediaDetail() {
         <section className="mt-6 md:mt-12 px-4 md:px-0">
           <SectionHeader
             className="mb-3 md:mb-4"
-            title={<span className="flex items-center gap-2"><ExternalLink className="h-5 w-5 text-primary" /> More Like This</span>}
+            title={
+              <span className="flex items-center gap-2">
+                <ExternalLink className="h-5 w-5 text-primary" /> More Like This
+              </span>
+            }
           />
-          <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-muted">
+          <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-none">
             {animeRecommendations.slice(0, 10).map((item) => (
               <Link
                 key={item.mal_id}
                 to="/media/$type/$source/$id"
-                params={{ type: (isManga ? "manga" : "anime") as "manga" | "anime", source: relationsSource, id: String(item.mal_id) }}
+                params={{
+                  type: (isManga ? "manga" : "anime") as "manga" | "anime",
+                  source: relationsSource,
+                  id: String(item.mal_id),
+                }}
                 className="w-36 shrink-0 snap-start group"
               >
                 <div className="aspect-[2/3] rounded-xl overflow-hidden glass mb-2">
@@ -1178,51 +1527,16 @@ function MediaDetail() {
                 </div>
                 <div className="px-0.5">
                   <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-                    <span className="text-accent font-semibold">{relationForId(item.mal_id).replace(/_/g, " ")}</span>
+                    <span className="text-accent font-semibold">
+                      {relationForId(item.mal_id).replace(/_/g, " ")}
+                    </span>
                     {item.year ? <span>· {item.year}</span> : null}
                   </div>
-                  <h3 className="mt-0.5 text-xs font-semibold line-clamp-2 leading-tight">{item.title}</h3>
+                  <h3 className="mt-0.5 text-xs font-semibold line-clamp-2 leading-tight">
+                    {item.title}
+                  </h3>
                 </div>
               </Link>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {/* ---- Seasons (tv/anime) ---- */}
-      {hasSeasons && seasonList.length > 0 ? (
-        <section className="mt-6 md:mt-12 px-4 md:px-0">
-          <SectionHeader className="mb-3 md:mb-4" title="Seasons" />
-          <div className="grid gap-3 md:grid-cols-2">
-            {seasonList.map((sn) => (
-              <div key={sn.id} className="glass rounded-xl p-4 flex gap-4">
-                {sn.poster_url ? (
-                  <SafeImage src={sn.poster_url} alt="" wrapperClassName="h-24 w-16 rounded-lg shrink-0 overflow-hidden" className="h-full w-full object-cover" />
-                ) : <div className="h-24 w-16 rounded-lg bg-muted shrink-0" />}
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold truncate">{sn.name || `Season ${sn.season_number}`}</h3>
-                  <p className="text-xs text-muted-foreground">{sn.episode_count ?? "?"} eps{sn.air_date ? ` · ${sn.air_date.slice(0, 4)}` : ""}{sn.overview ? ` · ${sn.overview.slice(0, 60)}…` : ""}</p>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {SEASON_STATUS_ACTIONS.map((action) => {
-                      const active = sn.status === action.key;
-                      return (
-                        <button key={action.key}
-                          onClick={() => mSetSeason.mutate({ season_id: sn.id, status: action.key })}
-                          className={cn("rounded-md px-2.5 py-1 text-xs transition-colors flex items-center gap-1", active ? "bg-gradient-accent text-white" : "bg-muted/40 hover:bg-muted/60")}
-                        >
-                          {active ? <Check className="h-3 w-3" /> : <action.icon className="h-3 w-3" />}
-                          {action.label}
-                        </button>
-                      );
-                    })}
-                    {sn.status && !["watching", "completed", "skipped", "planned", "dropped"].includes(sn.status) ? (
-                      <span className="rounded-md px-2.5 py-1 text-xs bg-muted/40">
-                        {getStatusLabel(sn.status as WatchStatus, summary?.media_type)}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
             ))}
           </div>
         </section>
@@ -1232,12 +1546,17 @@ function MediaDetail() {
       {castQ.data && castQ.data.cast?.length > 0 ? (
         <section className="mt-6 md:mt-12 px-4 md:px-0">
           <SectionHeader className="mb-3 md:mb-4" title="Cast" />
-          <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-muted">
+          <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-none">
             {castQ.data.cast.map((c) => (
               <div key={c.id} className="w-20 shrink-0 snap-start text-center">
                 <div className="mx-auto h-20 w-20 overflow-hidden rounded-full bg-muted">
                   {c.profile_path ? (
-                    <SafeImage src={c.profile_path} alt={c.name} wrapperClassName="h-full w-full" className="h-full w-full object-cover" />
+                    <SafeImage
+                      src={c.profile_path}
+                      alt={c.name}
+                      wrapperClassName="h-full w-full"
+                      className="h-full w-full object-cover"
+                    />
                   ) : null}
                 </div>
                 <p className="mt-1.5 text-xs font-medium line-clamp-1">{c.name}</p>
@@ -1253,7 +1572,7 @@ function MediaDetail() {
         <section className="mt-6 md:mt-12 px-4 md:px-0">
           <SectionHeader className="mb-3 md:mb-4" title="More like this" />
           {/* Mobile: horizontal scroll */}
-          <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-muted md:hidden">
+          <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-none md:hidden">
             {recs.data.slice(0, 10).map((item) => (
               <Link
                 key={`${item.source}-${item.media_type}-${item.external_id}`}
@@ -1279,7 +1598,9 @@ function MediaDetail() {
                       </span>
                     ) : null}
                   </div>
-                  <h3 className="mt-0.5 text-xs font-semibold line-clamp-2 leading-tight">{item.title}</h3>
+                  <h3 className="mt-0.5 text-xs font-semibold line-clamp-2 leading-tight">
+                    {item.title}
+                  </h3>
                 </div>
               </Link>
             ))}
@@ -1333,7 +1654,9 @@ function MediaDetail() {
         usersError={recommendableQ.isError}
         onRetryUsers={() => recommendableQ.refetch()}
         isPending={mRecommend.isPending}
-        onConfirm={(recipient_id, message) => mRecommend.mutate({ recipient_id, message: message || undefined })}
+        onConfirm={(recipient_id, message) =>
+          mRecommend.mutate({ recipient_id, message: message || undefined })
+        }
       />
     </div>
   );
@@ -1342,7 +1665,15 @@ function MediaDetail() {
 // ---- Recommend to Friend modal ----
 
 function RecommendDialog({
-  open, onOpenChange, mediaTitle, users, usersLoading, usersError, onRetryUsers, isPending, onConfirm,
+  open,
+  onOpenChange,
+  mediaTitle,
+  users,
+  usersLoading,
+  usersError,
+  onRetryUsers,
+  isPending,
+  onConfirm,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -1371,7 +1702,10 @@ function RecommendDialog({
 
   const q = search.trim().toLowerCase();
   const filtered = q
-    ? users.filter((u) => u.username.toLowerCase().includes(q) || (u.display_name ?? "").toLowerCase().includes(q))
+    ? users.filter(
+        (u) =>
+          u.username.toLowerCase().includes(q) || (u.display_name ?? "").toLowerCase().includes(q),
+      )
     : users;
 
   function handleConfirm() {
@@ -1385,12 +1719,16 @@ function RecommendDialog({
       <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
         <DialogTitle>Recommend to a friend</DialogTitle>
         <p className="mt-1 text-sm text-muted-foreground">
-          Share <span className="font-medium text-foreground">“{mediaTitle}”</span> with a friend or someone you follow.
+          Share <span className="font-medium text-foreground">“{mediaTitle}”</span> with a friend or
+          someone you follow.
         </p>
 
         <div className="mt-4 space-y-4">
           <div>
-            <label htmlFor="recommend-search" className="text-xs uppercase tracking-wider text-muted-foreground">
+            <label
+              htmlFor="recommend-search"
+              className="text-xs uppercase tracking-wider text-muted-foreground"
+            >
               Search people
             </label>
             <input
@@ -1414,16 +1752,24 @@ function RecommendDialog({
             ) : usersError ? (
               <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
                 Couldn't load your friends.
-                <button onClick={onRetryUsers} className="ml-2 font-semibold underline">Try again</button>
+                <button onClick={onRetryUsers} className="ml-2 font-semibold underline">
+                  Try again
+                </button>
               </div>
             ) : users.length === 0 ? (
               <p className="rounded-lg glass p-3 text-sm text-muted-foreground">
                 You have no friends or followed users yet. Add some on the Friends page first.
               </p>
             ) : filtered.length === 0 ? (
-              <p className="rounded-lg glass p-3 text-sm text-muted-foreground">No matches for “{search.trim()}”.</p>
+              <p className="rounded-lg glass p-3 text-sm text-muted-foreground">
+                No matches for “{search.trim()}”.
+              </p>
             ) : (
-              <ul role="listbox" aria-label="People you can recommend to" className="max-h-52 space-y-1.5 overflow-y-auto pr-1">
+              <ul
+                role="listbox"
+                aria-label="People you can recommend to"
+                className="max-h-52 space-y-1.5 overflow-y-auto pr-1"
+              >
                 {filtered.map((u) => {
                   const selected = selectedId === u.id;
                   return (
@@ -1432,24 +1778,40 @@ function RecommendDialog({
                         type="button"
                         role="option"
                         aria-selected={selected}
-                        onClick={() => { setSelectedId(u.id); setTouched(false); }}
+                        onClick={() => {
+                          setSelectedId(u.id);
+                          setTouched(false);
+                        }}
                         className={cn(
                           "flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors",
-                          selected ? "bg-primary/15 ring-1 ring-primary/40" : "glass hover:bg-muted/40",
+                          selected
+                            ? "bg-primary/15 ring-1 ring-primary/40"
+                            : "glass hover:bg-muted/40",
                         )}
                       >
                         {u.avatar_url ? (
-                          <img src={u.avatar_url} alt="" loading="lazy" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+                          <img
+                            src={u.avatar_url}
+                            alt=""
+                            loading="lazy"
+                            className="h-8 w-8 shrink-0 rounded-full object-cover"
+                          />
                         ) : (
                           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-accent text-[11px] font-bold text-white">
                             {(u.display_name || u.username).charAt(0).toUpperCase()}
                           </span>
                         )}
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-semibold">{u.display_name || u.username}</span>
-                          <span className="block truncate text-xs text-muted-foreground">@{u.username}</span>
+                          <span className="block truncate text-sm font-semibold">
+                            {u.display_name || u.username}
+                          </span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            @{u.username}
+                          </span>
                         </span>
-                        {selected ? <Check className="h-4 w-4 shrink-0 text-primary" aria-label="Selected" /> : null}
+                        {selected ? (
+                          <Check className="h-4 w-4 shrink-0 text-primary" aria-label="Selected" />
+                        ) : null}
                       </button>
                     </li>
                   );
@@ -1457,13 +1819,18 @@ function RecommendDialog({
               </ul>
             )}
             {touched && !selectedId ? (
-              <p role="alert" className="mt-2 text-xs text-destructive">Select someone to recommend to.</p>
+              <p role="alert" className="mt-2 text-xs text-destructive">
+                Select someone to recommend to.
+              </p>
             ) : null}
           </div>
 
           {/* Optional message */}
           <div>
-            <label htmlFor="recommend-message" className="text-xs uppercase tracking-wider text-muted-foreground">
+            <label
+              htmlFor="recommend-message"
+              className="text-xs uppercase tracking-wider text-muted-foreground"
+            >
               Message (optional)
             </label>
             <textarea
@@ -1475,7 +1842,9 @@ function RecommendDialog({
               placeholder="You have to watch this! …"
               className="mt-1 w-full resize-none rounded-lg border border-input bg-background/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
-            <p className="mt-1 text-right text-[10px] text-muted-foreground">{message.length}/500</p>
+            <p className="mt-1 text-right text-[10px] text-muted-foreground">
+              {message.length}/500
+            </p>
           </div>
         </div>
 
@@ -1505,7 +1874,16 @@ function RecommendDialog({
 
 // ---- Reviews Section ----
 
-function ReviewsSection({ mediaId, reviews, upsertFn, deleteFn, likeFn, qc, currentUserId, requireAuth }: {
+function ReviewsSection({
+  mediaId,
+  reviews,
+  upsertFn,
+  deleteFn,
+  likeFn,
+  qc,
+  currentUserId,
+  requireAuth,
+}: {
   mediaId: string;
   reviews: UseQueryResult<ReviewData[]>;
   upsertFn: ReturnType<typeof useServerFn<typeof upsertReview>>;
@@ -1522,11 +1900,19 @@ function ReviewsSection({ mediaId, reviews, upsertFn, deleteFn, likeFn, qc, curr
 
   const mSave = useMutation({
     mutationFn: () => upsertFn({ data: { media_id: mediaId, body } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["reviews", mediaId] }); setWriting(false); setBody(""); toast.success("Review posted"); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["reviews", mediaId] });
+      setWriting(false);
+      setBody("");
+      toast.success("Review posted");
+    },
   });
   const mDelete = useMutation({
     mutationFn: (id: string) => deleteFn({ data: { id } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["reviews", mediaId] }); toast.success("Review deleted"); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["reviews", mediaId] });
+      toast.success("Review deleted");
+    },
   });
   const mLike = useMutation({
     mutationFn: (review_id: string) => likeFn({ data: { review_id } }),
@@ -1540,7 +1926,12 @@ function ReviewsSection({ mediaId, reviews, upsertFn, deleteFn, likeFn, qc, curr
         title="Reviews"
         action={
           !writing && !myReview ? (
-            <button onClick={() => { if (requireAuth("writeReview")) setWriting(true); }} className="flex items-center gap-1.5 rounded-lg glass px-4 py-2.5 text-sm font-medium hover:bg-muted/40 min-h-[44px]">
+            <button
+              onClick={() => {
+                if (requireAuth("writeReview")) setWriting(true);
+              }}
+              className="flex items-center gap-1.5 rounded-lg glass px-4 py-2.5 text-sm font-medium hover:bg-muted/40 min-h-[44px]"
+            >
               <MessageSquare className="h-4 w-4" /> Write a review
             </button>
           ) : undefined
@@ -1550,15 +1941,33 @@ function ReviewsSection({ mediaId, reviews, upsertFn, deleteFn, likeFn, qc, curr
       {writing ? (
         <div className="glass-strong mb-6 rounded-2xl p-4">
           <textarea
-            value={body} onChange={(e) => setBody(e.target.value)} autoFocus rows={4} maxLength={1000}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            autoFocus
+            rows={4}
+            maxLength={1000}
             className="w-full rounded-lg border border-input bg-background/40 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             placeholder="Share your thoughts (max 1000 characters)…"
           />
           <div className="mt-2 flex items-center justify-between">
             <span className="text-xs text-muted-foreground">{body.length}/1000</span>
             <div className="flex gap-2">
-              <button onClick={() => { setWriting(false); setBody(""); }} className="rounded-lg glass px-3 py-1.5 text-sm">Cancel</button>
-              <button onClick={() => { if (requireAuth("writeReview")) mSave.mutate(); }} disabled={!body.trim() || mSave.isPending} className="rounded-lg bg-gradient-accent px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-60">
+              <button
+                onClick={() => {
+                  setWriting(false);
+                  setBody("");
+                }}
+                className="rounded-lg glass px-3 py-1.5 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (requireAuth("writeReview")) mSave.mutate();
+                }}
+                disabled={!body.trim() || mSave.isPending}
+                className="rounded-lg bg-gradient-accent px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
+              >
                 {mSave.isPending ? "Posting…" : "Post review"}
               </button>
             </div>
@@ -1582,30 +1991,61 @@ function ReviewsSection({ mediaId, reviews, upsertFn, deleteFn, likeFn, qc, curr
       ) : (
         <div className="space-y-3">
           {reviews.data!.map((r) => {
-            const p = r.profile as unknown as { username: string; display_name: string; avatar_url: string | null } | undefined;
+            const p = r.profile as unknown as
+              | { username: string; display_name: string; avatar_url: string | null }
+              | undefined;
             const isMine = r.user_id === currentUserId;
             return (
               <div key={r.id} className="glass rounded-xl p-4">
                 <div className="mb-2 flex items-center gap-2">
-                  {p?.avatar_url ? <img src={p.avatar_url} alt="" loading="lazy" className="h-8 w-8 rounded-full object-cover" /> : <div className="h-8 w-8 rounded-full bg-gradient-accent grid place-items-center text-white text-xs font-bold">{(p?.display_name || p?.username || "?").charAt(0).toUpperCase()}</div>}
+                  {p?.avatar_url ? (
+                    <img
+                      src={p.avatar_url}
+                      alt=""
+                      loading="lazy"
+                      className="h-8 w-8 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-8 w-8 rounded-full bg-gradient-accent grid place-items-center text-white text-xs font-bold">
+                      {(p?.display_name || p?.username || "?").charAt(0).toUpperCase()}
+                    </div>
+                  )}
                   <div className="flex-1">
-                    <div className="text-sm font-semibold">{p?.display_name || p?.username || "Someone"}</div>
-                    <div className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString(undefined, { dateStyle: "medium" })}</div>
+                    <div className="text-sm font-semibold">
+                      {p?.display_name || p?.username || "Someone"}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(r.created_at).toLocaleDateString(undefined, {
+                        dateStyle: "medium",
+                      })}
+                    </div>
                   </div>
                   {isMine ? (
-                    <button onClick={() => { if (requireAuth("deleteReview")) mDelete.mutate(r.id); }} aria-label="Delete your review" className="rounded-lg p-1.5 text-destructive hover:bg-destructive/10">
+                    <button
+                      onClick={() => {
+                        if (requireAuth("deleteReview")) mDelete.mutate(r.id);
+                      }}
+                      aria-label="Delete your review"
+                      className="rounded-lg p-1.5 text-destructive hover:bg-destructive/10"
+                    >
                       <Trash2 className="h-4 w-4" />
                     </button>
                   ) : null}
                 </div>
                 <p className="text-sm leading-relaxed">{r.body}</p>
                 <button
-                  onClick={() => { if (requireAuth("likeReview")) mLike.mutate(r.id); }}
+                  onClick={() => {
+                    if (requireAuth("likeReview")) mLike.mutate(r.id);
+                  }}
                   aria-label={r.liked_by_me ? "Unlike this review" : "Like this review"}
                   aria-pressed={r.liked_by_me}
-                  className={cn("mt-2 flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs transition-colors", r.liked_by_me ? "text-primary" : "text-muted-foreground hover:text-foreground")}
+                  className={cn(
+                    "mt-2 flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs transition-colors",
+                    r.liked_by_me ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                  )}
                 >
-                  <ThumbsUp className={cn("h-3.5 w-3.5", r.liked_by_me && "fill-current")} /> {r.likes}
+                  <ThumbsUp className={cn("h-3.5 w-3.5", r.liked_by_me && "fill-current")} />{" "}
+                  {r.likes}
                 </button>
               </div>
             );
