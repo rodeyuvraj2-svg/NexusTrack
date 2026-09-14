@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { FilterTabs } from "@/components/FilterTabs";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { useGuest } from "@/lib/guest";
+import { THEMES, applyTheme, getAppliedTheme, isThemeId, type ThemeId } from "@/lib/theme";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -20,6 +21,8 @@ import {
   Settings as SettingsIcon,
   Shield,
   Database,
+  Palette,
+  Check,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -33,9 +36,10 @@ export const Route = createFileRoute("/_authenticated/settings")({
   component: Settings,
 });
 
-type SectionKey = "profile" | "privacy" | "data" | "account";
+type SectionKey = "profile" | "theme" | "privacy" | "data" | "account";
 const SECTIONS: { key: SectionKey; label: string }[] = [
   { key: "profile", label: "Profile" },
+  { key: "theme", label: "Theme" },
   { key: "privacy", label: "Privacy" },
   { key: "data", label: "Data" },
   { key: "account", label: "Account" },
@@ -60,6 +64,8 @@ function Settings() {
   } | null>(null);
   const [busy, setBusy] = useState(false);
   const [privacyBusy, setPrivacyBusy] = useState(false);
+  const [theme, setTheme] = useState<ThemeId>(getAppliedTheme);
+  const [themeBusy, setThemeBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const profileFn = useServerFn(getProfile);
@@ -72,6 +78,31 @@ function Settings() {
   useEffect(() => {
     if (profileQ.data) setProfile(profileQ.data);
   }, [profileQ.data]);
+
+  // The profile row is the source of truth — re-seed the picker if the
+  // saved theme differs from what's applied (e.g. changed on another device).
+  useEffect(() => {
+    const saved = profileQ.data?.theme;
+    if (isThemeId(saved)) setTheme(saved);
+  }, [profileQ.data?.theme]);
+
+  /** Apply a theme optimistically, persist it, roll back on failure. */
+  async function selectTheme(next: ThemeId) {
+    if (!profile || themeBusy || next === theme) return;
+    const prev = theme;
+    setTheme(next);
+    applyTheme(next);
+    setThemeBusy(true);
+    const { error } = await supabase.from("profiles").update({ theme: next }).eq("id", profile.id);
+    setThemeBusy(false);
+    if (error) {
+      setTheme(prev);
+      applyTheme(prev);
+      toast.error(`Couldn't save theme: ${error.message}`);
+    } else {
+      qc.invalidateQueries({ queryKey: ["profile"] });
+    }
+  }
 
   async function saveProfile() {
     if (!profile) return;
@@ -330,6 +361,97 @@ function Settings() {
             </section>
           )}
 
+          {section === "theme" && (
+            <section className="glass-strong rounded-2xl p-6">
+              <div className="mb-4 flex items-center gap-2">
+                <Palette className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-bold">Theme</h2>
+              </div>
+              <p className="mb-4 text-sm text-muted-foreground">
+                Choose how NexusTrack looks. Applies instantly, everywhere, and follows your
+                account.
+              </p>
+              <div
+                role="radiogroup"
+                aria-label="App theme"
+                className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+              >
+                {THEMES.map((t) => {
+                  const active = theme === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      aria-label={`${t.name} theme`}
+                      onClick={() => selectTheme(t.id)}
+                      disabled={themeBusy}
+                      className={cn(
+                        "rounded-xl border p-3 text-left transition-colors",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+                        "disabled:cursor-not-allowed disabled:opacity-60",
+                        active
+                          ? "border-primary/60 bg-primary/5"
+                          : "border-border/50 hover:border-border hover:bg-muted/30",
+                      )}
+                    >
+                      {/* Mini preview — swatch colors from the theme registry */}
+                      <div
+                        className="rounded-lg p-2"
+                        style={{ background: t.swatch.bg }}
+                        aria-hidden="true"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="h-2.5 w-2.5 rounded-full"
+                            style={{ background: t.swatch.primary }}
+                          />
+                          <span
+                            className="h-2.5 w-2.5 rounded-full"
+                            style={{ background: t.swatch.accent }}
+                          />
+                          <span
+                            className="ml-auto h-1.5 w-10 rounded-full"
+                            style={{ background: t.swatch.card }}
+                          />
+                        </div>
+                        <div className="mt-1.5 flex gap-1.5">
+                          <span
+                            className="h-6 flex-1 rounded-md"
+                            style={{ background: t.swatch.card }}
+                          />
+                          <span
+                            className="h-6 w-8 rounded-md"
+                            style={{ background: t.swatch.card }}
+                          />
+                          <span
+                            className="h-6 w-6 rounded-md"
+                            style={{ background: t.swatch.primary }}
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-2.5 flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold">{t.name}</p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">{t.description}</p>
+                        </div>
+                        {active ? (
+                          <span
+                            className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground"
+                            aria-hidden="true"
+                          >
+                            <Check className="h-3 w-3" />
+                          </span>
+                        ) : null}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           {section === "privacy" && (
             <section className="glass-strong rounded-2xl p-6">
               <div className="mb-4 flex items-center gap-2">
@@ -441,7 +563,7 @@ function SettingsSkeleton() {
       <div className="h-9 w-48 rounded bg-muted" />
       <div className="flex flex-col gap-8 md:flex-row">
         <div className="hidden md:block md:w-48 space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
+          {Array.from({ length: SECTIONS.length }).map((_, i) => (
             <div key={i} className="h-9 rounded bg-muted/30" />
           ))}
         </div>

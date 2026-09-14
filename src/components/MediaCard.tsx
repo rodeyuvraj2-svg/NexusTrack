@@ -361,12 +361,7 @@ function StatusPill({
   const Icon = activeOption?.icon ?? BookmarkPlus;
 
   return (
-    <div
-      ref={ref}
-      className="relative"
-      onBlur={handleBlur}
-      onKeyDown={handleKeyDown}
-    >
+    <div ref={ref} className="relative" onBlur={handleBlur} onKeyDown={handleKeyDown}>
       <button
         onClick={() => setOpen(!open)}
         disabled={disabled}

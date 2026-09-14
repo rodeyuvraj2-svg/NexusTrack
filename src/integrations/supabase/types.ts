@@ -192,6 +192,7 @@ export type Database = {
           display_name: string | null;
           id: string;
           is_public: boolean;
+          theme: string;
           updated_at: string;
           username: string;
         };
@@ -202,6 +203,7 @@ export type Database = {
           display_name?: string | null;
           id: string;
           is_public?: boolean;
+          theme?: string;
           updated_at?: string;
           username: string;
         };
@@ -212,6 +214,7 @@ export type Database = {
           display_name?: string | null;
           id?: string;
           is_public?: boolean;
+          theme?: string;
           updated_at?: string;
           username?: string;
         };

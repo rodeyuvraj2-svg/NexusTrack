@@ -8,11 +8,20 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { useEffect } from "react";
 import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
 import { GuestProvider } from "@/lib/guest";
 import { GuestRestrictionModal } from "@/components/GuestRestrictionModal";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  THEME_BOOT_SCRIPT,
+  applyTheme,
+  getAppliedTheme,
+  isThemeId,
+  useAppliedTheme,
+} from "@/lib/theme";
 
 function NotFoundComponent() {
   return (
@@ -112,6 +121,9 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        {/* Apply the cached theme before first paint — a saved non-default
+            theme must never flash the default one first. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
       <body>
         {children}
@@ -121,16 +133,49 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Syncs the signed-in user's saved theme (profiles.theme — the source of
+ * truth) onto <html> right after mount. The boot script already applied the
+ * cached value from localStorage, so this normally confirms the same theme;
+ * if it was changed on another device, it corrects immediately. Guests and
+ * signed-out visitors keep their localStorage preference.
+ */
+function ThemeSync() {
+  useEffect(() => {
+    let cancelled = false;
+    supabase.auth.getUser().then(({ data }) => {
+      const userId = data.user?.id;
+      if (!userId || cancelled) return;
+      supabase
+        .from("profiles")
+        .select("theme")
+        .eq("id", userId)
+        .maybeSingle()
+        .then(({ data: row }) => {
+          if (cancelled) return;
+          const saved = row?.theme;
+          if (isThemeId(saved) && saved !== getAppliedTheme()) applyTheme(saved);
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return null;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const theme = useAppliedTheme();
 
   return (
     <QueryClientProvider client={queryClient}>
       <GuestProvider>
+        <ThemeSync />
         <Outlet />
         <GuestRestrictionModal />
       </GuestProvider>
-      <Toaster theme="dark" position="top-right" richColors />
+      <Toaster theme={theme === "solar-light" ? "light" : "dark"} position="top-right" richColors />
     </QueryClientProvider>
   );
 }

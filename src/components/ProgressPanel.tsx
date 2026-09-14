@@ -13,6 +13,13 @@ import {
   getSeasonEpisodeTotal,
   type ContinueWatchingRow,
 } from "@/lib/progress-utils";
+import {
+  canIncrement,
+  episodeTotalForSeason,
+  progressTotalHint,
+  validateProgressValues,
+  type ProgressLimits,
+} from "@/lib/progress-limits";
 import { Progress } from "@/components/ui/progress";
 import {
   Select,
@@ -115,8 +122,36 @@ export function ProgressPanel({
   const episode = parseCount(episodeText);
   const chapter = parseCount(chapterText);
 
-  // Known totals drive the "of N" suffix and the progress bar.
-  const episodeTotal = getSeasonEpisodeTotal(seasons, season);
+  // Known limits (trusted metadata) — the same rules the server enforces.
+  // tv: per-season episode counts + highest real season from the seasons
+  // table. anime: total episodes (media.season_count). manga: chapter count.
+  const limits: ProgressLimits = {};
+  let episodeTotal: number | null;
+  if (mediaType === "tv") {
+    if (seasons.length > 0) limits.seasonTotal = Math.max(...seasons.map((s) => s.season_number));
+    episodeTotal = getSeasonEpisodeTotal(seasons, season);
+  } else if (mediaType === "anime") {
+    episodeTotal = media.season_count && media.season_count > 0 ? media.season_count : null;
+  } else {
+    episodeTotal = null;
+  }
+  if (episodeTotal !== null) limits.episodeTotal = episodeTotal;
+  if (chapterTotal !== null && chapterTotal > 0) limits.chapterTotal = chapterTotal;
+
+  // Validate the CURRENT draft on every render — drives input maxes, button
+  // disabling, and the inline error. Unsaved legacy values beyond a total
+  // surface here the moment the user edits anything (same rule as server).
+  const draft = isManga
+    ? { current_chapter: chapter }
+    : { current_season: season, current_episode: episode };
+  const validation = validateProgressValues(mediaType, draft, limits);
+  const totalHint = progressTotalHint(mediaType, {
+    episodeTotal,
+    chapterTotal: limits.chapterTotal ?? null,
+  });
+  const incrementAllowed = isManga
+    ? canIncrement("manga", { chapter }, limits)
+    : canIncrement(mediaType, { episode }, limits);
   const pct = isManga
     ? calculateProgressPercent(chapter, chapterTotal)
     : calculateProgressPercent(episode, episodeTotal);
@@ -205,8 +240,29 @@ export function ProgressPanel({
 
   const save = () => {
     if (!dirty || mProgress.isPending) return;
+    // Client-side gate with the SAME rules the server enforces — invalid
+    // drafts never reach the optimistic cache patches (which would briefly
+    // show impossible values before the server rejection rolled them back).
+    if (!validation.ok) {
+      toast.error(validation.message ?? "That progress value isn't valid.");
+      return;
+    }
     if (isManga) mProgress.mutate({ current_chapter: chapter });
     else mProgress.mutate({ current_season: season, current_episode: episode });
+  };
+
+  /** Season select change: validate the new season and re-evaluate episode
+   *  progress against that season's actual episode count — clamp a stale
+   *  episode value down instead of letting it become invalid. */
+  const onSeasonChange = (nextText: string) => {
+    const next = nextText === "none" ? null : parseCount(nextText);
+    setSeasonText(nextText === "none" ? "" : nextText);
+    if (next === null) return;
+    const nextTotal = episodeTotalForSeason(seasons, next);
+    if (nextTotal !== null && episode !== null && episode > nextTotal) {
+      setEpisodeText(String(nextTotal));
+      toast.info(`Season ${next} has ${nextTotal} episodes — set to episode ${nextTotal}.`);
+    }
   };
 
   // ── Not in library: controls stay hidden until the title is added. ──────
@@ -228,7 +284,8 @@ export function ProgressPanel({
         type="button"
         onClick={onDecrement}
         aria-label={label}
-        className="grid h-11 w-11 place-items-center rounded-lg glass hover:bg-muted/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+        disabled={(isManga ? chapter : episode) === 0}
+        className="grid h-11 w-11 place-items-center rounded-lg glass hover:bg-muted/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <Minus className="h-4 w-4" />
       </button>
@@ -236,7 +293,17 @@ export function ProgressPanel({
         type="button"
         onClick={onIncrement}
         aria-label={`Increase ${label.toLowerCase()}`}
-        className="grid h-11 w-11 place-items-center rounded-lg glass hover:bg-muted/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+        disabled={!incrementAllowed}
+        title={
+          incrementAllowed
+            ? undefined
+            : isManga
+              ? `This manga has ${chapterTotal} chapters`
+              : episodeTotal !== null
+                ? `The last episode is ${episodeTotal}`
+                : undefined
+        }
+        className="grid h-11 w-11 place-items-center rounded-lg glass hover:bg-muted/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <Plus className="h-4 w-4" />
       </button>
@@ -266,13 +333,13 @@ export function ProgressPanel({
               type="number"
               inputMode="numeric"
               min={0}
+              max={limits.chapterTotal ?? undefined}
+              aria-invalid={!validation.ok}
               value={chapterText}
               onChange={(e) => setChapterText(e.target.value)}
               className="mt-1 block h-11 w-28 rounded-lg border border-border/40 bg-card/40 px-3 text-center text-sm tabular-nums focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50"
             />
-            {chapterTotal ? (
-              <p className="mt-1 text-xs text-muted-foreground">{chapterTotal} chapters total</p>
-            ) : null}
+            {totalHint ? <p className="mt-1 text-xs text-muted-foreground">{totalHint}</p> : null}
           </div>
           {stepperButton(
             "Decrease chapter",
@@ -288,10 +355,7 @@ export function ProgressPanel({
               <label htmlFor="progress-season" className="text-sm font-medium">
                 Season
               </label>
-              <Select
-                value={seasonText || "none"}
-                onValueChange={(v) => setSeasonText(v === "none" ? "" : v)}
-              >
+              <Select value={seasonText || "none"} onValueChange={onSeasonChange}>
                 <SelectTrigger
                   id="progress-season"
                   aria-label="Season"
@@ -320,6 +384,8 @@ export function ProgressPanel({
                 type="number"
                 inputMode="numeric"
                 min={0}
+                max={limits.seasonTotal ?? undefined}
+                aria-invalid={!validation.ok}
                 value={seasonText}
                 onChange={(e) => setSeasonText(e.target.value)}
                 placeholder="—"
@@ -336,10 +402,13 @@ export function ProgressPanel({
               type="number"
               inputMode="numeric"
               min={0}
+              max={episodeTotal ?? undefined}
+              aria-invalid={!validation.ok}
               value={episodeText}
               onChange={(e) => setEpisodeText(e.target.value)}
               className="mt-1 block h-11 w-24 rounded-lg border border-border/40 bg-card/40 px-3 text-center text-sm tabular-nums focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50"
             />
+            {totalHint ? <p className="mt-1 text-xs text-muted-foreground">{totalHint}</p> : null}
           </div>
           {stepperButton(
             "Decrease episode",
@@ -348,6 +417,13 @@ export function ProgressPanel({
           )}
         </div>
       )}
+
+      {/* Inline validation message — same wording the server returns */}
+      {!validation.ok ? (
+        <p role="alert" className="mt-2 text-xs text-destructive">
+          {validation.message}
+        </p>
+      ) : null}
 
       {/* Formatted position + thin bar when a total is known */}
       <div className="mt-3 flex items-center justify-between gap-3">

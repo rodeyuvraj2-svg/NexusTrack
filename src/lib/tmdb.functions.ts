@@ -357,14 +357,38 @@ export const trending = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     try {
-      // Trending endpoint doesn't support genre — use discover with popularity sort instead
+      // The trending endpoint has no genre parameter, but its results carry
+      // genre_ids — so genre-filtered Trending fetches real trending pages
+      // and filters them by the selected genre ids (the user stays on
+      // Trending; we never silently swap in popularity results). Request
+      // page N returns filtered items 20(N-1)..20N-1, scanning trending
+      // pages until enough matches are collected (each page is cached, so
+      // deeper request pages mostly reuse earlier fetches).
       if (data.genre && data.type !== "all") {
-        const res = await tmdb<{ results: TmdbMovie[] }>(`/discover/${data.type}`, {
-          sort_by: "popularity.desc",
-          with_genres: data.genre,
-          page: data.page,
-        });
-        return res.results.map((m) => toSummary(m, data.type as "movie" | "tv"));
+        const genreIds = new Set(
+          data.genre
+            .split(",")
+            .map((g) => Number(g.trim()))
+            .filter((n) => Number.isFinite(n) && n > 0),
+        );
+        const TARGET = 20;
+        const MAX_TRENDING_PAGES = 20;
+        const needed = TARGET * data.page;
+        const collected: TmdbMovie[] = [];
+        for (let p = 1; p <= MAX_TRENDING_PAGES && collected.length < needed; p++) {
+          const res = await tmdb<{ results: TmdbMovie[] }>(`/trending/${data.type}/week`, {
+            page: p,
+          });
+          collected.push(
+            ...(res.results ?? []).filter((m) =>
+              (m.genre_ids ?? []).some((id) => genreIds.has(id)),
+            ),
+          );
+        }
+        const start = TARGET * (data.page - 1);
+        return collected
+          .slice(start, start + TARGET)
+          .map((m) => toSummary(m, data.type as "movie" | "tv"));
       }
       const res = await tmdb<{ results: TmdbMovie[] }>(`/trending/${data.type}/week`, {
         page: data.page,
