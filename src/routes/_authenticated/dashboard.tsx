@@ -4,9 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { trending, discover } from "@/lib/tmdb.functions";
 import { topAnime, topManga } from "@/lib/anilist.functions";
+import { mixedFeed } from "@/lib/feed.functions";
 import { listActivity } from "@/lib/activity.functions";
 import { getStats, getContinueWatching } from "@/lib/library.functions";
 import type { ContinueWatchingRow } from "@/lib/progress-utils";
+import type { MediaSummary } from "@/lib/media-types";
 import { MediaGrid } from "@/components/MediaCard";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { PageHeader, SectionHeader } from "@/components/PageHeader";
@@ -100,6 +102,7 @@ function Dashboard() {
   const discoverFn = useServerFn(discover);
   const topAnimeFn = useServerFn(topAnime);
   const topMangaFn = useServerFn(topManga);
+  const mixedFeedFn = useServerFn(mixedFeed);
   const statsFn = useServerFn(getStats);
   const continueFn = useServerFn(getContinueWatching);
   const actFn = useServerFn(listActivity);
@@ -125,39 +128,63 @@ function Dashboard() {
     retry: 1,
   });
 
-  // Trending (type-filtered)
+  // Trending (type-filtered). "All" is a real balanced mix of trending
+  // movies, TV, anime, and manga — not movies wearing an "All" label.
+  // For the mixed feed we keep the whole result so `missing` (providers
+  // that returned nothing) can drive a partial-results note.
   const trendingQ = useQuery({
     queryKey: ["dashboard-trending", trendingType],
-    queryFn: async () => {
-      if (trendingType === "anime") return (await topAnimeFn({ data: { page: 1 } })).slice(0, 12);
+    queryFn: async (): Promise<{ items: MediaSummary[]; missing: string[] }> => {
+      if (trendingType === "all") return await mixedFeedFn({ data: { mode: "trending" } });
+      if (trendingType === "anime")
+        return {
+          items: (await topAnimeFn({ data: { page: 1, sort: "trending" } })).slice(0, 12),
+          missing: [],
+        };
       if (trendingType === "manga")
-        return (await topMangaFn({ data: { page: 1, type: "top" } })).slice(0, 12);
-      return (
-        (await trendingFn({
-          data: { type: trendingType === "all" ? "all" : (trendingType as "movie" | "tv") },
-        })) ?? []
-      ).slice(0, 12);
+        return {
+          items: (await topMangaFn({ data: { page: 1, type: "trending" } })).slice(0, 12),
+          missing: [],
+        };
+      return {
+        items: (
+          (await trendingFn({
+            data: { type: trendingType as "movie" | "tv" },
+          })) ?? []
+        ).slice(0, 12),
+        missing: [],
+      };
     },
     placeholderData: (prev) => prev,
     staleTime: 300_000,
     retry: 2,
   });
 
-  // Popular (type-filtered)
+  // Popular (type-filtered). Same rule: "All" is a balanced mix from all
+  // four sources; individual types hit their real long-term-popularity
+  // rankings (TMDB popular / AniList POPULARITY_DESC).
   const popularQ = useQuery({
     queryKey: ["dashboard-popular", popularType],
-    queryFn: async () => {
-      if (popularType === "anime") return (await topAnimeFn({ data: { page: 1 } })).slice(0, 12);
+    queryFn: async (): Promise<{ items: MediaSummary[]; missing: string[] }> => {
+      if (popularType === "all") return await mixedFeedFn({ data: { mode: "popular" } });
+      if (popularType === "anime")
+        return {
+          items: (await topAnimeFn({ data: { page: 1, sort: "popular" } })).slice(0, 12),
+          missing: [],
+        };
       if (popularType === "manga")
-        return (await topMangaFn({ data: { page: 1, type: "popular" } })).slice(0, 12);
-      return (
-        (await discoverFn({
-          data: {
-            type: popularType === "all" ? "movie" : (popularType as "movie" | "tv"),
-            category: "popular",
-          },
-        })) ?? []
-      ).slice(0, 12);
+        return {
+          items: (await topMangaFn({ data: { page: 1, type: "popular" } })).slice(0, 12),
+          missing: [],
+        };
+      return {
+        items: (
+          (await discoverFn({
+            data: { type: popularType as "movie" | "tv", category: "popular" },
+          })) ?? []
+        ).slice(0, 12),
+        missing: [],
+      };
     },
     placeholderData: (prev) => prev,
     staleTime: 300_000,
@@ -281,6 +308,13 @@ function Dashboard() {
           </Link>
         }
       >
+        <p className="mb-3 text-xs text-muted-foreground">
+          {trendingType === "all"
+            ? "What's moving right now — a mix of movies, TV, anime, and manga."
+            : trendingType === "anime" || trendingType === "manga"
+              ? "Trending now on AniList."
+              : "Trending this week on TMDB."}
+        </p>
         <div className="mb-3 flex flex-wrap gap-1.5">
           {TYPE_FILTERS.map(({ key, label }) => (
             <Chip key={key} active={trendingType === key} onClick={() => setTrendingType(key)}>
@@ -288,14 +322,19 @@ function Dashboard() {
             </Chip>
           ))}
         </div>
+        {trendingQ.data && trendingQ.data.missing.length > 0 ? (
+          <p className="mb-3 text-xs text-muted-foreground/80">
+            Some sources are unavailable right now — showing the rest.
+          </p>
+        ) : null}
         {trendingQ.isError ? (
           <ErrorPanel icon={TrendingUp} title="Trending content temporarily unavailable" />
         ) : trendingQ.isLoading ? (
           <SkeletonGrid count={12} />
-        ) : (trendingQ.data ?? []).length === 0 ? (
+        ) : (trendingQ.data?.items ?? []).length === 0 ? (
           <ErrorPanel icon={TrendingUp} title="No content available" />
         ) : (
-          <MediaGrid items={trendingQ.data ?? []} />
+          <MediaGrid items={trendingQ.data?.items ?? []} />
         )}
       </Section>
 
@@ -311,6 +350,13 @@ function Dashboard() {
           </Link>
         }
       >
+        <p className="mb-3 text-xs text-muted-foreground">
+          {popularType === "all"
+            ? "All-time favorites — a mix of movies, TV, anime, and manga."
+            : popularType === "anime" || popularType === "manga"
+              ? "Most-popular on AniList."
+              : "Most-watched on TMDB."}
+        </p>
         <div className="mb-3 flex flex-wrap gap-1.5">
           {TYPE_FILTERS.map(({ key, label }) => (
             <Chip key={key} active={popularType === key} onClick={() => setPopularType(key)}>
@@ -318,14 +364,19 @@ function Dashboard() {
             </Chip>
           ))}
         </div>
+        {popularQ.data && popularQ.data.missing.length > 0 ? (
+          <p className="mb-3 text-xs text-muted-foreground/80">
+            Some sources are unavailable right now — showing the rest.
+          </p>
+        ) : null}
         {popularQ.isError ? (
           <ErrorPanel icon={Film} title="Popular content temporarily unavailable" />
         ) : popularQ.isLoading ? (
           <SkeletonGrid count={12} />
-        ) : (popularQ.data ?? []).length === 0 ? (
+        ) : (popularQ.data?.items ?? []).length === 0 ? (
           <ErrorPanel icon={Film} title="No content available" />
         ) : (
-          <MediaGrid items={popularQ.data ?? []} />
+          <MediaGrid items={popularQ.data?.items ?? []} />
         )}
       </Section>
 

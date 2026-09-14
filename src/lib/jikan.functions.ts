@@ -244,7 +244,7 @@ export async function searchMangaViaJikan(q: string): Promise<MediaSummary[]> {
 
 export async function topAnimeViaJikan(
   page = 1,
-  opts: { genres?: string[]; sort?: "trending" | "popular" } = {},
+  opts: { genres?: string[]; sort?: "trending" | "popular" | "top" } = {},
 ): Promise<MediaSummary[]> {
   const genreIds = malGenreIds(opts.genres ?? []);
   let path: string;
@@ -252,7 +252,7 @@ export async function topAnimeViaJikan(
     // The /anime search endpoint is the only one with genre filtering.
     const params = new URLSearchParams({
       genres: genreIds.join(","),
-      order_by: "members",
+      order_by: opts.sort === "top" ? "score" : "members",
       sort: "desc",
       page: String(page),
       limit: "20",
@@ -261,8 +261,10 @@ export async function topAnimeViaJikan(
     if (opts.sort === "trending") params.set("status", "airing");
     path = `/anime?${params.toString()}`;
   } else {
-    const filter = opts.sort === "trending" ? "airing" : "bypopularity";
-    path = `/top/anime?page=${page}&limit=20&filter=${filter}&sfw=true`;
+    // top → /top/anime's default score ordering (no filter param)
+    const filter =
+      opts.sort === "trending" ? "airing" : opts.sort === "popular" ? "bypopularity" : undefined;
+    path = `/top/anime?page=${page}&limit=20${filter ? `&filter=${filter}` : ""}&sfw=true`;
   }
   const res = await jikan<{ data: JikanMedia[] }>(path);
   return (res.data ?? []).map(toAnimeSummary);
@@ -270,7 +272,7 @@ export async function topAnimeViaJikan(
 
 export async function topMangaViaJikan(
   page = 1,
-  opts: { genres?: string[]; type?: "top" | "popular" } = {},
+  opts: { genres?: string[]; type?: "top" | "popular" | "trending" } = {},
 ): Promise<MediaSummary[]> {
   const genreIds = malGenreIds(opts.genres ?? []);
   let path: string;
@@ -283,12 +285,14 @@ export async function topMangaViaJikan(
       limit: "20",
       sfw: "true",
     });
+    if (opts.type === "trending") params.set("status", "publishing");
     path = `/manga?${params.toString()}`;
   } else {
-    path =
-      opts.type === "top"
-        ? `/top/manga?page=${page}&limit=20&sfw=true` // default ordering is by score
-        : `/top/manga?page=${page}&limit=20&filter=bypopularity&sfw=true`;
+    // Jikan/MAL has no true "trending" manga ranking — "airing" (most
+    // popular currently-publishing manga) is the closest momentum proxy.
+    const filter =
+      opts.type === "trending" ? "airing" : opts.type === "popular" ? "bypopularity" : undefined;
+    path = `/top/manga?page=${page}&limit=20${filter ? `&filter=${filter}` : ""}&sfw=true`;
   }
   const res = await jikan<{ data: JikanMedia[] }>(path);
   return (res.data ?? []).map(toMangaSummary);

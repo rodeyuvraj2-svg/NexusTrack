@@ -743,6 +743,128 @@ function toMangaSummary(a: AniListMedia): MediaSummary {
 
 // ---- Server Functions ----
 
+/** Feed ranking modes shared by the anime/manga list functions.
+ *  trending = current momentum (TRENDING_DESC), popular = all-time
+ *  engagement (POPULARITY_DESC), top_rated = highest score (SCORE_DESC). */
+export type FeedSort = "trending" | "popular" | "top_rated";
+
+function anilistSortOrder(sort: FeedSort): string {
+  return sort === "trending"
+    ? "TRENDING_DESC"
+    : sort === "popular"
+      ? "POPULARITY_DESC"
+      : "SCORE_DESC";
+}
+
+/**
+ * Plain anime ranking fetch (no server-function wrapper) for the mixed All
+ * feed — AniList first, then Jikan, then Kitsu, and [] when every provider
+ * is down (the mixed feed reports partial failure instead of faking demo
+ * rows). All requests go through the cached() helpers in each module.
+ */
+export async function fetchAnimeFeed(
+  sort: FeedSort,
+  page = 1,
+  perPage = 20,
+  genres: string[] = [],
+): Promise<MediaSummary[]> {
+  try {
+    const result = await anilist<{ Page: { media: AniListMedia[] } }>(
+      `query ($page: Int, $perPage: Int, $genreIn: [String]) {
+        Page(page: $page, perPage: $perPage) {
+          media(sort: ${anilistSortOrder(sort)}, type: ANIME, genre_in: $genreIn, isAdult: false) {
+            id
+            title { romaji english }
+            coverImage { extraLarge large }
+            bannerImage
+            averageScore
+            episodes
+            status
+            genres
+            seasonYear
+          }
+        }
+      }`,
+      { page, perPage, genreIn: genres.length > 0 ? genres : undefined },
+    );
+    return (result.Page.media ?? []).map(toSummary);
+  } catch (error) {
+    console.warn("[AniList] fetchAnimeFeed failed, falling back to Jikan:", error);
+    try {
+      return await topAnimeViaJikan(page, {
+        genres,
+        sort: sort === "top_rated" ? "top" : sort,
+      });
+    } catch (jikanError) {
+      console.warn("[Jikan] fetchAnimeFeed fallback failed, trying Kitsu:", jikanError);
+      try {
+        return await topAnimeViaKitsu({
+          page,
+          genres,
+          sort: sort === "top_rated" ? "top" : sort,
+        });
+      } catch (kitsuError) {
+        console.warn("[Kitsu] fetchAnimeFeed fallback failed:", kitsuError);
+        return [];
+      }
+    }
+  }
+}
+
+/**
+ * Plain manga ranking fetch (no server-function wrapper) for the mixed All
+ * feed — same fallback chain and no-demo-rows rule as fetchAnimeFeed.
+ */
+export async function fetchMangaFeed(
+  sort: FeedSort,
+  page = 1,
+  perPage = 20,
+  genres: string[] = [],
+): Promise<MediaSummary[]> {
+  try {
+    const result = await anilist<{ Page: { media: AniListMedia[] } }>(
+      `query ($page: Int, $perPage: Int, $genreIn: [String]) {
+        Page(page: $page, perPage: $perPage) {
+          media(sort: ${anilistSortOrder(sort)}, type: MANGA, genre_in: $genreIn, isAdult: false) {
+            id
+            title { romaji english }
+            coverImage { extraLarge large }
+            bannerImage
+            averageScore
+            chapters
+            volumes
+            status
+            genres
+            seasonYear
+          }
+        }
+      }`,
+      { page, perPage, genreIn: genres.length > 0 ? genres : undefined },
+    );
+    return (result.Page.media ?? []).map(toMangaSummary);
+  } catch (error) {
+    console.warn("[AniList] fetchMangaFeed failed, falling back to Jikan:", error);
+    try {
+      return await topMangaViaJikan(page, {
+        genres,
+        type: sort === "top_rated" ? "top" : sort === "trending" ? "trending" : "popular",
+      });
+    } catch (jikanError) {
+      console.warn("[Jikan] fetchMangaFeed fallback failed, trying Kitsu:", jikanError);
+      try {
+        return await topMangaViaKitsu({
+          page,
+          genres,
+          sort: sort === "top_rated" ? "top" : sort === "trending" ? "trending" : "popular",
+        });
+      } catch (kitsuError) {
+        console.warn("[Kitsu] fetchMangaFeed fallback failed:", kitsuError);
+        return [];
+      }
+    }
+  }
+}
+
 export const searchAnime = createServerFn({ method: "GET" })
   .validator((input) => z.object({ q: z.string().min(1) }).parse(input))
   .handler(async ({ data }) => {
@@ -792,7 +914,7 @@ export const topAnime = createServerFn({ method: "GET" })
       .object({
         page: z.number().int().min(1).default(1),
         genre: z.string().optional(),
-        sort: z.enum(["trending", "popular"]).default("popular"),
+        sort: z.enum(["trending", "popular", "top_rated"]).default("popular"),
       })
       .parse(input ?? {}),
   )
@@ -805,7 +927,7 @@ export const topAnime = createServerFn({ method: "GET" })
           .filter(Boolean)
       : [];
     try {
-      const sortOrder = data.sort === "trending" ? "TRENDING_DESC" : "POPULARITY_DESC";
+      const sortOrder = anilistSortOrder(data.sort);
       const result = await anilist<{ Page: { media: AniListMedia[] } }>(
         `query ($page: Int, $genreIn: [String]) {
           Page(page: $page, perPage: 20) {
@@ -828,11 +950,18 @@ export const topAnime = createServerFn({ method: "GET" })
     } catch (error) {
       console.warn("[AniList] topAnime failed, falling back to Jikan:", error);
       try {
-        return await topAnimeViaJikan(data.page, { genres: genreList, sort: data.sort });
+        return await topAnimeViaJikan(data.page, {
+          genres: genreList,
+          sort: data.sort === "top_rated" ? "top" : data.sort,
+        });
       } catch (jikanError) {
         console.warn("[Jikan] topAnime fallback failed, trying Kitsu:", jikanError);
         try {
-          return await topAnimeViaKitsu({ page: data.page, genres: genreList, sort: data.sort });
+          return await topAnimeViaKitsu({
+            page: data.page,
+            genres: genreList,
+            sort: data.sort === "top_rated" ? "top" : data.sort,
+          });
         } catch (kitsuError) {
           console.warn("[Kitsu] topAnime fallback failed:", kitsuError);
           return FALLBACK_ANIME.slice(0, 6);
@@ -1158,7 +1287,7 @@ export const topManga = createServerFn({ method: "GET" })
       .object({
         page: z.number().int().min(1).default(1),
         genre: z.string().optional(),
-        type: z.enum(["top", "popular"]).default("popular"),
+        type: z.enum(["trending", "top", "popular"]).default("popular"),
       })
       .parse(input ?? {}),
   )
@@ -1170,12 +1299,15 @@ export const topManga = createServerFn({ method: "GET" })
           .map((g) => g.trim())
           .filter(Boolean)
       : [];
+    // trending → TRENDING_DESC (real momentum), popular → POPULARITY_DESC,
+    // top → SCORE_DESC (highest rated — labeled "Top Rated" in the UI).
+    const sort = anilistSortOrder(
+      data.type === "trending" ? "trending" : data.type === "top" ? "top_rated" : "popular",
+    );
     try {
-      const sort = data.type === "top" ? "SCORE_DESC" : "POPULARITY_DESC";
-      const perPage = data.type === "top" ? 20 : 40;
       const result = await anilist<{ Page: { media: AniListMedia[] } }>(
         `query ($page: Int, $genreIn: [String]) {
-          Page(page: $page, perPage: ${perPage}) {
+          Page(page: $page, perPage: 20) {
             media(sort: ${sort}, type: MANGA, genre_in: $genreIn, isAdult: false) {
               id
               title { romaji english }
@@ -1201,7 +1333,11 @@ export const topManga = createServerFn({ method: "GET" })
       } catch (jikanError) {
         console.warn("[Jikan] topManga fallback failed, trying Kitsu:", jikanError);
         try {
-          return await topMangaViaKitsu({ page: data.page, genres: genreList, sort: data.type });
+          return await topMangaViaKitsu({
+            page: data.page,
+            genres: genreList,
+            sort: data.type === "top" ? "top" : data.type,
+          });
         } catch (kitsuError) {
           console.warn("[Kitsu] topManga fallback failed:", kitsuError);
           return FALLBACK_MANGA.slice(0, 20);

@@ -164,12 +164,18 @@ export async function searchMangaViaKitsu(q: string): Promise<MediaSummary[]> {
 }
 
 export async function topAnimeViaKitsu(
-  opts: { page?: number; genres?: string[]; sort?: "trending" | "popular" } = {},
+  opts: { page?: number; genres?: string[]; sort?: "trending" | "popular" | "top" } = {},
 ): Promise<MediaSummary[]> {
+  // Kitsu's dedicated /trending endpoints are the only real momentum
+  // ranking; other sorts use the list endpoint with a sort field.
+  if (opts.sort === "trending") {
+    const res = await kitsu<KitsuList>(`/trending/anime?limit=20`);
+    return (res.data ?? []).map(toAnimeSummary);
+  }
   const params = new URLSearchParams({
     "page[limit]": "20",
     "page[offset]": String(((opts.page ?? 1) - 1) * 20),
-    sort: "-userCount",
+    sort: opts.sort === "top" ? "-averageRating" : "-userCount",
   });
   const cats = kitsuCategorySlugs(opts.genres ?? []);
   if (cats) params.set("filter[categories]", cats);
@@ -178,8 +184,12 @@ export async function topAnimeViaKitsu(
 }
 
 export async function topMangaViaKitsu(
-  opts: { page?: number; genres?: string[]; sort?: "top" | "popular" } = {},
+  opts: { page?: number; genres?: string[]; sort?: "trending" | "top" | "popular" } = {},
 ): Promise<MediaSummary[]> {
+  if (opts.sort === "trending") {
+    const res = await kitsu<KitsuList>(`/trending/manga?limit=20`);
+    return (res.data ?? []).map(toMangaSummary);
+  }
   const params = new URLSearchParams({
     "page[limit]": "20",
     "page[offset]": String(((opts.page ?? 1) - 1) * 20),

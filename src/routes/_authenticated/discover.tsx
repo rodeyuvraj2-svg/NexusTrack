@@ -4,6 +4,7 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { discover, trending, getGenres } from "@/lib/tmdb.functions";
 import { topAnime, topManga } from "@/lib/anilist.functions";
+import { mediaAllFeed } from "@/lib/feed.functions";
 import { MediaGrid } from "@/components/MediaCard";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { PageHeader } from "@/components/PageHeader";
@@ -25,6 +26,10 @@ const TABS: { id: MediaType; label: string; icon: typeof Film }[] = [
   { id: "manga", label: "Manga", icon: BookmarkIcon },
 ];
 
+// Every type tab offers the same three sub-filters, so the selected sort
+// survives tab switches. "All" is broad discovery WITHIN the selected type
+// (several same-type rankings interleaved) — it never mixes media types and
+// is never a synonym for Popular.
 const SORTS: { id: SortMode; label: string }[] = [
   { id: "all", label: "All" },
   { id: "trending", label: "Trending" },
@@ -70,19 +75,35 @@ function Discover() {
   const discoverFn = useServerFn(discover);
   const topAnimeFn = useServerFn(topAnime);
   const topMangaFn = useServerFn(topManga);
+  const allFeedFn = useServerFn(mediaAllFeed);
   const genresFn = useServerFn(getGenres);
 
   const isAnimeManga = tab === "anime" || tab === "manga";
   const genreParam = selectedGenres.length > 0 ? selectedGenres.join(",") : undefined;
 
-  // Reset sort/genre when tab changes
+  // Tab change: the three sorts are valid on every tab, so the selection is
+  // preserved. Genre ids are per-type value spaces (TMDB movie ids ≠ TMDB tv
+  // ids ≠ AniList genre names), so they always reset on a tab switch.
   const onTabChange = (t: MediaType) => {
     setTab(t);
-    setSort("trending");
-    setSelectedGenres([]);
+    if (t !== tab) setSelectedGenres([]);
   };
 
-  // Fetch TMDB genres for movie/tv tabs
+  // Sort and genre changes are independent: every ranking supports genre
+  // filtering (movie/tv Trending filters the real trending list by genre
+  // server-side, so the sub-filter never needs to switch on its own).
+  const onSortChange = (s: SortMode) => {
+    setSort(s);
+  };
+
+  const onGenreToggle = (id: string) => {
+    setSelectedGenres((prev) => (prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]));
+  };
+
+  // Fetch TMDB genres for movie/tv tabs. Finite staleTime (not Infinity):
+  // getGenres returns [] when TMDB is unreachable, and an empty list cached
+  // forever would leave the genre filter row permanently hidden for the
+  // session — a finite staleness lets it recover on the next mount.
   const genresQ = useQuery({
     queryKey: ["genres", tab],
     queryFn: () => {
@@ -91,13 +112,15 @@ function Discover() {
       return Promise.resolve([] as Genre[]);
     },
     placeholderData: (prev) => prev,
-    staleTime: Infinity,
+    staleTime: 10 * 60_000,
     enabled: !isAnimeManga,
   });
 
   const tmdbGenres: Genre[] = genresQ.data ?? [];
 
-  // Genre chips
+  // Genre chips (genre ids are per-type — TMDB ids for movie/tv, AniList
+  // genre names for anime/manga). Every mode filters server-side, including
+  // movie/tv Trending (filtered against the trending list's genre_ids).
   const genreChips = isAnimeManga
     ? ANIME_GENRES.map((name) => ({ name, id: name }))
     : tmdbGenres.map((g) => ({ name: g.name, id: String(g.id) }));
@@ -106,21 +129,35 @@ function Discover() {
   for (const g of genreChips) genreIdToName[g.id] = g.name;
 
   const q = useInfiniteQuery({
-    queryKey: ["discover", tab, sort, ...selectedGenres],
+    // Sorted genres so different click orders share one cache entry; any
+    // filter change swaps the key, which restarts the infinite query at
+    // page 1 with no leftover results from the previous combination.
+    queryKey: ["discover", tab, sort, ...[...selectedGenres].sort()],
     queryFn: async ({ pageParam }) => {
       const page = pageParam as number;
-      if (tab === "anime") {
-        const animeSort = sort === "trending" ? "trending" : "popular";
-        return topAnimeFn({ data: { page, genre: genreParam, sort: animeSort } });
-      }
-      if (tab === "manga") {
+      if (tab === "movie" || tab === "tv") {
+        // All = several same-type TMDB rankings interleaved — /discover
+        // rankings when genres are selected (category endpoints can't
+        // filter), otherwise the real category lists. Trending = the actual
+        // /trending endpoint, genre-filtered server-side via genre_ids.
+        // Popular = /{type}/popular (+ genres via /discover).
+        if (sort === "all") return allFeedFn({ data: { type: tab, page, genre: genreParam } });
         if (sort === "trending")
-          return topMangaFn({ data: { page, genre: genreParam, type: "top" } });
-        return topMangaFn({ data: { page, genre: genreParam, type: "popular" } });
+          return trendingFn({ data: { type: tab, page, genre: genreParam } });
+        return discoverFn({ data: { type: tab, category: "popular", page, genre: genreParam } });
       }
-      // Movie / TV
-      if (sort === "trending") return trendingFn({ data: { type: tab, page, genre: genreParam } });
-      return discoverFn({ data: { type: tab, category: "popular", page, genre: genreParam } });
+      if (tab === "anime") {
+        // All = TRENDING_DESC + POPULARITY_DESC interleaved (genres apply);
+        // Trending/Popular = the single real AniList ranking.
+        if (sort === "all") return allFeedFn({ data: { type: "anime", page, genre: genreParam } });
+        return topAnimeFn({
+          data: { page, genre: genreParam, sort: sort === "trending" ? "trending" : "popular" },
+        });
+      }
+      if (sort === "all") return allFeedFn({ data: { type: "manga", page, genre: genreParam } });
+      return topMangaFn({
+        data: { page, genre: genreParam, type: sort === "trending" ? "trending" : "popular" },
+      });
     },
     initialPageParam: 1,
     getNextPageParam: (lastPage, _allPages, lastPageParam) => {
@@ -173,13 +210,13 @@ function Discover() {
         onChange={onTabChange}
       />
 
-      {/* Sort: Trending / Popular */}
+      {/* Sort options — same three on every type tab */}
       <div className="mb-4 flex gap-1.5">
         {SORTS.map((s) => (
           <Chip
             key={s.id}
             active={sort === s.id}
-            onClick={() => setSort(s.id)}
+            onClick={() => onSortChange(s.id)}
             className="px-4 py-1.5 text-xs normal-case tracking-normal"
           >
             {s.label}
@@ -187,7 +224,7 @@ function Discover() {
         ))}
       </div>
 
-      {/* Genre filter chips */}
+      {/* Genre filter chips — per-type ids, available in every mode */}
       {genreChips.length > 0 && (
         <div className="mb-6">
           <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
@@ -203,13 +240,7 @@ function Discover() {
                 key={chip.id}
                 tone="accent"
                 active={selectedGenres.includes(chip.id)}
-                onClick={() =>
-                  setSelectedGenres((prev) =>
-                    prev.includes(chip.id)
-                      ? prev.filter((id) => id !== chip.id)
-                      : [...prev, chip.id],
-                  )
-                }
+                onClick={() => onGenreToggle(chip.id)}
                 className="px-3 py-1.5 text-xs normal-case tracking-normal"
               >
                 {chip.name}

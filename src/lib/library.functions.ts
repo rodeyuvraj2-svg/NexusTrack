@@ -9,6 +9,7 @@ import {
   type StatRow,
 } from "./stats-utils";
 import type { ContinueWatchingRow } from "./progress-utils";
+import { validateProgressValues, type ProgressLimits } from "./progress-limits";
 import type { Database } from "@/integrations/supabase/types";
 
 const StatusEnum = z.enum([
@@ -338,10 +339,13 @@ export const updateMediaProgress = createServerFn({ method: "POST" })
       throw new Error("This title isn't in your library yet. Add it before saving progress.");
     }
 
-    // 2. Media type from the global media cache — client never decides this.
+    // 2. Media type + trusted totals from the global media cache — the
+    //    client never decides either. (For anime, season_count stores the
+    //    TOTAL EPISODE count; for tv it's the season count and per-season
+    //    episode counts live in the seasons table.)
     const { data: media } = await context.supabase
       .from("media")
-      .select("media_type")
+      .select("media_type, season_count, chapter_count")
       .eq("id", data.media_id)
       .single();
     if (!media) throw new Error("Media record not found.");
@@ -366,7 +370,56 @@ export const updateMediaProgress = createServerFn({ method: "POST" })
       throw new Error("TV and anime track seasons and episodes — chapters don't apply.");
     }
 
-    // 4. Partial update of only the fields that actually change.
+    // 4. Universal limit validation (shared with the UI via
+    //    progress-limits.ts). Totals come only from the trusted media/
+    //    seasons tables; an unknown or zero total never blocks a save.
+    //    The effective season is the one being saved (fall back to the
+    //    stored one for episode-only updates).
+    const effectiveSeason =
+      data.current_season !== undefined ? data.current_season : entry.current_season;
+    const limits: ProgressLimits = {};
+    if (mediaType === "tv") {
+      const { data: seasons } = await context.supabase
+        .from("seasons")
+        .select("season_number, episode_count")
+        .eq("media_id", data.media_id);
+      const seasonRows = (seasons ?? []) as Array<{
+        season_number: number;
+        episode_count: number | null;
+      }>;
+      if (seasonRows.length > 0) {
+        limits.seasonTotal = Math.max(...seasonRows.map((s) => s.season_number));
+        const target = seasonRows.find((s) => s.season_number === effectiveSeason);
+        if (target && target.episode_count !== null && target.episode_count > 0) {
+          limits.episodeTotal = target.episode_count;
+        }
+      }
+    } else if (mediaType === "anime") {
+      // anime: media.season_count holds the total episode count
+      limits.episodeTotal = media.season_count ?? null;
+    } else if (mediaType === "manga") {
+      limits.chapterTotal = media.chapter_count ?? null;
+    }
+
+    // Validate the EFFECTIVE values (supplied fields merged over the stored
+    // ones) so a season-only change can't smuggle a stale, now-invalid
+    // episode value through. Unchanged legacy values that already exceed a
+    // total only surface here when the user actively saves — the stored row
+    // itself is never rewritten or clamped silently.
+    const effectiveInput = {
+      current_season:
+        data.current_season !== undefined ? data.current_season : entry.current_season,
+      current_episode:
+        data.current_episode !== undefined ? data.current_episode : entry.current_episode,
+      current_chapter:
+        data.current_chapter !== undefined ? data.current_chapter : entry.current_chapter,
+    };
+    const validation = validateProgressValues(mediaType, effectiveInput, limits);
+    if (!validation.ok) {
+      throw new Error(validation.message ?? "That progress value isn't valid.");
+    }
+
+    // 5. Partial update of only the fields that actually change.
     const update: {
       current_season?: number | null;
       current_episode?: number | null;

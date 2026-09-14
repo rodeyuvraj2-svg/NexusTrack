@@ -57,6 +57,13 @@ const STATUSES = [
 ] as const;
 
 const TYPES = ["all", "movie", "tv", "anime", "manga"] as const;
+const TYPE_LABELS: Record<(typeof TYPES)[number], string> = {
+  all: "All",
+  movie: "Movies",
+  tv: "TV",
+  anime: "Anime",
+  manga: "Manga",
+};
 type FilterStatus = (typeof STATUSES)[number]["key"];
 type MediaFilterType = (typeof TYPES)[number];
 // "recent" = updated_at (Recently updated); "added" = created_at (Recently
@@ -262,10 +269,12 @@ function Library() {
         onChange={setStatus}
       />
 
-      {/* Search & Sort bar */}
-      <div className="mb-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+      {/* Search + controls: search stretches full width; the view toggle and
+          sort controls share one compact row (stacked below search on mobile,
+          inline beside it from sm up). */}
+      <div className="mb-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         {/* Search input */}
-        <div className="relative flex-1">
+        <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="search"
@@ -286,42 +295,42 @@ function Library() {
           )}
         </div>
 
-        {/* View toggle */}
-        <div
-          className="flex items-center gap-1 rounded-xl border border-border/40 bg-card/40 p-1 shrink-0"
-          role="group"
-          aria-label="View"
-        >
-          {(
-            [
-              ["grid", LayoutGrid, "Grid view"],
-              ["list", List, "List view"],
-            ] as const
-          ).map(([mode, Icon, label]) => (
-            <button
-              key={mode}
-              onClick={() => setView(mode)}
-              aria-pressed={view === mode}
-              aria-label={label}
-              title={label}
-              className={cn(
-                "rounded-lg p-1.5 transition-colors",
-                view === mode
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Icon className="h-4 w-4" />
-            </button>
-          ))}
-        </div>
+        <div className="flex items-center gap-2">
+          {/* View toggle — compact segmented control (icon-only, labelled) */}
+          <div
+            className="flex items-center gap-0.5 rounded-xl border border-border/40 bg-card/40 p-0.5 shrink-0"
+            role="group"
+            aria-label="View"
+          >
+            {(
+              [
+                ["grid", LayoutGrid, "Grid view"],
+                ["list", List, "List view"],
+              ] as const
+            ).map(([mode, Icon, label]) => (
+              <button
+                key={mode}
+                onClick={() => setView(mode)}
+                aria-pressed={view === mode}
+                aria-label={label}
+                title={label}
+                className={cn(
+                  "grid h-9 w-10 place-items-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+                  view === mode
+                    ? "bg-primary/15 text-primary"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Icon className="h-4 w-4" />
+              </button>
+            ))}
+          </div>
 
-        {/* Sort dropdown */}
-        <div className="flex items-center gap-2 shrink-0">
+          {/* Sort direction + sort dropdown */}
           <button
             onClick={() => setSortDir((prev) => (prev === "asc" ? "desc" : "asc"))}
             aria-label={`Sort ${sortDir === "asc" ? "ascending" : "descending"}`}
-            className="p-2 rounded-lg glass cursor-pointer hover:bg-muted/40 transition-colors text-muted-foreground hover:text-foreground"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg glass cursor-pointer hover:bg-muted/40 transition-colors text-muted-foreground hover:text-foreground"
             title={`Sort ${sortDir === "asc" ? "Ascending" : "Descending"}`}
           >
             <ArrowUpDown
@@ -331,7 +340,7 @@ function Library() {
           <Select value={sortBy} onValueChange={(val) => setSortBy(val as SortOption)}>
             <SelectTrigger
               aria-label="Sort by"
-              className="w-full max-w-[180px] rounded-xl border border-border/40 bg-card/40 px-3 py-2 text-sm font-medium text-foreground focus:border-primary/50 focus:outline-none cursor-pointer"
+              className="h-9 min-w-0 flex-1 rounded-xl border border-border/40 bg-card/40 px-3 text-sm font-medium text-foreground focus:border-primary/50 focus:outline-none cursor-pointer sm:w-44 sm:flex-none"
             >
               <SelectValue />
             </SelectTrigger>
@@ -351,7 +360,7 @@ function Library() {
       <div className="mb-8 flex flex-wrap gap-1.5">
         {TYPES.map((t) => (
           <Chip key={t} active={type === t} onClick={() => setType(t)}>
-            {t}
+            {TYPE_LABELS[t]}
           </Chip>
         ))}
       </div>
@@ -421,134 +430,203 @@ interface LibraryListRow {
 
 function LibraryList({ rows }: { rows: LibraryListRow[] }) {
   return (
-    <div className="glass overflow-hidden rounded-xl">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border/40 text-left text-[11px] uppercase tracking-wider text-muted-foreground/60">
-            <th scope="col" className="px-4 py-2.5 font-semibold">
-              Title
-            </th>
-            <th scope="col" className="hidden px-3 py-2.5 font-semibold md:table-cell">
-              Type
-            </th>
-            <th scope="col" className="px-3 py-2.5 font-semibold">
-              Status
-            </th>
-            <th scope="col" className="px-3 py-2.5 font-semibold">
-              Progress
-            </th>
-            <th scope="col" className="px-3 py-2.5 font-semibold">
-              Rating
-            </th>
-            <th scope="col" className="hidden px-3 py-2.5 font-semibold lg:table-cell">
-              Updated
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => {
-            const m = r.media;
-            if (!m?.external_id) return null;
-            const mediaType = (
-              ["movie", "tv", "anime", "manga"].includes(m.media_type) ? m.media_type : "movie"
-            ) as MediaType;
-            const statusLabel = getStatusLabel(r.status, mediaType);
-            const isManga = m.media_type === "manga";
-            // Compact list-cell progress: labels for tv/anime/manga, "—" for
-            // movies or nothing saved. Bar only for manga (only known total).
-            const progressLabel = isManga
-              ? formatChapterProgress(r.current_chapter, m.chapter_count)
-              : formatEpisodeProgress(r.current_season, r.current_episode);
-            const progressPct = isManga
-              ? calculateProgressPercent(r.current_chapter, m.chapter_count)
-              : null;
-            return (
-              <tr
-                key={r.id}
-                className="border-b border-border/20 transition-colors last:border-0 hover:bg-muted/30"
-              >
-                <td className="px-4 py-2.5">
-                  <Link
-                    to={LIST_LINK}
-                    params={{ type: m.media_type, source: m.source, id: m.external_id }}
-                    className="flex items-center gap-3 min-w-0 group/row"
-                  >
-                    <SafeImage
-                      src={m.poster_url}
-                      alt=""
-                      wrapperClassName="h-[52px] w-[35px] shrink-0 rounded overflow-hidden"
-                      className="h-full w-full object-cover"
-                    />
-                    <span className="min-w-0">
-                      <span className="flex items-center gap-1.5 font-medium leading-tight group-hover/row:text-primary transition-colors">
-                        <span className="truncate">{m.title}</span>
-                        {r.favorite ? (
-                          <Heart
-                            className="h-3 w-3 shrink-0 fill-current text-accent"
-                            aria-label="Favorite"
-                          />
-                        ) : null}
-                      </span>
-                      {m.release_year ? (
-                        <span className="text-xs text-muted-foreground">{m.release_year}</span>
-                      ) : null}
-                    </span>
-                  </Link>
-                </td>
-                <td className="hidden px-3 py-2.5 capitalize text-muted-foreground md:table-cell">
+    <>
+      {/* Mobile (< md): compact card rows — a table can't fit at 320–480px,
+          so each row becomes a poster + title + grouped metadata card. */}
+      <div className="glass overflow-hidden rounded-xl md:hidden">
+        {rows.map((r) => {
+          const m = r.media;
+          if (!m?.external_id) return null;
+          const mediaType = (
+            ["movie", "tv", "anime", "manga"].includes(m.media_type) ? m.media_type : "movie"
+          ) as MediaType;
+          const statusLabel = getStatusLabel(r.status, mediaType);
+          const isManga = m.media_type === "manga";
+          const progressLabel = isManga
+            ? formatChapterProgress(r.current_chapter, m.chapter_count)
+            : formatEpisodeProgress(r.current_season, r.current_episode);
+          return (
+            <Link
+              key={r.id}
+              to={LIST_LINK}
+              params={{ type: m.media_type, source: m.source, id: m.external_id }}
+              className="flex items-start gap-3 border-b border-border/20 p-2.5 transition-colors last:border-0 hover:bg-muted/30"
+            >
+              <SafeImage
+                src={m.poster_url}
+                alt=""
+                wrapperClassName="h-[57px] w-[38px] shrink-0 rounded overflow-hidden"
+                className="h-full w-full object-cover"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="line-clamp-2 text-sm font-medium leading-tight">{m.title}</span>
+                  <span className="flex shrink-0 items-center gap-1 pt-0.5 text-warning">
+                    {r.favorite ? (
+                      <Heart className="h-3 w-3 fill-current text-accent" aria-label="Favorite" />
+                    ) : null}
+                    {r.rating != null ? (
+                      <>
+                        <Star className="h-3 w-3 fill-current" />
+                        <span className="text-xs font-semibold tabular-nums">{r.rating}</span>
+                      </>
+                    ) : null}
+                  </span>
+                </div>
+                <p className="mt-0.5 truncate text-[11px] capitalize text-muted-foreground">
                   {mediaType}
-                </td>
-                <td className="px-3 py-2.5">
+                  {m.release_year ? ` · ${m.release_year}` : ""}
+                </p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                   <span
                     className={cn(
-                      "inline-block rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                      "inline-block max-w-full truncate rounded-full border px-2 py-0.5 text-[11px] font-medium",
                       STATUS_COLORS[r.status],
                     )}
                   >
                     {statusLabel}
                   </span>
-                </td>
-                <td className="px-3 py-2.5">
                   {progressLabel ? (
-                    <span className="block">
-                      <span className="text-xs tabular-nums text-muted-foreground">
-                        {progressLabel}
-                      </span>
-                      {progressPct !== null ? (
-                        <Progress
-                          value={progressPct}
-                          className="mt-1 h-1 w-16 max-w-full"
-                          aria-label={`Chapter ${r.current_chapter ?? 0}${m.chapter_count ? ` of ${m.chapter_count}` : ""}`}
-                        />
-                      ) : null}
+                    <span className="text-[11px] tabular-nums text-muted-foreground">
+                      {progressLabel}
                     </span>
-                  ) : (
-                    <span className="text-muted-foreground/50" aria-label="No progress">
-                      —
-                    </span>
-                  )}
-                </td>
-                <td className="px-3 py-2.5 tabular-nums">
-                  {r.rating != null ? (
-                    <span className="inline-flex items-center gap-1 text-warning">
-                      <Star className="h-3 w-3 fill-current" />
-                      <span className="text-xs font-semibold">{r.rating}</span>
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground/50">—</span>
-                  )}
-                </td>
-                <td
-                  className="hidden px-3 py-2.5 text-xs text-muted-foreground lg:table-cell"
-                  title={new Date(r.updated_at).toLocaleString()}
+                  ) : null}
+                </div>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Desktop (md+): dense table — the same rows with the fields the grid
+          can't show (status, personal rating, last updated). */}
+      <div className="glass hidden overflow-hidden rounded-xl md:block">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border/40 text-left text-[11px] uppercase tracking-wider text-muted-foreground/60">
+              <th scope="col" className="px-4 py-2.5 font-semibold">
+                Title
+              </th>
+              <th scope="col" className="px-3 py-2.5 font-semibold">
+                Type
+              </th>
+              <th scope="col" className="px-3 py-2.5 font-semibold">
+                Status
+              </th>
+              <th scope="col" className="px-3 py-2.5 font-semibold">
+                Progress
+              </th>
+              <th scope="col" className="px-3 py-2.5 font-semibold">
+                Rating
+              </th>
+              <th scope="col" className="hidden px-3 py-2.5 font-semibold lg:table-cell">
+                Updated
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const m = r.media;
+              if (!m?.external_id) return null;
+              const mediaType = (
+                ["movie", "tv", "anime", "manga"].includes(m.media_type) ? m.media_type : "movie"
+              ) as MediaType;
+              const statusLabel = getStatusLabel(r.status, mediaType);
+              const isManga = m.media_type === "manga";
+              // Compact list-cell progress: labels for tv/anime/manga, "—" for
+              // movies or nothing saved. Bar only for manga (only known total).
+              const progressLabel = isManga
+                ? formatChapterProgress(r.current_chapter, m.chapter_count)
+                : formatEpisodeProgress(r.current_season, r.current_episode);
+              const progressPct = isManga
+                ? calculateProgressPercent(r.current_chapter, m.chapter_count)
+                : null;
+              return (
+                <tr
+                  key={r.id}
+                  className="border-b border-border/20 transition-colors last:border-0 hover:bg-muted/30"
                 >
-                  <time>{formatDistanceToNow(new Date(r.updated_at), { addSuffix: true })}</time>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                  <td className="px-4 py-2.5">
+                    <Link
+                      to={LIST_LINK}
+                      params={{ type: m.media_type, source: m.source, id: m.external_id }}
+                      className="flex items-center gap-3 min-w-0 group/row"
+                    >
+                      <SafeImage
+                        src={m.poster_url}
+                        alt=""
+                        wrapperClassName="h-[52px] w-[35px] shrink-0 rounded overflow-hidden"
+                        className="h-full w-full object-cover"
+                      />
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-1.5 font-medium leading-tight group-hover/row:text-primary transition-colors">
+                          <span className="truncate">{m.title}</span>
+                          {r.favorite ? (
+                            <Heart
+                              className="h-3 w-3 shrink-0 fill-current text-accent"
+                              aria-label="Favorite"
+                            />
+                          ) : null}
+                        </span>
+                        {m.release_year ? (
+                          <span className="text-xs text-muted-foreground">{m.release_year}</span>
+                        ) : null}
+                      </span>
+                    </Link>
+                  </td>
+                  <td className="px-3 py-2.5 capitalize text-muted-foreground">{mediaType}</td>
+                  <td className="px-3 py-2.5">
+                    <span
+                      className={cn(
+                        "inline-block rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                        STATUS_COLORS[r.status],
+                      )}
+                    >
+                      {statusLabel}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    {progressLabel ? (
+                      <span className="block">
+                        <span className="text-xs tabular-nums text-muted-foreground">
+                          {progressLabel}
+                        </span>
+                        {progressPct !== null ? (
+                          <Progress
+                            value={progressPct}
+                            className="mt-1 h-1 w-16 max-w-full"
+                            aria-label={`Chapter ${r.current_chapter ?? 0}${m.chapter_count ? ` of ${m.chapter_count}` : ""}`}
+                          />
+                        ) : null}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground/50" aria-label="No progress">
+                        —
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2.5 tabular-nums">
+                    {r.rating != null ? (
+                      <span className="inline-flex items-center gap-1 text-warning">
+                        <Star className="h-3 w-3 fill-current" />
+                        <span className="text-xs font-semibold">{r.rating}</span>
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground/50">—</span>
+                    )}
+                  </td>
+                  <td
+                    className="hidden px-3 py-2.5 text-xs text-muted-foreground lg:table-cell"
+                    title={new Date(r.updated_at).toLocaleString()}
+                  >
+                    <time>{formatDistanceToNow(new Date(r.updated_at), { addSuffix: true })}</time>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
