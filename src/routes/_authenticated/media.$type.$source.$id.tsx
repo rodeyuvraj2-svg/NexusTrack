@@ -672,6 +672,20 @@ function MediaDetail() {
     });
   }, [summary, isAnime, isManga, id, relatedDetailsQ.data, relations]);
 
+  const nextSequel = useMemo(() => {
+    if (!isAnime && !isManga) return null;
+    const sequel = franchiseList.find(
+      (item) => !item.isCurrent && item.relation.toUpperCase() === "SEQUEL",
+    );
+    if (!sequel) return null;
+    return {
+      title: sequel.title,
+      type: (isManga ? "manga" : "anime") as "anime" | "manga",
+      source: (relationsSource ?? "anilist") as "anilist" | "jikan" | "kitsu" | "tmdb",
+      id: String(sequel.mal_id),
+    };
+  }, [isAnime, isManga, franchiseList, relationsSource]);
+
   // ---- Mutations ----
   type UpsertPayload = {
     media_id: string;
@@ -857,6 +871,7 @@ function MediaDetail() {
           season_count: summary.season_count ?? null,
           chapter_count: summary.chapter_count ?? null,
         }}
+        nextSequel={nextSequel}
       />
     ) : null;
 

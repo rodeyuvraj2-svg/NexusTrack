@@ -1,8 +1,9 @@
+import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { Check, Minus, Plus, Save } from "lucide-react";
+import { ArrowRight, Check, Minus, Plus, Save } from "lucide-react";
 import { toast } from "sonner";
 import { updateMediaProgress } from "@/lib/library.functions";
 import {
@@ -67,6 +68,13 @@ interface ProgressPanelProps {
   /** Total chapter count for manga, when known. */
   chapterTotal: number | null;
   media: ProgressMediaInfo;
+  /** Direct sequel from franchise relations, if any (common in anime/manga). */
+  nextSequel?: {
+    title: string;
+    type: "anime" | "manga";
+    source: "anilist" | "jikan" | "kitsu" | "tmdb";
+    id: string;
+  } | null;
 }
 
 /** "" → null; anything non-numeric/negative → null (treated as "not set"). */
@@ -95,10 +103,12 @@ export function ProgressPanel({
   seasons,
   chapterTotal,
   media,
+  nextSequel,
 }: ProgressPanelProps) {
   const qc = useQueryClient();
   const progressFn = useServerFn(updateMediaProgress);
   const isManga = mediaType === "manga";
+  const isPureEpisodeAnime = mediaType === "anime" && seasons.length === 0;
 
   // Local editable copies of the saved values (strings so an in-progress
   // "12" → "120" edit or an emptied field never crashes rendering).
@@ -122,7 +132,7 @@ export function ProgressPanel({
     return () => clearTimeout(t);
   }, [savedFlash]);
 
-  const season = parseCount(seasonText);
+  const season = isPureEpisodeAnime ? null : parseCount(seasonText);
   const episode = parseCount(episodeText);
   const chapter = parseCount(chapterText);
 
@@ -147,7 +157,9 @@ export function ProgressPanel({
   // surface here the moment the user edits anything (same rule as server).
   const draft = isManga
     ? { current_chapter: chapter }
-    : { current_season: season, current_episode: episode };
+    : isPureEpisodeAnime
+      ? { current_episode: episode }
+      : { current_season: season, current_episode: episode };
   const validation = validateProgressValues(mediaType, draft, limits);
   const totalHint = progressTotalHint(mediaType, {
     episodeTotal,
@@ -161,7 +173,7 @@ export function ProgressPanel({
     : calculateProgressPercent(episode, episodeTotal);
   const formatted = isManga
     ? formatChapterProgress(chapter, chapterTotal)
-    : formatEpisodeProgress(season, episode, episodeTotal);
+    : formatEpisodeProgress(isPureEpisodeAnime ? null : season, episode, episodeTotal);
   // Total-aware "next item" hint — the label resolves it from known totals:
   // anime/manga reaching the total → "Completed"; tv finishing an earlier
   // season → "Next: Season N+1 · Episode 1", and only the last known season
@@ -188,7 +200,9 @@ export function ProgressPanel({
   const savedChapter = entry?.current_chapter ?? null;
   const dirty = isManga
     ? chapter !== savedChapter
-    : season !== savedSeason || episode !== savedEpisode;
+    : isPureEpisodeAnime
+      ? episode !== savedEpisode
+      : season !== savedSeason || episode !== savedEpisode;
 
   /** A season is completed if marked completed in user_seasons, if the series is
    *  completed, or if it is an earlier season than the actively tracked season. */
@@ -202,7 +216,9 @@ export function ProgressPanel({
   };
 
   const isCurrentSeasonCompleted = Boolean(
-    isSeasonCompleted(season) ||
+    (isPureEpisodeAnime
+      ? episodeTotal !== null && episodeTotal > 0 && episode !== null && episode >= episodeTotal
+      : isSeasonCompleted(season)) ||
       (episodeTotal !== null && episodeTotal > 0 && episode !== null && episode >= episodeTotal),
   );
 
@@ -288,6 +304,7 @@ export function ProgressPanel({
       return;
     }
     if (isManga) mProgress.mutate({ current_chapter: chapter });
+    else if (isPureEpisodeAnime) mProgress.mutate({ current_season: null, current_episode: episode });
     else mProgress.mutate({ current_season: season, current_episode: episode });
   };
 
@@ -371,30 +388,41 @@ export function ProgressPanel({
         ) : null}
       </div>
 
-      {isManga ? (
-        // ── Manga: a single chapter control ──
+      {isManga || isPureEpisodeAnime ? (
+        // ── Manga (chapter) or Single-Season Anime (pure episode tracker) ──
         <div className="mt-2.5 flex items-end justify-between gap-3">
           <div>
-            <label htmlFor="progress-chapter" className="text-sm font-medium">
-              Chapter
+            <label
+              htmlFor={isManga ? "progress-chapter" : "progress-episode"}
+              className="text-sm font-medium"
+            >
+              {isManga ? "Chapter" : "Episode"}
             </label>
             <input
-              id="progress-chapter"
+              id={isManga ? "progress-chapter" : "progress-episode"}
               type="number"
               inputMode="numeric"
               min={0}
-              max={limits.chapterTotal ?? undefined}
+              max={(isManga ? limits.chapterTotal : episodeTotal) ?? undefined}
               aria-invalid={!validation.ok}
-              value={chapterText}
-              onChange={(e) => setChapterText(e.target.value)}
+              value={isManga ? chapterText : episodeText}
+              onChange={(e) =>
+                isManga ? setChapterText(e.target.value) : setEpisodeText(e.target.value)
+              }
               className="mt-1 block h-11 w-28 rounded-lg border border-border/40 bg-card/40 px-3 text-center text-sm tabular-nums focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50"
             />
             {totalHint ? <p className="mt-1 text-xs text-muted-foreground">{totalHint}</p> : null}
           </div>
           {stepperButton(
-            "Decrease chapter",
-            () => setChapterText(String(Math.max(0, (chapter ?? 0) - 1))),
-            () => setChapterText(String((chapter ?? 0) + 1)),
+            isManga ? "Decrease chapter" : "Decrease episode",
+            () =>
+              isManga
+                ? setChapterText(String(Math.max(0, (chapter ?? 0) - 1)))
+                : setEpisodeText(String(Math.max(0, (episode ?? 0) - 1))),
+            () =>
+              isManga
+                ? setChapterText(String((chapter ?? 0) + 1))
+                : setEpisodeText(String((episode ?? 0) + 1)),
           )}
         </div>
       ) : (
@@ -424,7 +452,7 @@ export function ProgressPanel({
               </Select>
             </div>
           ) : (
-            // No season metadata cached (common for anime) — manual entry.
+            // No season metadata cached — manual entry.
             <div>
               <label htmlFor="progress-season" className="text-sm font-medium">
                 Season
@@ -511,7 +539,23 @@ export function ProgressPanel({
       ) : null}
 
       <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-muted-foreground">{nextLabel}</p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-xs text-muted-foreground">{nextLabel}</p>
+          {isCurrentSeasonCompleted && nextSequel ? (
+            <Link
+              to="/media/$type/$source/$id"
+              params={{
+                type: nextSequel.type,
+                source: nextSequel.source,
+                id: nextSequel.id,
+              }}
+              className="inline-flex items-center gap-1 rounded-md bg-primary/15 border border-primary/30 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/25 transition-colors"
+            >
+              <span>Next: {nextSequel.title}</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          ) : null}
+        </div>
         <div className="flex items-center gap-3">
           {entry.progress_updated_at ? (
             <time
