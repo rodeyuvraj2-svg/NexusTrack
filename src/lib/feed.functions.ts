@@ -129,6 +129,7 @@ export const mediaAllFeed = createServerFn({ method: "GET" })
         .filter(Boolean) ?? [];
 
     if (data.type === "movie" || data.type === "tv") {
+      const tmdbType: "movie" | "tv" = data.type;
       if (genreList.length > 0) {
         // Genres aren't supported by the category endpoints — compose All
         // from /discover with with_genres under three different rankings so
@@ -138,7 +139,7 @@ export const mediaAllFeed = createServerFn({ method: "GET" })
         const genreParam = genreList.join(",");
         const settled = await Promise.allSettled(
           kinds.map((k) =>
-            fetchTmdbDiscoverFeed(data.type, k, subPage, offset + windowSize, genreParam),
+            fetchTmdbDiscoverFeed(tmdbType, k, subPage, offset + windowSize, genreParam),
           ),
         );
         const windowed = settled.map((s) =>
@@ -146,10 +147,10 @@ export const mediaAllFeed = createServerFn({ method: "GET" })
         );
         return composeMixedFeed(windowed, FEED_PAGE_SIZE);
       }
-      const kinds = TMDB_ALL_LISTS[data.type];
+      const kinds = TMDB_ALL_LISTS[tmdbType];
       const { subPage, offset, windowSize } = allFeedWindow(kinds.length, data.page);
       const settled = await Promise.allSettled(
-        kinds.map((kind) => fetchTmdbFeed(data.type, kind, subPage, offset + windowSize)),
+        kinds.map((kind) => fetchTmdbFeed(tmdbType, kind, subPage, offset + windowSize)),
       );
       const windowed = settled.map((s) =>
         s.status === "fulfilled" ? s.value.slice(offset, offset + windowSize) : [],

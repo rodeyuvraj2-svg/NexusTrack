@@ -378,18 +378,24 @@ export const updateMediaProgress = createServerFn({ method: "POST" })
     const effectiveSeason =
       data.current_season !== undefined ? data.current_season : entry.current_season;
     const limits: ProgressLimits = {};
+    let tvSeasonRows: Array<{
+      id: string;
+      season_number: number;
+      episode_count: number | null;
+    }> = [];
     if (mediaType === "tv") {
       const { data: seasons } = await context.supabase
         .from("seasons")
-        .select("season_number, episode_count")
+        .select("id, season_number, episode_count")
         .eq("media_id", data.media_id);
-      const seasonRows = (seasons ?? []) as Array<{
+      tvSeasonRows = (seasons ?? []) as Array<{
+        id: string;
         season_number: number;
         episode_count: number | null;
       }>;
-      if (seasonRows.length > 0) {
-        limits.seasonTotal = Math.max(...seasonRows.map((s) => s.season_number));
-        const target = seasonRows.find((s) => s.season_number === effectiveSeason);
+      if (tvSeasonRows.length > 0) {
+        limits.seasonTotal = Math.max(...tvSeasonRows.map((s) => s.season_number));
+        const target = tvSeasonRows.find((s) => s.season_number === effectiveSeason);
         if (target && target.episode_count !== null && target.episode_count > 0) {
           limits.episodeTotal = target.episode_count;
         }
@@ -417,6 +423,45 @@ export const updateMediaProgress = createServerFn({ method: "POST" })
     const validation = validateProgressValues(mediaType, effectiveInput, limits);
     if (!validation.ok) {
       throw new Error(validation.message ?? "That progress value isn't valid.");
+    }
+
+    // 4b. Remember completed seasons: when a tv save lands the user at/over a
+    //     season's last episode, mark that season completed in user_seasons so
+    //     the UI can restore it (its max episode) whenever it's selected again.
+    //     Also mark all earlier seasons completed so going back to them
+    //     accurately reflects that they were finished.
+    if (mediaType === "tv") {
+      const effSeason = effectiveInput.current_season;
+      const effEpisode = effectiveInput.current_episode;
+      if (effSeason !== null && effEpisode !== null) {
+        const currentSeasonRow = tvSeasonRows.find((s) => s.season_number === effSeason);
+        const maxEp = currentSeasonRow?.episode_count;
+        if (currentSeasonRow?.id && typeof maxEp === "number" && maxEp > 0 && effEpisode >= maxEp) {
+          await context.supabase.from("user_seasons").upsert(
+            {
+              user_id: context.userId,
+              user_media_id: entry.id,
+              season_id: currentSeasonRow.id,
+              status: "completed",
+            },
+            { onConflict: "user_id,season_id" },
+          );
+        }
+
+        // Mark all earlier seasons as completed in user_seasons
+        const earlierSeasons = tvSeasonRows.filter((s) => s.season_number < effSeason);
+        for (const prev of earlierSeasons) {
+          await context.supabase.from("user_seasons").upsert(
+            {
+              user_id: context.userId,
+              user_media_id: entry.id,
+              season_id: prev.id,
+              status: "completed",
+            },
+            { onConflict: "user_id,season_id" },
+          );
+        }
+      }
     }
 
     // 5. Partial update of only the fields that actually change.
