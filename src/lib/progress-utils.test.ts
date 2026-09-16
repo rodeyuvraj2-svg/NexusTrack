@@ -165,6 +165,66 @@ describe("formatNextItemLabel", () => {
   test("negative values are treated as not started", () => {
     expect(formatNextItemLabel("tv", { episode: -2 })).toBe("Next: Episode 1");
   });
+
+  test("reaching a known total → Completed instead of a next item", () => {
+    expect(formatNextItemLabel("tv", { episode: 12 }, { episodeTotal: 12 })).toBe("Completed");
+    expect(formatNextItemLabel("anime", { episode: 24 }, { episodeTotal: 24 })).toBe("Completed");
+    expect(formatNextItemLabel("manga", { chapter: 120 }, { chapterTotal: 120 })).toBe("Completed");
+  });
+
+  test("exceeding a known total → still Completed (no fake next)", () => {
+    expect(formatNextItemLabel("anime", { episode: 13 }, { episodeTotal: 12 })).toBe("Completed");
+    expect(formatNextItemLabel("manga", { chapter: 121 }, { chapterTotal: 120 })).toBe("Completed");
+  });
+
+  test("below a known total → normal next label", () => {
+    expect(formatNextItemLabel("tv", { episode: 5 }, { episodeTotal: 12 })).toBe("Next: Episode 6");
+    expect(formatNextItemLabel("anime", { episode: 12 }, { episodeTotal: 13 })).toBe(
+      "Next: Episode 13",
+    );
+    expect(formatNextItemLabel("manga", { chapter: 48 }, { chapterTotal: 120 })).toBe(
+      "Next: Chapter 49",
+    );
+  });
+
+  test("unknown / empty totals never imply completion", () => {
+    expect(formatNextItemLabel("tv", { episode: 12 }, { episodeTotal: null })).toBe(
+      "Next: Episode 13",
+    );
+    expect(formatNextItemLabel("anime", { episode: 12 })).toBe("Next: Episode 13");
+    expect(formatNextItemLabel("anime", { episode: 12 }, { episodeTotal: 0 })).toBe(
+      "Next: Episode 13",
+    );
+    expect(formatNextItemLabel("manga", { chapter: 120 }, { chapterTotal: null })).toBe(
+      "Next: Chapter 121",
+    );
+    expect(formatNextItemLabel("manga", { chapter: 120 }, null)).toBe("Next: Chapter 121");
+  });
+
+  test("tv: finishing an earlier season points at the next season", () => {
+    expect(formatNextItemLabel("tv", { season: 1, episode: 12 }, { episodeTotal: 12, seasonTotal: 3 })).toBe(
+      "Next: Season 2 · Episode 1",
+    );
+    expect(formatNextItemLabel("tv", { season: 2, episode: 10 }, { episodeTotal: 10, seasonTotal: 3 })).toBe(
+      "Next: Season 3 · Episode 1",
+    );
+  });
+
+  test("tv: finishing the last known season → Completed", () => {
+    expect(formatNextItemLabel("tv", { season: 3, episode: 12 }, { episodeTotal: 12, seasonTotal: 3 })).toBe(
+      "Completed",
+    );
+    // No season known but at a total → can't name a next season, so Completed.
+    expect(formatNextItemLabel("tv", { episode: 12 }, { episodeTotal: 12, seasonTotal: 3 })).toBe(
+      "Completed",
+    );
+  });
+
+  test("tv: mid-season episodes keep the plain next label", () => {
+    expect(formatNextItemLabel("tv", { season: 1, episode: 11 }, { episodeTotal: 12, seasonTotal: 3 })).toBe(
+      "Next: Episode 12",
+    );
+  });
 });
 
 // ── getSeasonEpisodeTotal ────────────────────────────────────────────────────

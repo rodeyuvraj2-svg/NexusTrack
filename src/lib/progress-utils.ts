@@ -77,19 +77,45 @@ export function calculateProgressPercent(
 /**
  * Label for the next item to watch/read: `Next: Episode 6` / `Next: Chapter 49`.
  * A missing current value means "start at the beginning" (Episode 1 / Chapter 1).
- * Movies return null.
+ * Total-aware so it never invents an item past the end:
+ * - anime / manga: reaching the known total → `Completed`
+ * - tv: finishing a season points at the NEXT season
+ *   (`Next: Season 2 · Episode 1`); finishing the last known season → `Completed`
+ * Movies return null. Unknown totals never imply completion.
  */
 export function formatNextItemLabel(
   mediaType: string | null | undefined,
-  current: { episode?: number | null; chapter?: number | null } = {},
+  current: { season?: number | null; episode?: number | null; chapter?: number | null } = {},
+  totals?: {
+    episodeTotal?: number | null;
+    seasonTotal?: number | null;
+    chapterTotal?: number | null;
+  } | null,
 ): string | null {
   if (mediaType === "manga") {
     const ch = toCount(current.chapter);
+    const total = toCount(totals?.chapterTotal);
+    if (ch !== null && total !== null && total > 0 && ch >= total) return "Completed";
     return `Next: Chapter ${(ch ?? 0) + 1}`;
   }
-  if (mediaType === "tv" || mediaType === "anime") {
+  if (mediaType === "anime") {
     const ep = toCount(current.episode);
+    const total = toCount(totals?.episodeTotal);
+    if (ep !== null && total !== null && total > 0 && ep >= total) return "Completed";
     return `Next: Episode ${(ep ?? 0) + 1}`;
+  }
+  if (mediaType === "tv") {
+    const ep = toCount(current.episode);
+    if (ep === null) return "Next: Episode 1";
+    const seasonTotal = toCount(totals?.episodeTotal);
+    const atSeasonEnd = seasonTotal !== null && seasonTotal > 0 && ep >= seasonTotal;
+    if (!atSeasonEnd) return `Next: Episode ${ep + 1}`;
+    const sn = toCount(current.season);
+    const maxSeason = toCount(totals?.seasonTotal);
+    if (sn !== null && maxSeason !== null && maxSeason > 0 && sn < maxSeason) {
+      return `Next: Season ${sn + 1} · Episode 1`;
+    }
+    return "Completed";
   }
   return null;
 }

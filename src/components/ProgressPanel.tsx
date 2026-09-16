@@ -15,7 +15,6 @@ import {
 } from "@/lib/progress-utils";
 import {
   canIncrement,
-  episodeTotalForSeason,
   progressTotalHint,
   validateProgressValues,
   type ProgressLimits,
@@ -58,8 +57,13 @@ interface ProgressPanelProps {
   mediaType: "tv" | "anime" | "manga";
   /** undefined = library entry still loading; null = not in library. */
   entry: ProgressEntryState | null | undefined;
-  /** Known season metadata (listSeasonsWithProgress rows), when available. */
-  seasons: Array<{ season_number: number; episode_count: number | null; name: string | null }>;
+  /** Known season metadata + the user's per-season status (listSeasonsWithProgress). */
+  seasons: Array<{
+    season_number: number;
+    episode_count: number | null;
+    name: string | null;
+    status: string | null;
+  }>;
   /** Total chapter count for manga, when known. */
   chapterTotal: number | null;
   media: ProgressMediaInfo;
@@ -158,9 +162,26 @@ export function ProgressPanel({
   const formatted = isManga
     ? formatChapterProgress(chapter, chapterTotal)
     : formatEpisodeProgress(season, episode, episodeTotal);
-  const nextLabel = isManga
-    ? formatNextItemLabel("manga", { chapter })
-    : formatNextItemLabel(mediaType, { episode });
+  // Total-aware "next item" hint — the label resolves it from known totals:
+  // anime/manga reaching the total → "Completed"; tv finishing an earlier
+  // season → "Next: Season N+1 · Episode 1", and only the last known season
+  // → "Completed". No known total → the hint stays (can't know it's the end).
+  const totals: {
+    episodeTotal?: number | null;
+    seasonTotal?: number | null;
+    chapterTotal?: number | null;
+  } = {};
+  if (isManga) {
+    if (chapterTotal !== null && chapterTotal > 0) totals.chapterTotal = chapterTotal;
+  } else if (mediaType === "anime") {
+    if (episodeTotal !== null && episodeTotal > 0) totals.episodeTotal = episodeTotal;
+  } else {
+    totals.episodeTotal = episodeTotal;
+    if (limits.seasonTotal != null && limits.seasonTotal > 0) {
+      totals.seasonTotal = limits.seasonTotal;
+    }
+  }
+  const nextLabel = formatNextItemLabel(mediaType, { season, episode, chapter }, totals);
 
   const savedSeason = entry?.current_season ?? null;
   const savedEpisode = entry?.current_episode ?? null;
@@ -168,6 +189,22 @@ export function ProgressPanel({
   const dirty = isManga
     ? chapter !== savedChapter
     : season !== savedSeason || episode !== savedEpisode;
+
+  /** A season is completed if marked completed in user_seasons, if the series is
+   *  completed, or if it is an earlier season than the actively tracked season. */
+  const isSeasonCompleted = (seasonNum: number | null | undefined): boolean => {
+    if (seasonNum == null) return false;
+    const target = seasons.find((s) => s.season_number === seasonNum);
+    if (target?.status === "completed") return true;
+    if (entry?.status === "completed") return true;
+    if (savedSeason !== null && seasonNum < savedSeason) return true;
+    return false;
+  };
+
+  const isCurrentSeasonCompleted = Boolean(
+    isSeasonCompleted(season) ||
+      (episodeTotal !== null && episodeTotal > 0 && episode !== null && episode >= episodeTotal),
+  );
 
   const mProgress = useMutation({
     mutationFn: (payload: {
@@ -235,6 +272,9 @@ export function ProgressPanel({
       qc.invalidateQueries({ queryKey: ["continue-watching"] });
       qc.invalidateQueries({ queryKey: ["library-entry", mediaId] });
       qc.invalidateQueries({ queryKey: ["library"] });
+      // A tv save may have auto-completed a season (user_seasons) — refresh
+      // season status so the dropdown's restore-on-complete stays accurate.
+      qc.invalidateQueries({ queryKey: ["seasons", mediaId] });
     },
   });
 
@@ -251,18 +291,28 @@ export function ProgressPanel({
     else mProgress.mutate({ current_season: season, current_episode: episode });
   };
 
-  /** Season select change: validate the new season and re-evaluate episode
-   *  progress against that season's actual episode count — clamp a stale
-   *  episode value down instead of letting it become invalid. */
+  /** Season select change:
+   *  - A completed season restores its last episode (max episode count).
+   *  - The currently-tracked season restores its saved episode.
+   *  - Any other season starts fresh at episode 1 (never carrying over another season's episode count!).
+   *  - "Not set" leaves the episode alone. */
   const onSeasonChange = (nextText: string) => {
     const next = nextText === "none" ? null : parseCount(nextText);
     setSeasonText(nextText === "none" ? "" : nextText);
     if (next === null) return;
-    const nextTotal = episodeTotalForSeason(seasons, next);
-    if (nextTotal !== null && episode !== null && episode > nextTotal) {
-      setEpisodeText(String(nextTotal));
-      toast.info(`Season ${next} has ${nextTotal} episodes — set to episode ${nextTotal}.`);
+    const target = seasons.find((s) => s.season_number === next);
+    const maxEp = target?.episode_count ?? null;
+    const completed = isSeasonCompleted(next);
+
+    if (completed && maxEp !== null && maxEp > 0) {
+      setEpisodeText(String(maxEp));
+      return;
     }
+    if (next === savedSeason) {
+      setEpisodeText(toText(savedEpisode) || "1");
+      return;
+    }
+    setEpisodeText("1");
   };
 
   // ── Not in library: controls stay hidden until the title is added. ──────
@@ -387,7 +437,18 @@ export function ProgressPanel({
                 max={limits.seasonTotal ?? undefined}
                 aria-invalid={!validation.ok}
                 value={seasonText}
-                onChange={(e) => setSeasonText(e.target.value)}
+                onChange={(e) => {
+                  const nextVal = e.target.value;
+                  setSeasonText(nextVal);
+                  const nextSeason = parseCount(nextVal);
+                  if (nextSeason !== season) {
+                    if (nextSeason === savedSeason) {
+                      setEpisodeText(toText(savedEpisode) || "1");
+                    } else {
+                      setEpisodeText("1");
+                    }
+                  }
+                }}
                 placeholder="—"
                 className="mt-1 block h-11 w-24 rounded-lg border border-border/40 bg-card/40 px-3 text-center text-sm tabular-nums focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50"
               />
@@ -429,6 +490,11 @@ export function ProgressPanel({
       <div className="mt-3 flex items-center justify-between gap-3">
         <p className="text-sm font-medium">
           {formatted ?? <span className="text-muted-foreground">Not started</span>}
+          {isCurrentSeasonCompleted ? (
+            <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+              (Completed)
+            </span>
+          ) : null}
         </p>
         {pct !== null ? <p className="text-xs tabular-nums text-muted-foreground">{pct}%</p> : null}
       </div>

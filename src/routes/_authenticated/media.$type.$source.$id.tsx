@@ -841,6 +841,7 @@ function MediaDetail() {
           season_number: s.season_number,
           episode_count: s.episode_count,
           name: s.name,
+          status: s.status,
         }))}
         chapterTotal={
           summary.chapter_count ?? (isManga ? (mangaDetailsQ.data?.extra?.chapters ?? null) : null)
