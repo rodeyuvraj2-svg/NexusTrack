@@ -39,11 +39,11 @@ export function FilterTabs<T extends string = string>({
             aria-selected={isActive}
             onClick={() => onChange(opt.value)}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full font-medium transition-colors btn-press shrink-0",
+              "inline-flex items-center gap-1.5 rounded-full border font-medium transition-all btn-press shrink-0",
               size === "md" ? "px-4 py-2 text-sm" : "px-4 py-1.5 text-sm",
               isActive
-                ? "bg-gradient-accent text-white shadow-md"
-                : "glass text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+                ? "border-primary/40 bg-gradient-accent/18 text-foreground shadow-[0_0_0_1px_rgba(129,140,248,0.25)]"
+                : "border-border/60 bg-card/55 text-muted-foreground hover:border-primary/25 hover:bg-muted/35 hover:text-foreground",
             )}
           >
             {Icon ? <Icon className="h-4 w-4 shrink-0" /> : null}
@@ -82,9 +82,9 @@ export function Chip({
         "rounded-full border px-3 py-1 text-[11px] uppercase tracking-wider font-medium transition-colors shrink-0",
         active
           ? tone === "primary"
-            ? "border-primary/40 bg-primary/10 text-primary"
-            : "border-accent/40 bg-accent/15 text-accent"
-          : "border-border/40 text-muted-foreground hover:bg-muted/30 hover:text-foreground",
+            ? "border-primary/40 bg-primary/12 text-primary shadow-[0_0_0_1px_rgba(129,140,248,0.18)]"
+            : "border-accent/40 bg-accent/12 text-accent shadow-[0_0_0_1px_rgba(168,85,247,0.18)]"
+          : "border-border/60 bg-card/40 text-muted-foreground hover:border-primary/20 hover:bg-muted/35 hover:text-foreground",
         className,
       )}
     >

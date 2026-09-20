@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useRouteContext } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
@@ -18,6 +18,7 @@ import { SkeletonGrid, SkeletonRow } from "@/components/Skeletons";
 import { ErrorPanel } from "@/components/ErrorPanel";
 import { EmptyState } from "@/components/EmptyState";
 import { ContinueProgressCard, ContinueCardSkeleton } from "@/components/ContinueWatching";
+import { loadGuestState } from "@/lib/guest";
 import {
   AlertCircle,
   Film,
@@ -31,6 +32,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
+  beforeLoad: () => {
+    if (loadGuestState()) {
+      throw redirect({ to: "/" });
+    }
+  },
   head: () => ({
     meta: [
       { title: "Dashboard — NexusTrack" },
@@ -135,7 +141,10 @@ function Dashboard() {
   const trendingQ = useQuery({
     queryKey: ["dashboard-trending", trendingType],
     queryFn: async (): Promise<{ items: MediaSummary[]; missing: string[] }> => {
-      if (trendingType === "all") return await mixedFeedFn({ data: { mode: "trending" } });
+      if (trendingType === "all") {
+        const feed = await mixedFeedFn({ data: { mode: "trending" } });
+        return { ...feed, items: feed.items.slice(0, 12) };
+      }
       if (trendingType === "anime")
         return {
           items: (await topAnimeFn({ data: { page: 1, sort: "trending" } })).slice(0, 12),
@@ -166,7 +175,10 @@ function Dashboard() {
   const popularQ = useQuery({
     queryKey: ["dashboard-popular", popularType],
     queryFn: async (): Promise<{ items: MediaSummary[]; missing: string[] }> => {
-      if (popularType === "all") return await mixedFeedFn({ data: { mode: "popular" } });
+      if (popularType === "all") {
+        const feed = await mixedFeedFn({ data: { mode: "popular" } });
+        return { ...feed, items: feed.items.slice(0, 12) };
+      }
       if (popularType === "anime")
         return {
           items: (await topAnimeFn({ data: { page: 1, sort: "popular" } })).slice(0, 12),
@@ -210,14 +222,44 @@ function Dashboard() {
   const continueItems = (continueQ.data ?? []) as ContinueWatchingRow[];
 
   return (
-    <div>
+    <div className="space-y-8">
       <PageHeader
         title={`Welcome back${userName ? `, ${userName}` : ""}.`}
         description="Pick up where you left off, or find something new."
+        actions={
+          <Link
+            to="/discover"
+            className="inline-flex items-center gap-2 rounded-full border border-violet-400/30 bg-violet-500/10 px-4 py-2 text-sm font-semibold text-violet-50 transition-colors hover:bg-violet-500/15"
+          >
+            <Compass className="h-4 w-4" />
+            Discover
+          </Link>
+        }
       />
 
+      <div className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,_rgba(129,140,248,0.16),_transparent_26%),linear-gradient(135deg,color-mix(in_oklab,var(--card)_86%,transparent),color-mix(in_oklab,var(--muted)_72%,transparent))] p-4 shadow-[0_18px_42px_rgba(15,23,42,0.18)] md:p-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Your library
+            </p>
+            <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-foreground">
+              Keep your stories moving.
+            </h2>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+            <span className="rounded-full border border-border/70 bg-background/60 px-2.5 py-1.5">
+              {statsQ.data?.watching ?? 0} watching
+            </span>
+            <span className="rounded-full border border-border/70 bg-background/60 px-2.5 py-1.5">
+              {statsQ.data?.completed ?? 0} completed
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Stats */}
-      <div className="mb-10 grid grid-cols-2 md:grid-cols-4 gap-3 animate-fade-in">
+      <div className="mb-10 grid grid-cols-2 gap-3 md:grid-cols-4 animate-fade-in">
         {statsQ.isError ? (
           <ErrorPanel
             icon={AlertCircle}
@@ -334,7 +376,7 @@ function Dashboard() {
         ) : (trendingQ.data?.items ?? []).length === 0 ? (
           <ErrorPanel icon={TrendingUp} title="No content available" />
         ) : (
-          <MediaGrid items={trendingQ.data?.items ?? []} />
+          <MediaGrid items={trendingQ.data?.items ?? []} limit={12} />
         )}
       </Section>
 
@@ -376,7 +418,7 @@ function Dashboard() {
         ) : (popularQ.data?.items ?? []).length === 0 ? (
           <ErrorPanel icon={Film} title="No content available" />
         ) : (
-          <MediaGrid items={popularQ.data?.items ?? []} />
+          <MediaGrid items={popularQ.data?.items ?? []} limit={12} />
         )}
       </Section>
 

@@ -30,13 +30,16 @@ export function SkeletonGrid({ count = 12, className }: { count?: number; classN
 /** List-row skeleton (activity feed, notifications, friend rows). */
 export function SkeletonRow({ className }: { className?: string }) {
   return (
-    <div className={cn("glass rounded-lg px-3 py-2.5 flex items-center gap-2.5", className)}>
-      <div className="h-7 w-7 shrink-0 rounded-full bg-muted/40 animate-pulse" />
-      <div className="flex-1 space-y-1.5">
-        <div className="h-3 w-1/2 rounded bg-muted/40 animate-pulse" />
-        <div className="h-3 w-3/4 rounded bg-muted/30 animate-pulse" />
+    <div
+      className={cn("glass w-full rounded-xl p-4 flex items-start gap-3 animate-pulse", className)}
+    >
+      <div className="mt-0.5 h-9 w-9 shrink-0 rounded-lg bg-muted/40" />
+      <div className="flex-1 space-y-2 pt-0.5">
+        <div className="h-3 w-1/2 rounded bg-muted/40" />
+        <div className="h-3 w-3/4 rounded bg-muted/30" />
+        <div className="h-2.5 w-28 rounded bg-muted/20" />
       </div>
-      <div className="h-3 w-10 shrink-0 rounded bg-muted/20 animate-pulse" />
+      <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-muted/30" />
     </div>
   );
 }

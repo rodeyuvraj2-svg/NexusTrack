@@ -388,7 +388,7 @@ function StatusPill({
       {open && (
         <div
           role="listbox"
-          className="absolute bottom-full left-0 mb-1.5 z-30 min-w-[140px] rounded-xl border border-border/50 bg-card p-1 shadow-2xl shadow-black/40 animate-fade-in"
+          className="absolute bottom-full left-0 mb-1.5 z-30 min-w-[140px] rounded-xl border border-border bg-card p-1 shadow-[var(--shadow-lg)] animate-fade-in"
         >
           {STATUS_OPTIONS.map((opt) => {
             const isActive = current === opt.value;
@@ -485,7 +485,7 @@ const MediaCardInner = memo(function MediaCardInner({
   }
 
   return (
-    <div className="group relative block overflow-hidden rounded-xl bg-card/60 border border-border/40 transition-all duration-300 hover:border-border/60 hover:shadow-xl hover:shadow-black/30 hover:-translate-y-0.5">
+    <div className="group relative block overflow-hidden rounded-2xl bg-card border border-border shadow-[var(--shadow-sm)] transition-all duration-300 hover:border-primary/30 hover:shadow-[var(--card-hover-shadow)] hover:-translate-y-1">
       <Link
         to={CARD_LINK}
         params={{ type: item.media_type, source: item.source, id: item.external_id }}
@@ -495,7 +495,10 @@ const MediaCardInner = memo(function MediaCardInner({
           <SafeImage
             src={item.poster_url}
             alt={item.title}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            loading={"lazy"}
+            fetchPriority="low"
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16vw"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
             wrapperClassName="h-full w-full"
           />
           {/* Gradient overlay */}
@@ -623,15 +626,18 @@ export function MediaCard({ item, showProgress }: { item: MediaSummary; showProg
 export function MediaGrid({
   items,
   showProgress,
+  limit,
 }: {
   items: MediaSummary[];
   showProgress?: boolean;
+  limit?: number;
 }) {
   // The whole-library map is warmed by the AppShell and shared with the
   // dashboard/library pages — zero per-grid requests for pill state.
   const { status, map } = useLibraryMap();
+  const visibleItems = typeof limit === "number" ? items.slice(0, limit) : items;
 
-  if (items.length === 0) {
+  if (visibleItems.length === 0) {
     return (
       <EmptyState
         icon={Film}
@@ -644,7 +650,7 @@ export function MediaGrid({
   return (
     <LibraryMapContext.Provider value={{ status, map }}>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-        {items.map((it, idx) => (
+        {visibleItems.map((it, idx) => (
           <MediaCard
             key={`${it.source}-${it.media_type}-${it.external_id}-${idx}`}
             item={it}
@@ -653,6 +659,78 @@ export function MediaGrid({
         ))}
       </div>
     </LibraryMapContext.Provider>
+  );
+}
+
+// ─── PosterCard (editorial, link-only) ─────────────────────────────────────────
+// A poster-first card for rails and the public landing — no library controls,
+// just a clean tap target into the detail page. Used where saving isn't the
+// primary action (trending rails, recommendations, guest browsing).
+
+export function PosterCard({ item, className }: { item: MediaSummary; className?: string }) {
+  return (
+    <Link
+      to={CARD_LINK}
+      params={{ type: item.media_type, source: item.source, id: item.external_id }}
+      className={cn(
+        "group relative block overflow-hidden rounded-2xl bg-card border border-border shadow-[var(--shadow-sm)] transition-all duration-300 hover:border-primary/30 hover:shadow-[var(--card-hover-shadow)] hover:-translate-y-1",
+        className,
+      )}
+    >
+      <div className="aspect-[2/3] bg-muted overflow-hidden relative">
+        <SafeImage
+          src={item.poster_url}
+          alt={item.title}
+          loading="lazy"
+          fetchPriority="low"
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16vw"
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+          wrapperClassName="h-full w-full"
+        />
+        {item.vote_average != null && (
+          <div className="absolute top-2 left-2 flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-sm px-1.5 py-0.5">
+            <Star className="h-3 w-3 fill-warning text-warning" />
+            <span className="text-[11px] font-bold text-white">{item.vote_average.toFixed(1)}</span>
+          </div>
+        )}
+      </div>
+      <div className="p-3">
+        <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+          <span className="font-semibold text-primary">{item.media_type}</span>
+          {item.release_year ? (
+            <>
+              <span>·</span>
+              <span>{item.release_year}</span>
+            </>
+          ) : null}
+        </div>
+        <h3 className="mt-0.5 line-clamp-2 text-sm font-bold leading-tight text-foreground transition-colors group-hover:text-primary">
+          {item.title}
+        </h3>
+      </div>
+    </Link>
+  );
+}
+
+// ─── MediaRail (horizontal editorial scroll rail) ──────────────────────────────
+// Poster rail with an edge fade (rail-mask) for landing/recommendation rows.
+// Snap-scrolls on touch; no per-card library requests (uses PosterCard).
+
+export function MediaRail({ items, className }: { items: MediaSummary[]; className?: string }) {
+  if (!items.length) return null;
+  return (
+    <div className={cn("rail-mask -mx-4 px-4", className)}>
+      <div className="flex gap-3 overflow-x-auto scrollbar-none snap-x pb-2">
+        {items.map((it, idx) => (
+          <div
+            key={`${it.source}-${it.media_type}-${it.external_id}-${idx}`}
+            className="w-[132px] shrink-0 snap-start sm:w-[150px] md:w-[160px]"
+          >
+            <PosterCard item={it} />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

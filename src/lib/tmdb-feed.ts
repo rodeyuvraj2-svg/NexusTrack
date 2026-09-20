@@ -13,12 +13,7 @@ const TMDB_BASE = "https://api.themoviedb.org/3";
 const TMDB_TIMEOUT = 4_000;
 
 export type TmdbFeedKind =
-  | "trending"
-  | "popular"
-  | "top_rated"
-  | "now_playing"
-  | "upcoming"
-  | "on_the_air";
+  "trending" | "popular" | "top_rated" | "now_playing" | "upcoming" | "on_the_air";
 
 // ── Auth (mirrors tmdb.functions.ts) ────────────────────────────────────────
 

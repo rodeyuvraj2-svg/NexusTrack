@@ -3,13 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
 type WatchStatus =
-  | "watching"
-  | "completed"
-  | "planned"
-  | "paused"
-  | "dropped"
-  | "skipped"
-  | "rewatching";
+  "watching" | "completed" | "planned" | "paused" | "dropped" | "skipped" | "rewatching";
 
 export interface ExportRow {
   title: string;

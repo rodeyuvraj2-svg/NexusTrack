@@ -24,16 +24,18 @@ export function EmptyState({
     <div
       className={cn(
         "flex flex-col items-center justify-center text-center",
-        variant === "panel" ? "glass rounded-2xl p-12" : "py-16",
+        variant === "panel"
+          ? "glass-strong rounded-2xl border border-border/60 p-10 md:p-12"
+          : "py-16",
         className,
       )}
     >
       {Icon && (
-        <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-muted/50">
-          <Icon className="h-7 w-7 text-muted-foreground/60" />
+        <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-primary/20 bg-primary/8 text-primary">
+          <Icon className="h-7 w-7" />
         </div>
       )}
-      <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+      <h3 className="text-lg font-bold tracking-[-0.02em] text-foreground">{title}</h3>
       <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>
       {action && <div className="mt-5">{action}</div>}
     </div>

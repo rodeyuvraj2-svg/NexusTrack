@@ -20,12 +20,21 @@ export function StatCard({
   className?: string;
 }) {
   return (
-    <div className={cn("glass rounded-xl p-3 text-center card-hover", className)}>
-      <Icon className="mx-auto mb-1 h-4 w-4 text-muted-foreground" />
-      <div className="text-xl font-black text-accent tabular-nums">
+    <div
+      className={cn(
+        "rounded-2xl border border-border/70 bg-card/75 p-3 text-center shadow-[0_18px_40px_rgba(15,23,42,0.18)] card-hover",
+        className,
+      )}
+    >
+      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary">
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="text-xl font-black tracking-[-0.04em] text-foreground tabular-nums">
         {loading ? "…" : (value ?? "—")}
       </div>
-      <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-1 text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
+        {label}
+      </div>
     </div>
   );
 }

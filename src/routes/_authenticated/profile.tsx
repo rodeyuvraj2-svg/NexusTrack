@@ -182,122 +182,123 @@ function Profile() {
   return (
     <div className="space-y-8">
       {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
-        {profile.avatar_url ? (
-          <img
-            src={profile.avatar_url}
-            alt=""
-            className="h-20 w-20 rounded-full object-cover ring-2 ring-border/40"
-          />
-        ) : (
-          <div className="h-20 w-20 rounded-full bg-gradient-accent grid place-items-center text-white text-2xl font-black ring-2 ring-border/40">
-            {(profile.display_name || profile.username).charAt(0).toUpperCase()}
-          </div>
-        )}
-        <div className="flex-1 text-center sm:text-left">
-          {editing ? (
-            <div className="space-y-3 max-w-md">
-              <input
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Display name"
-                className="w-full rounded-lg border border-input bg-background/40 px-3 py-2 text-base font-bold focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-muted-foreground/50"
-              />
-              <textarea
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                rows={2}
-                maxLength={500}
-                placeholder="Bio"
-                className="w-full rounded-lg border border-input bg-background/40 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-muted-foreground/50 resize-none"
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={saveProfile}
-                  disabled={busy}
-                  className="rounded-lg bg-gradient-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 flex items-center gap-1.5"
-                >
-                  <Save className="h-4 w-4" /> {busy ? "Saving…" : "Save"}
-                </button>
+      <div className="rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_left,_rgba(129,140,248,0.16),_transparent_24%),linear-gradient(135deg,color-mix(in_oklab,var(--card)_86%,transparent),color-mix(in_oklab,var(--muted)_72%,transparent))] p-5 shadow-[0_18px_46px_rgba(15,23,42,0.18)] sm:p-6">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+          {profile.avatar_url ? (
+            <img
+              src={profile.avatar_url}
+              alt=""
+              className="h-20 w-20 rounded-full object-cover ring-2 ring-border/40"
+            />
+          ) : (
+            <div className="h-20 w-20 rounded-full bg-gradient-accent grid place-items-center text-white text-2xl font-black ring-2 ring-border/40">
+              {(profile.display_name || profile.username).charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div className="flex-1 text-center sm:text-left">
+            {editing ? (
+              <div className="max-w-md space-y-3">
+                <input
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Display name"
+                  className="w-full rounded-lg border border-input bg-background/40 px-3 py-2 text-base font-bold focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-muted-foreground/50"
+                />
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  rows={2}
+                  maxLength={500}
+                  placeholder="Bio"
+                  className="w-full resize-none rounded-lg border border-input bg-background/40 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-muted-foreground/50"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={saveProfile}
+                    disabled={busy}
+                    className="flex items-center gap-1.5 rounded-lg bg-gradient-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    <Save className="h-4 w-4" /> {busy ? "Saving…" : "Save"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditing(false);
+                      setDisplayName(profile.display_name ?? "");
+                      setBio(profile.bio ?? "");
+                    }}
+                    className="rounded-lg border border-border/40 px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <h1 className="text-2xl font-bold md:text-3xl">
+                  {profile.display_name || profile.username}
+                </h1>
+                <p className="text-sm text-muted-foreground/70">@{profile.username}</p>
+                {profile.bio && (
+                  <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground/80">
+                    {profile.bio}
+                  </p>
+                )}
+
+                {/* Streak & hours — computed by getStats, shown as chips */}
+                {(s?.currentStreak ?? 0) > 0 && (
+                  <div className="mt-3 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/40 bg-warning/15 px-2.5 py-1 text-xs font-semibold text-warning">
+                      <Flame className="h-3.5 w-3.5" /> {s?.currentStreak}-day streak
+                    </span>
+                    {(s?.hoursWatched ?? 0) > 0 && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">
+                        <Clock className="h-3.5 w-3.5" /> {s?.hoursWatched} hrs watched
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Follow counts */}
+                <div className="mt-3 flex items-center gap-4 text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setListMode("followers")}
+                    className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <Users className="h-3.5 w-3.5" />
+                    <span className="font-semibold text-foreground">
+                      {followCountsQ.data?.followers ?? 0}
+                    </span>{" "}
+                    followers
+                  </button>
+                  <span className="text-muted-foreground/30">·</span>
+                  <button
+                    type="button"
+                    onClick={() => setListMode("following")}
+                    className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <span className="font-semibold text-foreground">
+                      {followCountsQ.data?.following ?? 0}
+                    </span>{" "}
+                    following
+                  </button>
+                </div>
+
                 <button
                   onClick={() => {
-                    setEditing(false);
                     setDisplayName(profile.display_name ?? "");
                     setBio(profile.bio ?? "");
+                    setEditing(true);
                   }}
-                  className="rounded-lg border border-border/40 px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
+                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  Cancel
+                  <Edit3 className="h-3.5 w-3.5" /> Edit profile
                 </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <h1 className="text-2xl md:text-3xl font-bold">
-                {profile.display_name || profile.username}
-              </h1>
-              <p className="text-sm text-muted-foreground/70">@{profile.username}</p>
-              {profile.bio && (
-                <p className="mt-2 max-w-md text-sm text-muted-foreground/80 leading-relaxed">
-                  {profile.bio}
-                </p>
-              )}
-
-              {/* Streak & hours — computed by getStats, shown as chips */}
-              {(s?.currentStreak ?? 0) > 0 && (
-                <div className="mt-3 flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/40 bg-warning/15 px-2.5 py-1 text-xs font-semibold text-warning">
-                    <Flame className="h-3.5 w-3.5" /> {s?.currentStreak}-day streak
-                  </span>
-                  {(s?.hoursWatched ?? 0) > 0 && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">
-                      <Clock className="h-3.5 w-3.5" /> {s?.hoursWatched} hrs watched
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Follow counts */}
-              <div className="mt-3 flex items-center gap-4 text-sm">
-                <button
-                  type="button"
-                  onClick={() => setListMode("followers")}
-                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Users className="h-3.5 w-3.5" />
-                  <span className="font-semibold text-foreground">
-                    {followCountsQ.data?.followers ?? 0}
-                  </span>{" "}
-                  followers
-                </button>
-                <span className="text-muted-foreground/30">·</span>
-                <button
-                  type="button"
-                  onClick={() => setListMode("following")}
-                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <span className="font-semibold text-foreground">
-                    {followCountsQ.data?.following ?? 0}
-                  </span>{" "}
-                  following
-                </button>
-              </div>
-
-              <button
-                onClick={() => {
-                  setDisplayName(profile.display_name ?? "");
-                  setBio(profile.bio ?? "");
-                  setEditing(true);
-                }}
-                className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Edit3 className="h-3.5 w-3.5" /> Edit profile
-              </button>
-            </>
-          )}
+              </>
+            )}
+          </div>
         </div>
       </div>
-
       {/* ── Stats ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {STAT_CARDS.map(({ key, label, Icon }) => {

@@ -34,7 +34,7 @@ export function ContinueProgressCard({ row }: { row: ContinueWatchingRow }) {
     <Link
       to={CARD_LINK}
       params={{ type: m.media_type, source: m.source, id: m.external_id }}
-      className="group block overflow-hidden rounded-xl border border-border/40 bg-card/60 transition-all duration-300 hover:border-border/60 hover:shadow-xl hover:shadow-black/30 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+      className="group block overflow-hidden rounded-2xl border border-border/60 bg-card/75 transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-[0_18px_40px_-20px_rgba(99,102,241,0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
     >
       <div className="relative aspect-[2/3] overflow-hidden bg-muted">
         <SafeImage
@@ -43,10 +43,10 @@ export function ContinueProgressCard({ row }: { row: ContinueWatchingRow }) {
           wrapperClassName="h-full w-full"
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
-        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/70 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
       </div>
       <div className="p-2.5">
-        <h3 className="truncate text-sm font-bold leading-tight group-hover:text-primary transition-colors">
+        <h3 className="truncate text-sm font-bold leading-tight text-foreground transition-colors group-hover:text-primary">
           {m.title}
         </h3>
         <p className="mt-0.5 truncate text-[11px] text-muted-foreground">

@@ -20,6 +20,7 @@ import {
   applyTheme,
   getAppliedTheme,
   isThemeId,
+  isLightTheme,
   useAppliedTheme,
 } from "@/lib/theme";
 
@@ -101,12 +102,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://s4.anilist.co" },
       { rel: "preconnect", href: "https://cdn.myanimelist.net" },
       { rel: "preconnect", href: "https://media.kitsu.app" },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap",
-      },
       { rel: "icon", href: "/favicon.svg?v=2", type: "image/svg+xml" },
     ],
   }),
@@ -118,7 +113,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
         {/* Apply the cached theme before first paint — a saved non-default
@@ -175,7 +170,7 @@ function RootComponent() {
         <Outlet />
         <GuestRestrictionModal />
       </GuestProvider>
-      <Toaster theme={theme === "solar-light" ? "light" : "dark"} position="top-right" richColors />
+      <Toaster theme={isLightTheme(theme) ? "light" : "dark"} position="top-right" richColors />
     </QueryClientProvider>
   );
 }

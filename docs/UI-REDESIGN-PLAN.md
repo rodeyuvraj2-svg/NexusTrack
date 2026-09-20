@@ -17,33 +17,36 @@
 ## 0. Design Foundation (styles.css)
 
 ### 0.1 Color tokens
+
 Replace the indigo/violet glass palette with a flat, elevated dark scale + blue accent.
 
-| Token | New value (oklch) | ~Hex | Role |
-|---|---|---|---|
-| `--background` | `0.145 0.008 255` | #0D1117-ish | app background (flat, no radial gradients) |
-| `--card` | `0.185 0.01 255` | #161B26 | cards, panels |
-| `--popover` | `0.205 0.01 255` | | dropdowns, menus |
-| `--muted` | `0.235 0.01 255` | | subtle fills |
-| `--muted-foreground` | `0.63 0.012 255` | #8B93A3 | secondary text |
-| `--foreground` | `0.97 0.005 255` | | primary text |
-| `--primary` | `0.62 0.19 255` | #3B82F6 | accent — buttons, active states, links |
-| `--primary-foreground` | `0.99 0.005 255` | | |
-| `--accent` | `0.68 0.16 255` | #60A5FA | hover accent (same hue family) |
-| `--border` | `oklch(1 0 0 / 0.08)` | | ONE border token — kills all /30 /40 /50 variants |
-| `--destructive` | `0.62 0.21 25` | | |
-| `--success` | `0.68 0.17 150` | | |
-| `--warning` | `0.78 0.16 80` | | |
+| Token                  | New value (oklch)     | ~Hex        | Role                                              |
+| ---------------------- | --------------------- | ----------- | ------------------------------------------------- |
+| `--background`         | `0.145 0.008 255`     | #0D1117-ish | app background (flat, no radial gradients)        |
+| `--card`               | `0.185 0.01 255`      | #161B26     | cards, panels                                     |
+| `--popover`            | `0.205 0.01 255`      |             | dropdowns, menus                                  |
+| `--muted`              | `0.235 0.01 255`      |             | subtle fills                                      |
+| `--muted-foreground`   | `0.63 0.012 255`      | #8B93A3     | secondary text                                    |
+| `--foreground`         | `0.97 0.005 255`      |             | primary text                                      |
+| `--primary`            | `0.62 0.19 255`       | #3B82F6     | accent — buttons, active states, links            |
+| `--primary-foreground` | `0.99 0.005 255`      |             |                                                   |
+| `--accent`             | `0.68 0.16 255`       | #60A5FA     | hover accent (same hue family)                    |
+| `--border`             | `oklch(1 0 0 / 0.08)` |             | ONE border token — kills all /30 /40 /50 variants |
+| `--destructive`        | `0.62 0.21 25`        |             |                                                   |
+| `--success`            | `0.68 0.17 150`       |             |                                                   |
+| `--warning`            | `0.78 0.16 80`        |             |                                                   |
 
 Sidebar tokens mirror card/muted. `--ring: var(--primary)`.
 
 ### 0.2 Remove
+
 - The 3 fixed radial gradients on `body` (purple/red noise)
 - `@utility glass`, `glass-strong`, `ring-accent`, `image-glow-border` (+ all 146 usages swept)
 - `bg-gradient-accent` utility (brand mark gets a solid blue tile)
 - `animate-float`, glow drop-shadows, `hover:scale-[1.02]` patterns
 
 ### 0.3 Add
+
 - Elevation scale: `--shadow-xs/sm/md/lg` (subtle black shadows only)
 - `--radius: 0.625rem` (tighter, more professional)
 - Focus ring: `:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }` global
@@ -51,7 +54,9 @@ Sidebar tokens mirror card/muted. `--ring: var(--primary)`.
 - Tabular numerals for stats: `font-variant-numeric: tabular-nums` on stat values
 
 ### 0.4 Typography
+
 Keep Inter, fix the weight system:
+
 - `h1` 700 (not 800/black), `h2` 600, `h3` 600 — page titles max `text-2xl`/`text-3xl`
 - Body 400, UI labels 500, small caps labels: `text-xs font-medium uppercase tracking-wide text-muted-foreground`
 - Stats: `text-2xl font-semibold tabular-nums` (not `font-black text-xl`)
@@ -60,16 +65,16 @@ Keep Inter, fix the weight system:
 
 ## 1. Shared Components (new in `src/components/`)
 
-| Component | Replaces | Notes |
-|---|---|---|
-| `PageHeader` | ad-hoc `<h1>` + `<p>` blocks | title, description, actions slot; consistent mb |
-| `SectionHeader` | dashboard `Section`, search/discover `<h2>`s | title, count badge, "View all →" link |
-| `FilterTabs` | 4 different pill systems (dashboard TypeFilter, search category pills, library status pills, discover tabs) | segmented control: solid track, active = blue fill w/ white text, inactive = transparent hover muted |
-| `Chip` | genre chips, type filter pills | outlined, sm |
-| `StatCard` | dashboard + profile stat tiles | icon, value (tabular), label; solid card, border token |
-| `SkeletonCard` / `SkeletonRow` / `SkeletonGrid` | per-page hand-rolled skeletons | single source; poster-shaped + list-row-shaped |
-| `EmptyState` (upgraded) | mixed empty panels | icon, title, description, action; solid card |
-| `ErrorPanel` | inline error divs | icon, message, retry button |
+| Component                                       | Replaces                                                                                                    | Notes                                                                                                |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `PageHeader`                                    | ad-hoc `<h1>` + `<p>` blocks                                                                                | title, description, actions slot; consistent mb                                                      |
+| `SectionHeader`                                 | dashboard `Section`, search/discover `<h2>`s                                                                | title, count badge, "View all →" link                                                                |
+| `FilterTabs`                                    | 4 different pill systems (dashboard TypeFilter, search category pills, library status pills, discover tabs) | segmented control: solid track, active = blue fill w/ white text, inactive = transparent hover muted |
+| `Chip`                                          | genre chips, type filter pills                                                                              | outlined, sm                                                                                         |
+| `StatCard`                                      | dashboard + profile stat tiles                                                                              | icon, value (tabular), label; solid card, border token                                               |
+| `SkeletonCard` / `SkeletonRow` / `SkeletonGrid` | per-page hand-rolled skeletons                                                                              | single source; poster-shaped + list-row-shaped                                                       |
+| `EmptyState` (upgraded)                         | mixed empty panels                                                                                          | icon, title, description, action; solid card                                                         |
+| `ErrorPanel`                                    | inline error divs                                                                                           | icon, message, retry button                                                                          |
 
 Rule: pages stop using raw `<button>`/`<input>` with ad-hoc classes — use `ui/button`, `ui/input`, `ui/select` consistently.
 
@@ -102,12 +107,15 @@ Rule: pages stop using raw `<button>`/`<input>` with ad-hoc classes — use `ui/
 ## 4. Pages (in execution order)
 
 ### 4.1 auth.tsx
+
 Split layout: left brand panel (solid dark, logo, tagline, 3 feature bullets), right centered form card (email, password w/ show toggle, primary submit, divider, Google button, guest link). Mode toggle = segmented `FilterTabs`. Success/reset screens: same card, success icon. Inputs get real `ui/input` styling w/ focus ring.
 
 ### 4.2 index.tsx (landing)
+
 Hero: headline + sub + two CTAs (solid blue + outlined). Feature grid: 6 solid cards, icon + title + line. Footer minimal. No gradients — one blue accent on the word "Track" and CTAs.
 
 ### 4.3 dashboard.tsx
+
 - `PageHeader`: "Welcome back, {name}." + description
 - `StatCard` row (4)
 - Continue Watching → `SectionHeader` + grid (or horizontal scroll row)
@@ -116,6 +124,7 @@ Hero: headline + sub + two CTAs (solid blue + outlined). Feature grid: 6 solid c
 - All states: `SkeletonGrid` / `ErrorPanel` / `EmptyState`
 
 ### 4.4 search.tsx
+
 - `PageHeader`
 - Search bar: large solid input, `Search` icon, focus ring, clear button
 - `FilterTabs` for categories (replaces gradient pills)
@@ -124,6 +133,7 @@ Hero: headline + sub + two CTAs (solid blue + outlined). Feature grid: 6 solid c
 - Idle / empty / loading / error states via shared components
 
 ### 4.5 discover.tsx
+
 - `PageHeader`
 - `FilterTabs` (Movies/TV/Anime/Manga) + sort `FilterTabs` (compact) or `ui/select`
 - Genre chips: `Chip` row, multi-select, active = blue fill
@@ -131,12 +141,14 @@ Hero: headline + sub + two CTAs (solid blue + outlined). Feature grid: 6 solid c
 - Error → `ErrorPanel` w/ retry
 
 ### 4.6 library.tsx
+
 - `PageHeader` + "Find something" outlined button
 - Status filters: `FilterTabs` w/ icons; type filters: `Chip` row
 - Search input (`ui/input`) + sort (`ui/select` w/ asc/desc toggle button)
 - Grid; loading = `SkeletonGrid` ×12; guest = `EmptyState` w/ sign-in CTA
 
 ### 4.7 media.$type.$source.$id.tsx (biggest page)
+
 - Hero: backdrop image w/ single dark gradient-to-transparent at bottom (overlay only over image — acceptable, it's imagery not decoration)
 - Poster + title + meta chips (year, runtime, genres, rating star)
 - Action bar: status `Select`, favorite toggle button, "Recommend to friend" outlined button, trailer link
@@ -148,6 +160,7 @@ Hero: headline + sub + two CTAs (solid blue + outlined). Feature grid: 6 solid c
 - All loading sections: skeletons; error: `ErrorPanel`
 
 ### 4.8 profile.tsx + user.$username.tsx
+
 - Header card: avatar (ring), name, username, bio, edit button (own) / follow button (other)
 - `StatCard` row (5)
 - Completion ring: keep, re-colored to blue
@@ -155,21 +168,25 @@ Hero: headline + sub + two CTAs (solid blue + outlined). Feature grid: 6 solid c
 - Edit mode: inline form w/ proper inputs
 
 ### 4.9 friends.tsx
+
 - `PageHeader` + add-friend input
 - Tabs (friends/requests/suggestions) via `FilterTabs`
 - Person rows: avatar, name, mutual count, action buttons; solid rows
 
 ### 4.10 notifications.tsx
+
 - `PageHeader` + "Mark all read" button
 - Grouped rows: icon by type, body, relative time; unread = blue left border + `bg-primary/5`
 - Empty → `EmptyState`
 
 ### 4.11 settings.tsx
+
 - `PageHeader`
 - Grouped `ui/card` sections: Account, Preferences, Data (import/export), Danger zone (destructive)
 - Labels + descriptions + `ui/switch`/`ui/select` controls; consistent row layout
 
 ### 4.12 CommandPalette, RoutePending, RouteErrorBoundary, GuestRestrictionModal
+
 - Palette: solid popover, blue highlight on active row
 - Pending: centered spinner + route-loading bar (keep existing top bar animation, recolor)
 - Error boundary: `ErrorPanel` style page

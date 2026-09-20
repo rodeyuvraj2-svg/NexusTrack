@@ -202,18 +202,18 @@ describe("formatNextItemLabel", () => {
   });
 
   test("tv: finishing an earlier season points at the next season", () => {
-    expect(formatNextItemLabel("tv", { season: 1, episode: 12 }, { episodeTotal: 12, seasonTotal: 3 })).toBe(
-      "Next: Season 2 · Episode 1",
-    );
-    expect(formatNextItemLabel("tv", { season: 2, episode: 10 }, { episodeTotal: 10, seasonTotal: 3 })).toBe(
-      "Next: Season 3 · Episode 1",
-    );
+    expect(
+      formatNextItemLabel("tv", { season: 1, episode: 12 }, { episodeTotal: 12, seasonTotal: 3 }),
+    ).toBe("Next: Season 2 · Episode 1");
+    expect(
+      formatNextItemLabel("tv", { season: 2, episode: 10 }, { episodeTotal: 10, seasonTotal: 3 }),
+    ).toBe("Next: Season 3 · Episode 1");
   });
 
   test("tv: finishing the last known season → Completed", () => {
-    expect(formatNextItemLabel("tv", { season: 3, episode: 12 }, { episodeTotal: 12, seasonTotal: 3 })).toBe(
-      "Completed",
-    );
+    expect(
+      formatNextItemLabel("tv", { season: 3, episode: 12 }, { episodeTotal: 12, seasonTotal: 3 }),
+    ).toBe("Completed");
     // No season known but at a total → can't name a next season, so Completed.
     expect(formatNextItemLabel("tv", { episode: 12 }, { episodeTotal: 12, seasonTotal: 3 })).toBe(
       "Completed",
@@ -221,9 +221,9 @@ describe("formatNextItemLabel", () => {
   });
 
   test("tv: mid-season episodes keep the plain next label", () => {
-    expect(formatNextItemLabel("tv", { season: 1, episode: 11 }, { episodeTotal: 12, seasonTotal: 3 })).toBe(
-      "Next: Episode 12",
-    );
+    expect(
+      formatNextItemLabel("tv", { season: 1, episode: 11 }, { episodeTotal: 12, seasonTotal: 3 }),
+    ).toBe("Next: Episode 12");
   });
 });
 

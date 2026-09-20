@@ -52,6 +52,12 @@ const ANIME_GENRES = [
 ];
 
 export const Route = createFileRoute("/_authenticated/discover")({
+  // Optional ?type= deep-link (used by the landing category tiles). Anything
+  // else is ignored so bare /discover links keep their default "movie" tab.
+  validateSearch: (search: Record<string, unknown>): { type?: MediaType } => {
+    const t = search.type;
+    return t === "movie" || t === "tv" || t === "anime" || t === "manga" ? { type: t } : {};
+  },
   head: () => ({
     meta: [
       { title: "Discover — NexusTrack" },
@@ -66,7 +72,8 @@ export const Route = createFileRoute("/_authenticated/discover")({
 });
 
 function Discover() {
-  const [tab, setTab] = useState<MediaType>("movie");
+  const { type } = Route.useSearch();
+  const [tab, setTab] = useState<MediaType>(type ?? "movie");
   const [sort, setSort] = useState<SortMode>("all");
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const sentinelRef = useRef<HTMLDivElement>(null);

@@ -80,16 +80,28 @@ function Notifications() {
   const recDismissFn = useServerFn(dismissRecommendation);
   const recDeleteFn = useServerFn(deleteRecommendation);
 
-  const q = useQuery<NotificationItem[]>({ queryKey: ["notifications"], queryFn: () => listFn() });
+  const q = useQuery<NotificationItem[]>({
+    queryKey: ["notifications"],
+    queryFn: () => listFn(),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    placeholderData: (prev) => prev,
+  });
   // Received recommendations live in their own table but share this feed.
   const recQ = useQuery<RecommendationItem[]>({
     queryKey: ["recommendations", "received"],
     queryFn: () => recListFn(),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    placeholderData: (prev) => prev,
   });
   // Sent recommendations — sender-side copies, deletable only.
   const sentQ = useQuery<RecommendationItem[]>({
     queryKey: ["recommendations", "sent"],
     queryFn: () => sentListFn(),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    placeholderData: (prev) => prev,
   });
 
   // Unread count derives from the fetched lists — no separate count
@@ -220,7 +232,7 @@ function Notifications() {
   const sentItems = sentQ.data ?? [];
 
   return (
-    <div className="max-w-2xl">
+    <div className="w-full max-w-5xl">
       <PageHeader
         title={
           <span className="flex items-center gap-3">
