@@ -161,19 +161,19 @@ Guest users can explore the app before creating an account.
 
 # 📂 Application Pages
 
-| Route | Description |
-|--------|-------------|
-| `/` | Landing Page |
-| `/auth` | Authentication |
-| `/dashboard` | Personalized Dashboard |
-| `/discover` | Discover Media |
-| `/search` | Global Search |
-| `/library` | Personal Library |
-| `/friends` | Friends |
-| `/notifications` | Activity Feed |
-| `/settings` | Account Settings |
-| `/user/:username` | Public Profile |
-| `/media/:type/:source/:id` | Media Details |
+| Route                      | Description            |
+| -------------------------- | ---------------------- |
+| `/`                        | Landing Page           |
+| `/auth`                    | Authentication         |
+| `/dashboard`               | Personalized Dashboard |
+| `/discover`                | Discover Media         |
+| `/search`                  | Global Search          |
+| `/library`                 | Personal Library       |
+| `/friends`                 | Friends                |
+| `/notifications`           | Activity Feed          |
+| `/settings`                | Account Settings       |
+| `/user/:username`          | Public Profile         |
+| `/media/:type/:source/:id` | Media Details          |
 
 ---
 

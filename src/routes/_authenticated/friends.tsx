@@ -120,7 +120,7 @@ function Friends() {
     <div>
       <PageHeader title="Friends" />
 
-      <div className="glass-strong rounded-2xl p-4 mb-8">
+      <div className="glass-strong rounded-[24px] border border-border/70 p-4 mb-8 shadow-[0_18px_42px_rgba(15,23,42,0.12)]">
         <label
           htmlFor="friend-search"
           className="text-xs uppercase tracking-wider text-muted-foreground"

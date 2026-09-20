@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Eye, EyeOff, Loader2, MailCheck, Chrome } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Loader2, MailCheck, Chrome } from "lucide-react";
 import { getAuthErrorMessage, parseRetryAfter } from "@/lib/auth-errors";
 import { useGuest } from "@/lib/guest";
 
@@ -198,180 +198,190 @@ function AuthPage() {
     }
   }
 
-  if (checking) {
-    return (
-      <div className="min-h-screen grid place-items-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+  const authPanelClass =
+    "w-full min-w-0 rounded-2xl border border-slate-800 bg-[#0b1220] p-5 shadow-[0_18px_42px_rgba(2,6,23,0.5)] sm:p-6";
+
+  const inputClass =
+    "w-full rounded-xl border border-slate-800 bg-[#0f172a] px-3.5 py-2.5 text-sm text-white transition-colors placeholder:text-slate-400 focus-visible:border-violet-400/70 focus-visible:outline-none";
+
+  const staticShell = (content: React.ReactNode) => (
+    <div className="relative min-h-screen overflow-hidden bg-[#050b14] text-slate-100">
+      <div className="absolute inset-x-0 top-0 h-px bg-violet-400/50" />
+
+      <div className="relative mx-auto flex min-h-screen w-full max-w-5xl items-center justify-center px-4 py-8 sm:px-6">
+        <Link
+          to="/"
+          className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900/90 px-3 py-2 text-sm font-medium text-slate-200 transition-colors hover:border-slate-500/60 hover:text-white sm:left-6 sm:top-6"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to NexusTrack
+        </Link>
+
+        <div className="w-full max-w-md">{content}</div>
       </div>
+    </div>
+  );
+
+  if (checking) {
+    return staticShell(
+      <div className={`${authPanelClass} flex min-h-[420px] items-center justify-center`}>
+        <Loader2 className="h-7 w-7 animate-spin text-primary" />
+      </div>,
     );
   }
 
   if (signupSuccess || resetSent) {
-    return (
-      <div className="min-h-screen grid place-items-center px-4">
-        <div className="w-full max-w-sm text-center">
-          <div className="mb-6 inline-flex items-center justify-center gap-2">
-            <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-accent shadow-lg">
-              <span className="text-base font-black text-white">N</span>
-            </div>
-            <span className="text-xl font-bold">
-              Nexus<span className="text-primary">Track</span>
-            </span>
-          </div>
-          <div className="glass-strong rounded-2xl p-8">
-            <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full bg-success/20">
-              <MailCheck className="h-7 w-7 text-success" />
-            </div>
-            <h2 className="text-lg font-bold">Check your email</h2>
-            <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-              {signupSuccess
-                ? `We sent a confirmation link to ${email}. Click it to verify your account.`
-                : `We sent a password reset link to ${email}. Click it to reset your password.`}
-            </p>
-          </div>
+    return staticShell(
+      <div className={authPanelClass}>
+        <div className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-full border border-slate-800 bg-slate-900 text-slate-200">
+          <MailCheck className="h-6 w-6" />
         </div>
-      </div>
+        <h2 className="text-2xl font-black tracking-[-0.04em] text-white">Check your email</h2>
+        <p className="mt-3 text-sm leading-relaxed text-slate-300">
+          {signupSuccess
+            ? `We sent a confirmation link to ${email}. Click it to verify your account.`
+            : `We sent a password reset link to ${email}. Click it to reset your password.`}
+        </p>
+      </div>,
     );
   }
 
   if (recovering) {
-    return (
-      <div className="min-h-screen grid place-items-center px-4">
-        <div className="w-full max-w-sm">
-          <div className="mb-6 text-center">
-            <div className="inline-flex items-center justify-center gap-2">
-              <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-accent shadow-lg">
-                <span className="text-base font-black text-white">N</span>
-              </div>
-              <span className="text-xl font-bold">
-                Nexus<span className="text-primary">Track</span>
-              </span>
-            </div>
+    return staticShell(
+      <div className={authPanelClass}>
+        <div className="mb-5 flex items-center gap-3">
+          <div className="grid h-9 w-9 place-items-center rounded-xl border border-slate-800 bg-slate-900 text-sm font-bold text-slate-100">
+            N
           </div>
-          <div className="glass-strong rounded-2xl p-6">
-            <h2 className="text-lg font-bold mb-1">Set new password</h2>
-            <p className="text-sm text-muted-foreground mb-5">Enter your new password below.</p>
-            <form onSubmit={handleUpdatePassword} className="space-y-3">
-              <div>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  required
-                  minLength={6}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="New password"
-                  aria-label="New password"
-                  autoComplete="new-password"
-                  className="w-full rounded-lg border border-input bg-background/40 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-muted-foreground/50"
-                />
-              </div>
-              <div>
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm password"
-                  aria-label="Confirm new password"
-                  autoComplete="new-password"
-                  className="w-full rounded-lg border border-input bg-background/40 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-muted-foreground/50"
-                />
-              </div>
-              {confirmPassword && newPassword !== confirmPassword ? (
-                <p className="text-xs text-destructive">Passwords do not match</p>
-              ) : null}
-              <button
-                type="submit"
-                disabled={busy || newPassword.length < 6 || newPassword !== confirmPassword}
-                className="w-full rounded-lg bg-gradient-accent py-2.5 text-sm font-semibold text-white disabled:opacity-60 flex items-center justify-center gap-2"
-              >
-                {busy ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Updating…
-                  </>
-                ) : (
-                  "Update password"
-                )}
-              </button>
-            </form>
-          </div>
+          <span className="text-xl font-black tracking-[-0.04em] text-white">NexusTrack</span>
         </div>
-      </div>
+
+        <h2 className="text-2xl font-black tracking-[-0.04em] text-white">Set new password</h2>
+        <p className="mt-2 text-sm text-slate-300">Enter your new password below.</p>
+        <form onSubmit={handleUpdatePassword} className="mt-5 space-y-3">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-200">New password</label>
+            <input
+              type={showPassword ? "text" : "password"}
+              required
+              minLength={6}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="New password"
+              aria-label="New password"
+              autoComplete="new-password"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-200">
+              Confirm password
+            </label>
+            <input
+              type="password"
+              required
+              minLength={6}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm password"
+              aria-label="Confirm new password"
+              autoComplete="new-password"
+              className={inputClass}
+            />
+          </div>
+          {confirmPassword && newPassword !== confirmPassword ? (
+            <p className="text-xs text-destructive">Passwords do not match</p>
+          ) : null}
+          <button
+            type="submit"
+            disabled={busy || newPassword.length < 6 || newPassword !== confirmPassword}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-violet-500/30 bg-violet-600/20 px-4 py-2.5 text-sm font-semibold text-violet-50 transition-opacity disabled:opacity-60"
+          >
+            {busy ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Updating…
+              </>
+            ) : (
+              "Update password"
+            )}
+          </button>
+        </form>
+      </div>,
     );
   }
 
   if (forgotPassword) {
-    return (
-      <div className="min-h-screen grid place-items-center px-4">
-        <div className="w-full max-w-sm">
-          <div className="mb-6 text-center">
-            <div className="inline-flex items-center justify-center gap-2">
-              <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-accent shadow-lg">
-                <span className="text-base font-black text-white">N</span>
-              </div>
-              <span className="text-xl font-bold">
-                Nexus<span className="text-primary">Track</span>
-              </span>
-            </div>
+    return staticShell(
+      <div className={authPanelClass}>
+        <div className="mb-5 flex items-center gap-3">
+          <div className="grid h-9 w-9 place-items-center rounded-xl border border-slate-800 bg-slate-900 text-sm font-bold text-slate-100">
+            N
           </div>
-          <div className="glass-strong rounded-2xl p-6">
-            <h2 className="text-lg font-bold mb-1">Reset password</h2>
-            <p className="text-sm text-muted-foreground mb-5">
-              Enter your email and we'll send you a reset link.
-            </p>
-            <form onSubmit={handleResetPassword} className="space-y-3">
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                aria-label="Email address"
-                autoComplete="email"
-                className="w-full rounded-lg border border-input bg-background/40 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-muted-foreground/50"
-              />
-              <button
-                type="submit"
-                disabled={busy || retryAfter > 0}
-                className="w-full rounded-lg bg-gradient-accent py-2.5 text-sm font-semibold text-white disabled:opacity-60 flex items-center justify-center gap-2"
-              >
-                {busy ? "Sending…" : retryAfter > 0 ? `Wait ${retryAfter}s…` : "Send reset link"}
-              </button>
-            </form>
-            <button
-              type="button"
-              onClick={() => {
-                setForgotPassword(false);
-                setRetryAfter(0);
-              }}
-              className="mt-4 w-full text-center text-xs text-muted-foreground hover:text-primary transition-colors"
-            >
-              Back to sign in
-            </button>
-          </div>
+          <span className="text-xl font-black tracking-[-0.04em] text-white">NexusTrack</span>
         </div>
-      </div>
+
+        <h2 className="text-2xl font-black tracking-[-0.04em] text-white">Reset password</h2>
+        <p className="mt-2 text-sm text-slate-300">
+          Enter your email and we'll send you a reset link.
+        </p>
+        <form onSubmit={handleResetPassword} className="mt-5 space-y-3">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-200">Email</label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              aria-label="Email address"
+              autoComplete="email"
+              className={inputClass}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={busy || retryAfter > 0}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-violet-500/30 bg-violet-600/20 px-4 py-2.5 text-sm font-semibold text-violet-50 transition-opacity disabled:opacity-60"
+          >
+            {busy ? "Sending…" : retryAfter > 0 ? `Wait ${retryAfter}s…` : "Send reset link"}
+          </button>
+        </form>
+        <button
+          type="button"
+          onClick={() => {
+            setForgotPassword(false);
+            setRetryAfter(0);
+          }}
+          className="mt-4 w-full text-center text-sm font-medium text-slate-300 transition-colors hover:text-white"
+        >
+          Back to sign in
+        </button>
+      </div>,
     );
   }
 
   return (
-    <div className="min-h-screen grid place-items-center px-4 py-12">
-      <div className="w-full max-w-sm">
-        {/* Brand */}
-        <Link to="/" className="mb-8 flex items-center justify-center gap-2">
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-accent shadow-lg">
-            <span className="text-base font-black text-white">N</span>
+    <>
+      {staticShell(
+        <div className={authPanelClass}>
+          <div className="mb-5 flex items-center gap-3">
+            <div className="grid h-9 w-9 place-items-center rounded-xl border border-slate-800 bg-slate-900 text-sm font-bold text-slate-100">
+              N
+            </div>
+            <span className="text-xl font-black tracking-[-0.04em] text-white">NexusTrack</span>
           </div>
-          <span className="text-xl font-bold">
-            Nexus<span className="text-primary">Track</span>
-          </span>
-        </Link>
 
-        <div className="glass-strong rounded-2xl p-6">
-          {/* Tabs */}
+          <div className="mb-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+              Welcome back
+            </p>
+            <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-white">
+              {mode === "signin" ? "Sign in" : "Create account"}
+            </h2>
+          </div>
+
           <div
-            className="mb-5 flex rounded-lg bg-muted/50 p-0.5"
+            className="mb-5 flex rounded-xl border border-slate-800 bg-[#0d1524] p-1"
             role="tablist"
             aria-label="Authentication mode"
           >
@@ -385,10 +395,8 @@ function AuthPage() {
                   setMode(m);
                   setShowPassword(false);
                 }}
-                className={`flex-1 rounded-md py-2 text-sm font-medium transition-all ${
-                  mode === m
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
+                className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  mode === m ? "bg-slate-800 text-white" : "text-slate-300 hover:text-white"
                 }`}
               >
                 {m === "signin" ? "Sign in" : "Create account"}
@@ -396,73 +404,92 @@ function AuthPage() {
             ))}
           </div>
 
-          {/* Google */}
           <button
             type="button"
             onClick={handleGoogle}
             disabled={busy}
-            className="w-full rounded-lg border border-border/40 bg-card/30 py-2.5 text-sm font-medium text-foreground hover:bg-card/60 transition-colors disabled:opacity-60 flex items-center justify-center gap-2.5 mb-3"
+            className="mb-4 flex w-full items-center justify-center gap-2.5 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm font-medium text-slate-100 transition-colors hover:border-slate-500/70 disabled:opacity-60"
           >
             <Chrome className="h-4 w-4" /> Continue with Google
           </button>
 
-          {/* Divider */}
           <div className="relative my-4">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-border/40" />
+              <span className="w-full border-t border-border/60" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-[var(--card)] px-2 text-muted-foreground/60">or</span>
+              <span className="bg-[#0b1220] px-2 text-slate-400">or</span>
             </div>
           </div>
 
-          {/* Email form */}
           <form onSubmit={handleEmail} className="space-y-3">
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-              aria-label="Email address"
-              autoComplete="email"
-              className="w-full rounded-lg border border-input bg-background/40 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-muted-foreground/50"
-            />
-            <div className="relative">
+            <div>
+              <label
+                htmlFor="auth-email"
+                className="mb-1.5 block text-sm font-medium text-slate-200"
+              >
+                Email
+              </label>
               <input
-                type={showPassword ? "text" : "password"}
+                id="auth-email"
+                type="email"
                 required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                aria-label="Password"
-                autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                className="w-full rounded-lg border border-input bg-background/40 px-3 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-muted-foreground/50"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                aria-label="Email address"
+                autoComplete="email"
+                className={inputClass}
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                className="absolute right-3 inset-y-0 my-auto flex items-center text-muted-foreground hover:text-foreground"
-                tabIndex={-1}
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
             </div>
-            {mode === "signin" && (
-              <button
-                type="button"
-                onClick={() => setForgotPassword(true)}
-                className="block text-xs text-muted-foreground hover:text-primary transition-colors"
+
+            <div>
+              <label
+                htmlFor="auth-password"
+                className="mb-1.5 block text-sm font-medium text-slate-200"
               >
-                Forgot password?
-              </button>
-            )}
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  id="auth-password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  aria-label="Password"
+                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                  className={`${inputClass} pr-11`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute inset-y-0 right-3 flex items-center text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="min-h-5">
+              {mode === "signin" ? (
+                <button
+                  type="button"
+                  onClick={() => setForgotPassword(true)}
+                  className="inline-flex text-sm font-medium text-slate-300 transition-colors hover:text-white"
+                >
+                  Forgot password?
+                </button>
+              ) : null}
+            </div>
+
             <button
               type="submit"
               disabled={busy || retryAfter > 0}
-              className="w-full rounded-lg bg-gradient-accent py-2.5 text-sm font-semibold text-white disabled:opacity-60 flex items-center justify-center gap-2"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-violet-500/30 bg-violet-600/20 px-4 py-2.75 text-sm font-semibold text-violet-50 transition-colors hover:bg-violet-600/25 disabled:opacity-60"
             >
               {busy ? (
                 <>
@@ -478,20 +505,15 @@ function AuthPage() {
             </button>
           </form>
 
-          {/* Guest */}
           <button
             type="button"
             onClick={handleGuestMode}
-            className="mt-3 w-full rounded-lg border border-border/40 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
+            className="mt-4 w-full rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:border-slate-500/70 hover:text-white"
           >
             Continue as Guest
           </button>
-        </div>
-
-        <p className="mt-6 text-center text-xs text-muted-foreground/60">
-          Free forever. No subscriptions. No ads.
-        </p>
-      </div>
-    </div>
+        </div>,
+      )}
+    </>
   );
 }

@@ -1,19 +1,47 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { Film, Search, Heart, Users, Star, ArrowRight, ChevronDown } from "lucide-react";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
+import {
+  ArrowRight,
+  BookOpen,
+  ChevronDown,
+  Compass,
+  Film,
+  Library,
+  PlayCircle,
+  Sparkles,
+  TrendingUp,
+  Tv,
+  Users,
+} from "lucide-react";
+import { FloatingNav } from "@/components/FloatingNav";
+import { MediaRail } from "@/components/MediaCard";
+import { mixedFeed } from "@/lib/feed.functions";
+import { useGuest } from "@/lib/guest";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({
+  beforeLoad: async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (session) {
+      throw redirect({ to: "/dashboard" });
+    }
+  },
   head: () => ({
     meta: [
-      { title: "NexusTrack — Movies, TV & Anime Tracker" },
+      { title: "NexusTrack — Track Every Story" },
       {
         name: "description",
         content:
-          "Track movies, TV, and anime in one place. Unified search, season-level progress, friends' libraries — free forever.",
+          "Track movies, TV shows, anime, and manga in one place. Discover something new, keep your progress organized, and build your personal entertainment library.",
       },
-      { property: "og:title", content: "NexusTrack — Track everything you watch" },
+      { property: "og:title", content: "NexusTrack — Track Every Story" },
       {
         property: "og:description",
-        content: "Movies, TV shows, anime — one library, every screen.",
+        content: "Movies & TV, anime, and manga — one library, every screen.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -22,282 +50,299 @@ export const Route = createFileRoute("/")({
   component: Landing,
 });
 
-const FEATURES = [
+type MediaType = "movie" | "tv" | "anime" | "manga";
+
+const CATEGORIES: { type: MediaType; label: string; desc: string; Icon: typeof Film }[] = [
+  { type: "movie", label: "Movies", desc: "Blockbusters to hidden gems", Icon: Film },
+  { type: "tv", label: "TV Shows", desc: "Series worth your evenings", Icon: Tv },
+  { type: "anime", label: "Anime", desc: "This season and all-time", Icon: Sparkles },
+  { type: "manga", label: "Manga", desc: "Chapters to binge", Icon: BookOpen },
+];
+
+const PILLARS: { title: string; body: string; Icon: typeof Film }[] = [
   {
-    Icon: Search,
-    title: "Unified search",
-    body: "Movies, TV, and anime results side by side from TMDB and MyAnimeList.",
+    title: "Track your progress",
+    body: "Pick up exactly where you left off with season- and episode-level tracking.",
+    Icon: PlayCircle,
   },
   {
-    Icon: Heart,
-    title: "Season-level tracking",
-    body: "Mark seasons, not episodes. Rollups happen automatically.",
+    title: "Organize your library",
+    body: "Watching, completed, planned, dropped — one tidy home for everything.",
+    Icon: Library,
   },
   {
-    Icon: Star,
-    title: "Favorites & ratings",
-    body: "Star what you love, rate on a 10-point scale, add private notes.",
+    title: "Discover what's next",
+    body: "Trending and popular titles across movies, TV, anime, and manga.",
+    Icon: Compass,
   },
   {
+    title: "Connect with friends",
+    body: "See what friends are into and copy any title straight to your list.",
     Icon: Users,
-    title: "Friends' libraries",
-    body: "See what friends are watching and copy any title with one click.",
   },
 ];
 
 function Landing() {
+  const navigate = useNavigate();
+  const { isGuest, enableGuest } = useGuest();
+
+  // Shared with FloatingNav's ["session-present"] cache — no duplicate request.
+  const { data: sessionPresent } = useQuery({
+    queryKey: ["session-present"],
+    queryFn: async () => !!(await supabase.auth.getSession()).data.session,
+    staleTime: 30_000,
+  });
+  const authed = !!sessionPresent;
+
+  // Real trending data — the same server feed the dashboard uses.
+  const trendingFn = useServerFn(mixedFeed);
+  const trendingQ = useQuery({
+    queryKey: ["landing-trending"],
+    queryFn: () => trendingFn({ data: { mode: "trending", page: 1 } }),
+    staleTime: 5 * 60_000,
+  });
+  const trending = trendingQ.data?.items ?? [];
+
+  // Discover is public browsing — a fresh visitor becomes a guest first so the
+  // protected-route guard admits them.
+  function goDiscover(type?: MediaType) {
+    if (!authed && !isGuest) enableGuest();
+    navigate({ to: "/discover", search: type ? { type } : {} });
+  }
+
   return (
-    <div className="relative">
-      {/* ── NAV ── */}
-      <header className="fixed top-0 inset-x-0 z-50 flex items-center justify-between px-4 sm:px-6 py-4 bg-background/80 backdrop-blur-lg border-b border-border/40">
-        <Link to="/" className="flex items-center gap-2.5">
-          <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-accent shadow-lg">
-            <span className="text-sm font-black text-white">N</span>
-          </div>
-          <span className="text-lg font-bold">
-            Nexus<span className="text-primary">Track</span>
-          </span>
-        </Link>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <Link
-            to="/auth"
-            className="hidden sm:inline-block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5"
-          >
-            Sign in
-          </Link>
-          <Link
-            to="/auth"
-            className="rounded-lg bg-gradient-accent px-4 sm:px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-shadow btn-press"
-          >
-            Start tracking
-          </Link>
-        </div>
-      </header>
+    <div className="min-h-screen bg-background">
+      <FloatingNav mode="landing" />
 
-      {/* ── HERO ── */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center px-6 pt-24 pb-20 text-center overflow-hidden">
-        {/* Background glow */}
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] rounded-full bg-primary/8 blur-[180px]" />
-          <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] rounded-full bg-accent/6 blur-[160px]" />
-        </div>
-
-        <div className="relative z-10 max-w-4xl mx-auto">
-          {/* Badge */}
-          <div
-            className="mb-8 inline-flex items-center gap-2 rounded-full border border-border/40 bg-card/50 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur-sm animate-hero-fade-in"
-            style={{ animationDelay: "0s" }}
-          >
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+      <main className="pt-[calc(var(--topbar-h)+1rem)] lg:pt-24">
+        {/* ── HERO ── */}
+        <section className="px-4">
+          <div className="hero-gradient relative mx-auto flex min-h-[78vh] max-h-[760px] max-w-6xl flex-col items-center justify-center overflow-hidden rounded-3xl border border-[var(--hero-border)] px-5 py-16 text-center sm:px-8 sm:py-20 lg:min-h-[min(78vh,700px)] lg:px-10 lg:py-24">
+            <span
+              className="animate-hero-fade-in inline-flex max-w-full items-center gap-2 rounded-full border border-[var(--hero-border)] px-3.5 py-1.5 text-center text-[11px] font-semibold uppercase leading-5 tracking-[0.12em] text-[var(--hero-muted)] sm:px-4 sm:text-xs sm:tracking-[0.18em]"
+              style={{ animationDelay: "0s" }}
+            >
+              <span
+                className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-cyan-300 shadow-[0_0_8px_rgba(103,232,249,0.8)]"
+                aria-hidden="true"
+              />
+              Movies, TV Shows, Anime — All in one place
             </span>
-            Movies · TV · Anime — one library
-          </div>
 
-          {/* Heading */}
-          <h1
-            className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black leading-[1.05] sm:leading-[0.9] tracking-tighter animate-hero-fade-in"
-            style={{ animationDelay: "0.1s" }}
-          >
-            Track <span className="text-primary">Movies.</span>
-            <br />
-            <span className="text-primary">TV Shows.</span>{" "}
-            <span className="text-accent">Anime.</span>
-            <br />
-            All in One Place.
-          </h1>
-
-          <p
-            className="mt-6 mx-auto max-w-xl text-base sm:text-lg text-muted-foreground/90 leading-relaxed animate-hero-fade-in"
-            style={{ animationDelay: "0.2s" }}
-          >
-            Stop juggling five apps. Track what you watch, discover what's next, and copy titles
-            straight from your friends. Free, forever.
-          </p>
-
-          <div
-            className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 animate-hero-fade-in"
-            style={{ animationDelay: "0.3s" }}
-          >
-            <Link
-              to="/auth"
-              className="group inline-flex items-center justify-center gap-2 w-full sm:w-auto rounded-xl bg-gradient-accent px-8 py-4 text-base font-semibold text-white shadow-xl shadow-primary/30 hover:shadow-primary/50 transition-all btn-press"
+            <h1
+              className="animate-hero-fade-in mt-7 text-5xl font-black leading-[0.98] tracking-tight text-[var(--hero-fg)] sm:text-6xl md:text-7xl lg:text-7xl xl:text-8xl"
+              style={{ animationDelay: "0.08s" }}
             >
-              Start tracking free
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Link>
-            <a
-              href="#features"
-              onClick={(e) => {
-                e.preventDefault();
-                document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="inline-flex items-center justify-center gap-2 w-full sm:w-auto rounded-xl border border-border/50 bg-card/30 px-8 py-4 text-sm font-medium text-foreground/80 backdrop-blur-sm hover:bg-card/60 transition-colors btn-press cursor-pointer"
+              <span className="block">Track Every</span>
+              <span className="block text-[var(--hero-accent)]">Story.</span>
+            </h1>
+
+            <p
+              className="animate-hero-fade-in mx-auto mt-6 max-w-xl px-1 text-base leading-relaxed text-[var(--hero-muted)] sm:text-lg"
+              style={{ animationDelay: "0.16s" }}
             >
-              See features
-              <ChevronDown className="h-4 w-4" />
-            </a>
-          </div>
-        </div>
-
-        {/* Mock preview */}
-        <div
-          className="relative z-10 mt-10 sm:mt-20 w-full max-w-5xl mx-auto animate-hero-fade-in"
-          style={{ animationDelay: "0.4s" }}
-        >
-          <div className="glass-strong rounded-2xl p-3 md:p-4 shadow-2xl image-glow-border">
-            <div className="flex items-center gap-2 mb-3 px-2">
-              <div className="h-2.5 w-2.5 rounded-full bg-destructive/50" />
-              <div className="h-2.5 w-2.5 rounded-full bg-warning/50" />
-              <div className="h-2.5 w-2.5 rounded-full bg-success/50" />
-              <div className="ml-3 flex-1 rounded-lg bg-background/50 px-3 py-1.5 text-xs text-muted-foreground/70 flex items-center gap-2">
-                <Search className="h-3 w-3" /> Search movies, series, anime…
-              </div>
-            </div>
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-3">
-              {PREVIEW_ITEMS.map((item, i) => (
-                <div
-                  key={item.title}
-                  className="group relative rounded-xl overflow-hidden bg-muted/40 aspect-[2/3]"
-                >
-                  <img
-                    src={item.img}
-                    alt={item.title}
-                    loading="lazy"
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent p-2">
-                    <p className="text-xs font-semibold text-white truncate drop-shadow-sm">
-                      {item.title}
-                    </p>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <span className="text-[9px] uppercase tracking-wider text-white/70">
-                        {item.type}
-                      </span>
-                      <span className="ml-auto flex items-center gap-0.5 text-[10px] text-warning font-medium">
-                        <Star className="h-2.5 w-2.5 fill-current" /> {item.rating}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Tailcast-style Shape Divider */}
-        <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-[0]">
-          <svg
-            className="relative block w-full h-[60px] md:h-[120px]"
-            viewBox="0 0 1200 120"
-            preserveAspectRatio="none"
-            fill="currentColor"
-          >
-            <path className="fill-background" d="M1200 0L0 0 598.97 114.72 1200 0z" />
-          </svg>
-        </div>
-      </section>
-
-      {/* ── FEATURES ── */}
-      <section id="features" className="relative px-6 py-24 md:py-32">
-        <div className="mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-black tracking-tight">
-              Built the way you actually watch.
-            </h2>
-            <p className="mt-4 text-muted-foreground max-w-xl mx-auto">
-              One unified library for everything you watch — no matter the screen, genre, or
-              language.
+              Track movies, TV shows, anime, and manga. Discover something new, keep your progress
+              organized, and build your personal entertainment library.
             </p>
+
+            <p
+              className="animate-hero-fade-in mt-5 text-xs font-medium uppercase tracking-[0.16em] text-[var(--hero-muted)] sm:text-sm sm:tracking-[0.2em]"
+              style={{ animationDelay: "0.22s" }}
+            >
+              Movies &amp; TV • Anime • Manga
+            </p>
+
+            <div
+              className="animate-hero-fade-in mt-10 flex w-full flex-col items-center justify-center gap-3 sm:flex-row"
+              style={{ animationDelay: "0.3s" }}
+            >
+              <button
+                onClick={() => goDiscover()}
+                className="group inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-white px-7 py-3.5 text-base font-semibold text-slate-900 shadow-lg transition-all hover:bg-white/90 btn-press sm:w-auto sm:px-8 sm:py-4"
+              >
+                Start Exploring
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </button>
+              {authed ? (
+                <Link
+                  to="/dashboard"
+                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-[var(--hero-border)] px-7 py-3.5 text-base font-medium text-[var(--hero-fg)] transition-colors hover:bg-white/10 btn-press sm:w-auto sm:px-8 sm:py-4"
+                >
+                  Open your dashboard
+                </Link>
+              ) : (
+                <Link
+                  to="/auth"
+                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-[var(--hero-border)] px-7 py-3.5 text-base font-medium text-[var(--hero-fg)] transition-colors hover:bg-white/10 btn-press sm:w-auto sm:px-8 sm:py-4"
+                >
+                  Sign in to track your library
+                </Link>
+              )}
+            </div>
+
+            <div
+              className="animate-hero-fade-in mt-14 flex flex-col items-center gap-1 text-[var(--hero-muted)]"
+              style={{ animationDelay: "0.4s" }}
+            >
+              <span className="text-xs uppercase tracking-widest">Scroll to explore</span>
+              <ChevronDown className="animate-scroll-cue h-4 w-4" />
+            </div>
           </div>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {FEATURES.map((f, i) => (
-              <div key={f.title} className="glass rounded-2xl p-6 card-hover">
-                <div className="mb-4 grid h-10 w-10 place-items-center rounded-lg bg-primary/15 text-primary">
-                  <f.Icon className="h-5 w-5" />
+        </section>
+
+        {/* ── TRENDING NOW (real data) ── */}
+        <section className="mx-auto max-w-6xl px-4 py-16 md:py-20">
+          <SectionHeading
+            eyebrow="Trending now"
+            EyebrowIcon={TrendingUp}
+            title="What everyone's watching"
+            subtitle="Live picks across every category — tap any title to see the details."
+          />
+          {trendingQ.isLoading ? (
+            <RailSkeleton />
+          ) : trending.length > 0 ? (
+            <MediaRail items={trending} />
+          ) : null}
+        </section>
+
+        {/* ── DISCOVER CATEGORIES ── */}
+        <section className="mx-auto max-w-6xl px-4 py-16 md:py-20">
+          <SectionHeading
+            eyebrow="Browse by category"
+            EyebrowIcon={Compass}
+            title="Start where your taste lives"
+            subtitle="Jump straight into a curated feed for each kind of story."
+          />
+          <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {CATEGORIES.map(({ type, label, desc, Icon }) => (
+              <button
+                key={type}
+                onClick={() => goDiscover(type)}
+                className="surface group flex flex-col items-start gap-3 rounded-2xl p-5 text-left transition-all hover:-translate-y-1 hover:border-primary/30"
+              >
+                <span className="grid h-11 w-11 place-items-center rounded-xl bg-primary/10 text-primary">
+                  <Icon className="h-5 w-5" />
+                </span>
+                <div>
+                  <h3 className="text-base font-bold text-foreground">{label}</h3>
+                  <p className="mt-0.5 text-sm text-muted-foreground">{desc}</p>
                 </div>
-                <h3 className="text-lg font-bold">{f.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground/80 leading-relaxed">{f.body}</p>
+                <span className="mt-auto inline-flex items-center gap-1 text-sm font-semibold text-primary">
+                  Explore
+                  <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* ── TRACK YOUR WORLD ── */}
+        <section className="mx-auto max-w-6xl px-4 py-16 md:py-20">
+          <SectionHeading
+            eyebrow="Track your world"
+            EyebrowIcon={Sparkles}
+            title="Everything in one organized place"
+            subtitle="The essentials of a great tracker, designed to stay out of your way."
+          />
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {PILLARS.map(({ title, body, Icon }) => (
+              <div key={title} className="surface rounded-2xl p-6">
+                <span className="mb-4 grid h-11 w-11 place-items-center rounded-xl bg-primary/10 text-primary">
+                  <Icon className="h-5 w-5" />
+                </span>
+                <h3 className="text-base font-bold text-foreground">{title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
               </div>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── CTA ── */}
-      <section className="relative px-6 py-24 md:py-32 text-center">
-        <div className="mx-auto max-w-3xl">
-          <h2 className="text-3xl md:text-5xl font-black tracking-tight">
-            Start your library in seconds.
-          </h2>
-          <p className="mt-4 text-muted-foreground text-lg">
-            Sign in with Google or email. Your first movie is one click away.
-          </p>
-          <Link
-            to="/auth"
-            className="mt-8 inline-flex items-center gap-2 rounded-xl bg-gradient-accent px-8 py-4 text-base font-semibold text-white shadow-xl shadow-primary/30 hover:shadow-primary/50 transition-all btn-press"
-          >
-            Get started — it's free
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-          <p className="mt-6 text-xs text-muted-foreground/60">
-            No credit card. No ads. No limits. Ever.
-          </p>
-        </div>
-      </section>
-
-      {/* ── FOOTER ── */}
-      <footer className="border-t border-border/40 px-6 py-8">
-        <div className="mx-auto max-w-6xl flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <div className="grid h-6 w-6 place-items-center rounded-md bg-gradient-accent">
-              <span className="text-[10px] font-black text-white">N</span>
+        {/* ── FINAL CTA ── */}
+        <section className="mx-auto max-w-6xl px-4 pb-20 pt-4 md:pb-28">
+          <div className="surface-lg relative overflow-hidden rounded-3xl px-6 py-16 text-center md:py-20">
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/8 via-transparent to-accent/8" />
+            <div className="relative">
+              <h2 className="text-3xl font-black tracking-tight text-foreground md:text-4xl">
+                {authed ? "Your library is waiting." : "Build your library today."}
+              </h2>
+              <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
+                {authed
+                  ? "Jump back into your dashboard and pick up where you left off."
+                  : "Create a free account to save progress, follow friends, and keep everything in sync."}
+              </p>
+              <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                {authed ? (
+                  <Link
+                    to="/dashboard"
+                    className="inline-flex items-center gap-2 rounded-full bg-gradient-accent px-8 py-4 text-base font-semibold text-white shadow-md transition-shadow hover:shadow-lg btn-press"
+                  >
+                    Open your dashboard
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                ) : (
+                  <>
+                    <Link
+                      to="/auth"
+                      className="inline-flex items-center gap-2 rounded-full bg-gradient-accent px-8 py-4 text-base font-semibold text-white shadow-md transition-shadow hover:shadow-lg btn-press"
+                    >
+                      Create your library
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                    <Link
+                      to="/auth"
+                      className="inline-flex items-center gap-2 rounded-full border border-border px-8 py-4 text-base font-medium text-foreground transition-colors hover:bg-muted btn-press"
+                    >
+                      Sign in
+                    </Link>
+                  </>
+                )}
+              </div>
             </div>
-            NexusTrack
           </div>
-          <p className="text-xs text-muted-foreground/60">Data from TMDB & AniList.</p>
-        </div>
-      </footer>
+        </section>
+      </main>
     </div>
   );
 }
 
-const PREVIEW_ITEMS = [
-  {
-    title: "Interstellar",
-    type: "Movie",
-    rating: "9.0",
-    img: "https://image.tmdb.org/t/p/w342/yQvGrMoipbRoddT0ZR8tPoR7NfX.jpg",
-  },
-  {
-    title: "Breaking Bad",
-    type: "TV",
-    rating: "9.5",
-    img: "https://image.tmdb.org/t/p/w342/anFx9aTOOYqgS3v7x3R84Kz67ly.jpg",
-  },
-  {
-    title: "One Piece",
-    type: "Anime",
-    rating: "8.8",
-    img: "https://image.tmdb.org/t/p/w342/blWCPEqDGLBuLB9u89CxP9ORQP4.jpg",
-  },
-  {
-    title: "Stranger Things",
-    type: "TV",
-    rating: "8.7",
-    img: "https://image.tmdb.org/t/p/w342/uOOtwVbSr4QDjAGIifLDwpb2Pdl.jpg",
-  },
-  {
-    title: "Your Name",
-    type: "Anime",
-    rating: "8.8",
-    img: "https://image.tmdb.org/t/p/w342/q719jXXEzOoYaps6babgKnONONX.jpg",
-  },
-  {
-    title: "The Batman",
-    type: "Movie",
-    rating: "8.3",
-    img: "https://image.tmdb.org/t/p/w342/74xTEgt7R36Fpooo50r9T25onhq.jpg",
-  },
-];
+// ─── Section heading (eyebrow + title + subtitle) ──────────────────────────────
+
+function SectionHeading({
+  eyebrow,
+  EyebrowIcon,
+  title,
+  subtitle,
+}: {
+  eyebrow: string;
+  EyebrowIcon: typeof Film;
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <div className="max-w-2xl">
+      <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.18em] text-primary">
+        <EyebrowIcon className="h-3.5 w-3.5" />
+        {eyebrow}
+      </span>
+      <h2 className="mt-2 text-2xl font-black tracking-tight text-foreground md:text-3xl">
+        {title}
+      </h2>
+      {subtitle ? <p className="mt-2 text-muted-foreground">{subtitle}</p> : null}
+    </div>
+  );
+}
+
+// ─── Rail skeleton (matches MediaRail poster sizing) ───────────────────────────
+
+function RailSkeleton() {
+  return (
+    <div className="flex gap-3 overflow-hidden pb-2">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="w-[132px] shrink-0 sm:w-[150px] md:w-[160px]" aria-hidden="true">
+          <div className="aspect-[2/3] animate-pulse rounded-2xl bg-muted" />
+          <div className="mt-2 h-3 w-3/4 animate-pulse rounded bg-muted" />
+        </div>
+      ))}
+    </div>
+  );
+}

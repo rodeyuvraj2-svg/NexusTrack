@@ -1457,9 +1457,7 @@ function MediaDetail() {
                   params={{
                     type: (isManga ? "manga" : "anime") as "manga" | "anime",
                     source: (item.isCurrent ? source : relationsSource) as
-                      | "anilist"
-                      | "jikan"
-                      | "kitsu",
+                      "anilist" | "jikan" | "kitsu",
                     id: String(item.mal_id),
                   }}
                   className={cn(
@@ -2008,8 +2006,7 @@ function ReviewsSection({
         <div className="space-y-3">
           {reviews.data!.map((r) => {
             const p = r.profile as unknown as
-              | { username: string; display_name: string; avatar_url: string | null }
-              | undefined;
+              { username: string; display_name: string; avatar_url: string | null } | undefined;
             const isMine = r.user_id === currentUserId;
             return (
               <div key={r.id} className="glass rounded-xl p-4">

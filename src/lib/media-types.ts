@@ -1,12 +1,6 @@
 export type MediaType = "movie" | "tv" | "anime" | "manga";
 export type WatchStatus =
-  | "watching"
-  | "completed"
-  | "planned"
-  | "paused"
-  | "dropped"
-  | "skipped"
-  | "rewatching";
+  "watching" | "completed" | "planned" | "paused" | "dropped" | "skipped" | "rewatching";
 
 export interface MediaSummary {
   external_id: string;

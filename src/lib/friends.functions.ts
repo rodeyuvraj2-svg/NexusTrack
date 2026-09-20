@@ -11,15 +11,50 @@ interface FriendProfileRow {
   avatar_url: string | null;
 }
 
+export function mergeAcceptedFriendIds(
+  friendshipRows: Array<{ requester_id: string; addressee_id: string; status: string }>,
+  followRows: Array<{ follower_id: string; following_id: string }>,
+  userId: string,
+): Set<string> {
+  const accepted = new Set<string>();
+
+  for (const row of friendshipRows) {
+    if (row.status !== "accepted") continue;
+    const friendId = row.requester_id === userId ? row.addressee_id : row.requester_id;
+    if (friendId !== userId) accepted.add(friendId);
+  }
+
+  const following = new Set(
+    followRows.filter((row) => row.follower_id === userId).map((row) => row.following_id),
+  );
+  const followers = new Set(
+    followRows.filter((row) => row.following_id === userId).map((row) => row.follower_id),
+  );
+
+  for (const friendId of following) {
+    if (followers.has(friendId)) accepted.add(friendId);
+  }
+
+  return accepted;
+}
+
 export const listFriends = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: rows, error } = await context.supabase
-      .from("friendships")
-      .select("id, status, requester_id, addressee_id, created_at")
-      .or(`requester_id.eq.${context.userId},addressee_id.eq.${context.userId}`)
-      .order("created_at", { ascending: false });
-    if (error) throw error;
+    const [friendshipsRes, followsRes] = await Promise.all([
+      context.supabase
+        .from("friendships")
+        .select("id, status, requester_id, addressee_id, created_at")
+        .or(`requester_id.eq.${context.userId},addressee_id.eq.${context.userId}`)
+        .order("created_at", { ascending: false }),
+      context.supabase
+        .from("follows")
+        .select("follower_id, following_id")
+        .or(`follower_id.eq.${context.userId},following_id.eq.${context.userId}`)
+        .order("created_at", { ascending: false }),
+    ]);
+    if (friendshipsRes.error) throw friendshipsRes.error;
+    if (followsRes.error) throw followsRes.error;
 
     interface FriendshipRow {
       id: string;
@@ -28,28 +63,59 @@ export const listFriends = createServerFn({ method: "GET" })
       addressee_id: string;
       created_at: string;
     }
-    const friendRows = (rows ?? []) as FriendshipRow[];
+    const friendRows = (friendshipsRes.data ?? []) as FriendshipRow[];
+    const followRows = (followsRes.data ?? []) as Array<{
+      follower_id: string;
+      following_id: string;
+    }>;
+
+    const mutualFollowIds = new Set<string>();
+    const followingIds = new Set(
+      followRows.filter((row) => row.follower_id === context.userId).map((row) => row.following_id),
+    );
+    const followerIds = new Set(
+      followRows.filter((row) => row.following_id === context.userId).map((row) => row.follower_id),
+    );
+    for (const id of followingIds) {
+      if (followerIds.has(id)) mutualFollowIds.add(id);
+    }
 
     const otherIds = Array.from(
-      new Set(
-        friendRows.map((r) =>
+      new Set([
+        ...friendRows.map((r) =>
           r.requester_id === context.userId ? r.addressee_id : r.requester_id,
         ),
-      ),
+        ...Array.from(mutualFollowIds),
+      ]),
     );
     if (otherIds.length === 0) return { accepted: [], incoming: [], outgoing: [] };
 
-    // Profiles and library stats both depend only on the friendship rows —
-    // fetch them in parallel instead of back-to-back roundtrips.
-    const acceptedFriendIds = friendRows
-      .filter((r) => r.status === "accepted")
-      .map((r) => (r.requester_id === context.userId ? r.addressee_id : r.requester_id));
+    // Profiles and library stats both depend on the accepted friends set, which
+    // includes mutual follows when no accepted friendship row exists.
+    const acceptedFriendIds = Array.from(
+      mergeAcceptedFriendIds(friendRows, followRows, context.userId),
+    );
 
-    const [profilesRes, statsRes] = await Promise.all([
+    // A private profile is still visible to an accepted friend. The regular
+    // user client correctly enforces profile RLS, but that policy can hide
+    // accepted friends from this relationship-scoped list. Fetch accepted
+    // friend metadata with the server client, limited strictly to IDs from
+    // friendship rows already authorized by the authenticated query.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [profilesRes, acceptedProfilesRes, statsRes] = await Promise.all([
       context.supabase
         .from("profiles")
         .select("id, username, display_name, avatar_url")
         .in("id", otherIds),
+      acceptedFriendIds.length > 0
+        ? supabaseAdmin
+            .from("profiles")
+            .select("id, username, display_name, avatar_url")
+            .in("id", acceptedFriendIds)
+        : Promise.resolve({
+            data: [] as FriendProfileRow[],
+            error: null,
+          }),
       acceptedFriendIds.length > 0
         ? context.supabase
             .from("user_media")
@@ -66,14 +132,16 @@ export const listFriends = createServerFn({ method: "GET" })
           }),
     ]);
     if (profilesRes.error) throw profilesRes.error;
+    if (acceptedProfilesRes.error) throw acceptedProfilesRes.error;
     // Explicit Map type — built from `any` rows it would otherwise infer
     // Map<unknown, unknown>, and server functions reject `unknown` payloads.
-    const pmap: Map<string, FriendProfileRow> = new Map(
-      ((profilesRes.data ?? []) as FriendProfileRow[]).map((p): [string, FriendProfileRow] => [
-        p.id,
-        p,
-      ]),
-    );
+    const pmap: Map<string, FriendProfileRow> = new Map();
+    for (const p of [
+      ...((profilesRes.data ?? []) as FriendProfileRow[]),
+      ...((acceptedProfilesRes.data ?? []) as FriendProfileRow[]),
+    ]) {
+      pmap.set(p.id, p);
+    }
 
     interface FriendLibraryStats {
       watching: number;
@@ -111,22 +179,27 @@ export const listFriends = createServerFn({ method: "GET" })
       libraryStats.set(s.user_id, entry);
     }
 
+    const acceptedFriendIdsSet = new Set(acceptedFriendIds);
+    const acceptedEntries = Array.from(acceptedFriendIdsSet).map((friendId) => ({
+      id: friendId,
+      status: "accepted",
+      requester_id: context.userId,
+      addressee_id: friendId,
+      created_at: new Date().toISOString(),
+      profile: pmap.get(friendId) ?? null,
+      library: libraryStats.get(friendId) ?? {
+        watching: 0,
+        completed: 0,
+        planned: 0,
+        favorites: 0,
+        movies: 0,
+        tv: 0,
+        anime: 0,
+      },
+    }));
+
     return {
-      accepted: friendRows
-        .filter((r) => r.status === "accepted")
-        .map((r) => {
-          const friendId = r.requester_id === context.userId ? r.addressee_id : r.requester_id;
-          return {
-            ...r,
-            profile: pmap.get(friendId) ?? null,
-            library: libraryStats.get(friendId) ?? {
-              watching: 0,
-              completed: 0,
-              planned: 0,
-              favorites: 0,
-            },
-          };
-        }),
+      accepted: acceptedEntries,
       incoming: friendRows
         .filter((r) => r.status === "pending" && r.addressee_id === context.userId)
         .map((r) => ({ ...r, profile: pmap.get(r.requester_id) ?? null })),

@@ -7,6 +7,8 @@ interface SafeImageProps {
   className?: string;
   wrapperClassName?: string;
   loading?: "lazy" | "eager";
+  sizes?: string;
+  fetchPriority?: "auto" | "high" | "low";
 }
 
 export function SafeImage({
@@ -15,6 +17,8 @@ export function SafeImage({
   className,
   wrapperClassName,
   loading = "lazy",
+  sizes,
+  fetchPriority = "auto",
 }: SafeImageProps) {
   const [error, setError] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -56,6 +60,9 @@ export function SafeImage({
         src={src}
         alt={alt}
         loading={loading}
+        decoding="async"
+        fetchPriority={fetchPriority}
+        sizes={sizes}
         onLoad={() => setLoaded(true)}
         onError={() => setError(true)}
         className={cn(

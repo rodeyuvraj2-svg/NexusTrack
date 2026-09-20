@@ -219,7 +219,7 @@ export function ProgressPanel({
     (isPureEpisodeAnime
       ? episodeTotal !== null && episodeTotal > 0 && episode !== null && episode >= episodeTotal
       : isSeasonCompleted(season)) ||
-      (episodeTotal !== null && episodeTotal > 0 && episode !== null && episode >= episodeTotal),
+    (episodeTotal !== null && episodeTotal > 0 && episode !== null && episode >= episodeTotal),
   );
 
   const mProgress = useMutation({
@@ -304,7 +304,8 @@ export function ProgressPanel({
       return;
     }
     if (isManga) mProgress.mutate({ current_chapter: chapter });
-    else if (isPureEpisodeAnime) mProgress.mutate({ current_season: null, current_episode: episode });
+    else if (isPureEpisodeAnime)
+      mProgress.mutate({ current_season: null, current_episode: episode });
     else mProgress.mutate({ current_season: season, current_episode: episode });
   };
 
@@ -519,9 +520,7 @@ export function ProgressPanel({
         <p className="text-sm font-medium">
           {formatted ?? <span className="text-muted-foreground">Not started</span>}
           {isCurrentSeasonCompleted ? (
-            <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-              (Completed)
-            </span>
+            <span className="ml-1.5 text-xs font-normal text-muted-foreground">(Completed)</span>
           ) : null}
         </p>
         {pct !== null ? <p className="text-xs tabular-nums text-muted-foreground">{pct}%</p> : null}
