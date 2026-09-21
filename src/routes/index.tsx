@@ -116,10 +116,10 @@ function Landing() {
 
       <main className="pt-[calc(var(--topbar-h)+1rem)] lg:pt-24">
         {/* ── HERO ── */}
-        <section className="px-4">
-          <div className="hero-gradient relative mx-auto flex min-h-[78vh] max-h-[760px] max-w-6xl flex-col items-center justify-center overflow-hidden rounded-3xl border border-[var(--hero-border)] px-5 py-16 text-center sm:px-8 sm:py-20 lg:min-h-[min(78vh,700px)] lg:px-10 lg:py-24">
+        <section className="px-3 sm:px-4">
+          <div className="hero-gradient relative mx-auto flex min-h-[70vh] max-h-[760px] max-w-6xl flex-col items-center justify-center overflow-hidden rounded-3xl border border-[var(--hero-border)] px-4 py-12 text-center sm:px-8 sm:py-16 lg:min-h-[min(78vh,700px)] lg:px-10 lg:py-24">
             <span
-              className="animate-hero-fade-in inline-flex max-w-full items-center gap-2 rounded-full border border-[var(--hero-border)] px-3.5 py-1.5 text-center text-[11px] font-semibold uppercase leading-5 tracking-[0.12em] text-[var(--hero-muted)] sm:px-4 sm:text-xs sm:tracking-[0.18em]"
+              className="animate-hero-fade-in inline-flex max-w-full items-center gap-2 rounded-full border border-[var(--hero-border)] px-3.5 py-1.5 text-center text-[10px] font-semibold uppercase leading-5 tracking-[0.12em] text-[var(--hero-muted)] sm:px-4 sm:text-xs sm:tracking-[0.18em]"
               style={{ animationDelay: "0s" }}
             >
               <span
@@ -130,7 +130,7 @@ function Landing() {
             </span>
 
             <h1
-              className="animate-hero-fade-in mt-7 text-5xl font-black leading-[0.98] tracking-tight text-[var(--hero-fg)] sm:text-6xl md:text-7xl lg:text-7xl xl:text-8xl"
+              className="animate-hero-fade-in mt-7 text-4xl font-black leading-[0.96] tracking-tight text-[var(--hero-fg)] sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl"
               style={{ animationDelay: "0.08s" }}
             >
               <span className="block">Track Every</span>
@@ -138,7 +138,7 @@ function Landing() {
             </h1>
 
             <p
-              className="animate-hero-fade-in mx-auto mt-6 max-w-xl px-1 text-base leading-relaxed text-[var(--hero-muted)] sm:text-lg"
+              className="animate-hero-fade-in mx-auto mt-5 max-w-xl px-1 text-sm leading-relaxed text-[var(--hero-muted)] sm:text-base lg:text-lg"
               style={{ animationDelay: "0.16s" }}
             >
               Track movies, TV shows, anime, and manga. Discover something new, keep your progress
@@ -153,12 +153,12 @@ function Landing() {
             </p>
 
             <div
-              className="animate-hero-fade-in mt-10 flex w-full flex-col items-center justify-center gap-3 sm:flex-row"
+              className="animate-hero-fade-in mt-8 flex w-full flex-col items-center justify-center gap-3 sm:mt-10 sm:flex-row"
               style={{ animationDelay: "0.3s" }}
             >
               <button
                 onClick={() => goDiscover()}
-                className="group inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-white px-7 py-3.5 text-base font-semibold text-slate-900 shadow-lg transition-all hover:bg-white/90 btn-press sm:w-auto sm:px-8 sm:py-4"
+                className="group inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-base font-semibold text-slate-900 shadow-lg transition-all hover:bg-white/90 btn-press sm:w-auto sm:px-8 sm:py-4"
               >
                 Start Exploring
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -166,14 +166,14 @@ function Landing() {
               {authed ? (
                 <Link
                   to="/dashboard"
-                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-[var(--hero-border)] px-7 py-3.5 text-base font-medium text-[var(--hero-fg)] transition-colors hover:bg-white/10 btn-press sm:w-auto sm:px-8 sm:py-4"
+                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-[var(--hero-border)] px-6 py-3 text-base font-medium text-[var(--hero-fg)] transition-colors hover:bg-white/10 btn-press sm:w-auto sm:px-8 sm:py-4"
                 >
                   Open your dashboard
                 </Link>
               ) : (
                 <Link
                   to="/auth"
-                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-[var(--hero-border)] px-7 py-3.5 text-base font-medium text-[var(--hero-fg)] transition-colors hover:bg-white/10 btn-press sm:w-auto sm:px-8 sm:py-4"
+                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-[var(--hero-border)] px-6 py-3 text-base font-medium text-[var(--hero-fg)] transition-colors hover:bg-white/10 btn-press sm:w-auto sm:px-8 sm:py-4"
                 >
                   Sign in to track your library
                 </Link>

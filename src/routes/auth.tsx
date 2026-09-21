@@ -199,25 +199,101 @@ function AuthPage() {
   }
 
   const authPanelClass =
-    "w-full min-w-0 rounded-2xl border border-slate-800 bg-[#0b1220] p-5 shadow-[0_18px_42px_rgba(2,6,23,0.5)] sm:p-6";
+    "w-full min-w-0 rounded-[28px] border border-white/10 bg-[#0b1220]/85 p-4 shadow-[0_24px_60px_rgba(2,6,23,0.58)] backdrop-blur-xl sm:p-5";
 
   const inputClass =
-    "w-full rounded-xl border border-slate-800 bg-[#0f172a] px-3.5 py-2.5 text-sm text-white transition-colors placeholder:text-slate-400 focus-visible:border-violet-400/70 focus-visible:outline-none";
+    "w-full rounded-xl border border-slate-700/70 bg-[#0b1220]/95 px-3.5 py-2.5 text-sm text-white transition-all placeholder:text-slate-400 focus-visible:border-violet-400/70 focus-visible:bg-[#0d1525] focus-visible:outline-none focus-visible:shadow-[0_0_0_3px_rgba(139,92,246,0.14)]";
 
   const staticShell = (content: React.ReactNode) => (
-    <div className="relative min-h-screen overflow-hidden bg-[#050b14] text-slate-100">
-      <div className="absolute inset-x-0 top-0 h-px bg-violet-400/50" />
+    <div className="min-h-screen bg-[#050b14] text-slate-100">
+      <div className="mx-auto flex min-h-screen w-full max-w-[1600px] items-stretch overflow-hidden bg-[#050b14]">
+        <aside className="relative hidden flex-1 overflow-hidden bg-[#090d18] lg:block">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(168,85,247,0.28),transparent_22%),radial-gradient(circle_at_82%_78%,rgba(59,130,246,0.24),transparent_28%),linear-gradient(135deg,#120f2d_0%,#0b1020_38%,#0b1220_100%)]" />
 
-      <div className="relative mx-auto flex min-h-screen w-full max-w-5xl items-center justify-center px-4 py-8 sm:px-6">
-        <Link
-          to="/"
-          className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900/90 px-3 py-2 text-sm font-medium text-slate-200 transition-colors hover:border-slate-500/60 hover:text-white sm:left-6 sm:top-6"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to NexusTrack
-        </Link>
+          <div className="absolute inset-0 opacity-70">
+            {[
+              {
+                url: "https://image.tmdb.org/t/p/w780/edv5CZvWj09upOsy2Y6IwDhK8bt.jpg",
+                className:
+                  "-left-8 top-16 h-[42%] w-[23%] rotate-[-18deg] shadow-[0_28px_80px_rgba(45,30,80,0.45)]",
+              },
+              {
+                url: "https://image.tmdb.org/t/p/w780/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg",
+                className:
+                  "left-[18%] top-[16%] h-[42%] w-[22%] rotate-[12deg] shadow-[0_28px_90px_rgba(22,59,110,0.4)]",
+              },
+              {
+                url: "https://image.tmdb.org/t/p/w780/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg",
+                className:
+                  "bottom-10 right-[9%] h-[38%] w-[20%] rotate-[14deg] shadow-[0_28px_80px_rgba(30,64,175,0.28)]",
+              },
+            ].map((art) => (
+              <div
+                key={art.className}
+                className={`absolute overflow-hidden rounded-[2rem] border border-white/8 ${art.className}`}
+              >
+                <img
+                  src={art.url}
+                  alt=""
+                  className="h-full w-full object-cover opacity-70 grayscale-[0.15]"
+                />
+                <div className="absolute inset-0 bg-gradient-to-br from-violet-500/15 via-slate-950/15 to-blue-500/15" />
+              </div>
+            ))}
+          </div>
 
-        <div className="w-full max-w-md">{content}</div>
+          <div className="relative z-10 flex h-full flex-col justify-between p-10 pb-8 pt-8 xl:p-14 xl:pt-10">
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-blue-500 text-sm font-black text-white shadow-[0_18px_36px_rgba(99,102,241,0.45)]">
+                N
+              </div>
+              <span className="text-lg font-semibold tracking-[-0.04em] text-white">
+                NexusTrack
+              </span>
+            </div>
+
+            <div className="max-w-xl -translate-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-violet-200/80">
+                Track every story.
+              </p>
+              <h1 className="mt-5 text-[2.6rem] font-black leading-[0.96] tracking-[-0.06em] text-white xl:text-[4.2rem]">
+                Track every <span className="text-violet-200">story.</span>
+              </h1>
+              <p className="mt-4 max-w-md text-base leading-relaxed text-slate-200/85 xl:text-lg">
+                A cinematic home for your movies, TV shows, anime, and manga—organized in one
+                library, with progress that always follows you.
+              </p>
+              <div className="mt-7 flex flex-wrap gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-slate-200/80">
+                {["Movies", "TV", "Anime", "Manga"].map((label) => (
+                  <span
+                    key={label}
+                    className="rounded-full border border-white/10 bg-slate-900/20 px-3 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm"
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-slate-300/80">
+              <span className="h-2 w-2 rounded-full bg-violet-400" />
+              Discover. Track. Repeat.
+            </div>
+          </div>
+        </aside>
+
+        <div className="relative flex w-full flex-1 items-center justify-center bg-[#050b14] px-3 py-7 sm:px-6 lg:px-8">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(168,85,247,0.08),transparent_36%)]" />
+          <Link
+            to="/"
+            className="absolute left-3 top-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/80 px-2.5 py-1.5 text-xs font-medium text-slate-200 transition-colors hover:border-violet-400/50 hover:text-white sm:left-6 sm:top-6 sm:px-3 sm:py-2 sm:text-sm"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to NexusTrack
+          </Link>
+
+          <div className="relative w-full max-w-[420px] pt-12 sm:pt-0">{content}</div>
+        </div>
       </div>
     </div>
   );
@@ -233,8 +309,8 @@ function AuthPage() {
   if (signupSuccess || resetSent) {
     return staticShell(
       <div className={authPanelClass}>
-        <div className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-full border border-slate-800 bg-slate-900 text-slate-200">
-          <MailCheck className="h-6 w-6" />
+        <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full border border-slate-800 bg-slate-900 text-slate-200">
+          <MailCheck className="h-5 w-5" />
         </div>
         <h2 className="text-2xl font-black tracking-[-0.04em] text-white">Check your email</h2>
         <p className="mt-3 text-sm leading-relaxed text-slate-300">
@@ -249,11 +325,10 @@ function AuthPage() {
   if (recovering) {
     return staticShell(
       <div className={authPanelClass}>
-        <div className="mb-5 flex items-center gap-3">
-          <div className="grid h-9 w-9 place-items-center rounded-xl border border-slate-800 bg-slate-900 text-sm font-bold text-slate-100">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="grid h-8 w-8 place-items-center rounded-xl border border-slate-800 bg-slate-900 text-sm font-bold text-slate-100">
             N
           </div>
-          <span className="text-xl font-black tracking-[-0.04em] text-white">NexusTrack</span>
         </div>
 
         <h2 className="text-2xl font-black tracking-[-0.04em] text-white">Set new password</h2>
@@ -313,11 +388,10 @@ function AuthPage() {
   if (forgotPassword) {
     return staticShell(
       <div className={authPanelClass}>
-        <div className="mb-5 flex items-center gap-3">
-          <div className="grid h-9 w-9 place-items-center rounded-xl border border-slate-800 bg-slate-900 text-sm font-bold text-slate-100">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="grid h-8 w-8 place-items-center rounded-xl border border-slate-800 bg-slate-900 text-sm font-bold text-slate-100">
             N
           </div>
-          <span className="text-xl font-black tracking-[-0.04em] text-white">NexusTrack</span>
         </div>
 
         <h2 className="text-2xl font-black tracking-[-0.04em] text-white">Reset password</h2>
@@ -364,24 +438,23 @@ function AuthPage() {
     <>
       {staticShell(
         <div className={authPanelClass}>
-          <div className="mb-5 flex items-center gap-3">
-            <div className="grid h-9 w-9 place-items-center rounded-xl border border-slate-800 bg-slate-900 text-sm font-bold text-slate-100">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="grid h-8 w-8 place-items-center rounded-xl border border-slate-800 bg-slate-900 text-sm font-bold text-slate-100">
               N
             </div>
-            <span className="text-xl font-black tracking-[-0.04em] text-white">NexusTrack</span>
           </div>
 
-          <div className="mb-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+          <div className="mb-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
               Welcome back
             </p>
-            <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-white">
-              {mode === "signin" ? "Sign in" : "Create account"}
+            <h2 className="mt-2 text-[1.7rem] font-black leading-tight tracking-[-0.05em] text-white">
+              {mode === "signin" ? "Sign in to your library" : "Create your library"}
             </h2>
           </div>
 
           <div
-            className="mb-5 flex rounded-xl border border-slate-800 bg-[#0d1524] p-1"
+            className="mb-5 flex rounded-xl border border-white/10 bg-slate-900/70 p-1"
             role="tablist"
             aria-label="Authentication mode"
           >
@@ -396,7 +469,9 @@ function AuthPage() {
                   setShowPassword(false);
                 }}
                 className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  mode === m ? "bg-slate-800 text-white" : "text-slate-300 hover:text-white"
+                  mode === m
+                    ? "bg-gradient-to-r from-violet-500/20 to-blue-500/20 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                    : "text-slate-300 hover:text-white"
                 }`}
               >
                 {m === "signin" ? "Sign in" : "Create account"}
@@ -408,12 +483,12 @@ function AuthPage() {
             type="button"
             onClick={handleGoogle}
             disabled={busy}
-            className="mb-4 flex w-full items-center justify-center gap-2.5 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm font-medium text-slate-100 transition-colors hover:border-slate-500/70 disabled:opacity-60"
+            className="mb-3 flex w-full items-center justify-center gap-2.5 rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2.5 text-sm font-medium text-slate-100 transition-colors hover:border-violet-400/40 hover:bg-slate-900/90 disabled:opacity-60"
           >
             <Chrome className="h-4 w-4" /> Continue with Google
           </button>
 
-          <div className="relative my-4">
+          <div className="relative my-3">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t border-border/60" />
             </div>
@@ -489,7 +564,7 @@ function AuthPage() {
             <button
               type="submit"
               disabled={busy || retryAfter > 0}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-violet-500/30 bg-violet-600/20 px-4 py-2.75 text-sm font-semibold text-violet-50 transition-colors hover:bg-violet-600/25 disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-violet-400/30 bg-gradient-to-r from-violet-500 to-blue-500 px-4 py-2.75 text-sm font-semibold text-white shadow-[0_16px_28px_rgba(99,102,241,0.24)] transition-colors hover:brightness-110 disabled:opacity-60"
             >
               {busy ? (
                 <>
@@ -508,7 +583,7 @@ function AuthPage() {
           <button
             type="button"
             onClick={handleGuestMode}
-            className="mt-4 w-full rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:border-slate-500/70 hover:text-white"
+            className="mt-3 w-full rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:border-violet-400/40 hover:text-white"
           >
             Continue as Guest
           </button>
