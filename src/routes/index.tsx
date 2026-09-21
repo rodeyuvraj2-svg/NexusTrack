@@ -1,4 +1,5 @@
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -22,11 +23,13 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const { data, error } = await supabase.auth.getSession();
 
-    if (session) {
+    if (error) {
+      return;
+    }
+
+    if (data.session) {
       throw redirect({ to: "/dashboard" });
     }
   },
@@ -85,21 +88,33 @@ const PILLARS: { title: string; body: string; Icon: typeof Film }[] = [
 function Landing() {
   const navigate = useNavigate();
   const { isGuest, enableGuest } = useGuest();
+  const [shouldLoadHeroData, setShouldLoadHeroData] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setShouldLoadHeroData(true), 150);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   // Shared with FloatingNav's ["session-present"] cache — no duplicate request.
   const { data: sessionPresent } = useQuery({
     queryKey: ["session-present"],
     queryFn: async () => !!(await supabase.auth.getSession()).data.session,
     staleTime: 30_000,
+    enabled: shouldLoadHeroData,
+    initialData: false,
   });
   const authed = !!sessionPresent;
 
-  // Real trending data — the same server feed the dashboard uses.
+  // Real trending data — the same server feed the dashboard uses. Delay it until
+  // after the hero paints so the LCP-critical viewport is not blocked by the
+  // expensive feed aggregation and TMDB/AniList requests.
   const trendingFn = useServerFn(mixedFeed);
   const trendingQ = useQuery({
     queryKey: ["landing-trending"],
     queryFn: () => trendingFn({ data: { mode: "trending", page: 1 } }),
     staleTime: 5 * 60_000,
+    enabled: shouldLoadHeroData,
+    initialData: { items: [], missing: [] },
   });
   const trending = trendingQ.data?.items ?? [];
 
@@ -131,10 +146,10 @@ function Landing() {
 
               <div className="flex items-center gap-2">
                 <Link
-                  to="/discover"
+                  to="/search"
                   className="rounded-full px-2.5 py-1.5 text-xs font-medium text-[var(--hero-muted)] transition-colors hover:text-[var(--hero-fg)]"
                 >
-                  Discover
+                  Search
                 </Link>
                 <Link
                   to="/auth"

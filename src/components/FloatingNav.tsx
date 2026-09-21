@@ -73,7 +73,8 @@ function useSessionPresence(enabled: boolean) {
   const q = useQuery({
     queryKey: ["session-present"],
     queryFn: async () => {
-      const { data } = await supabase.auth.getSession();
+      const { data, error } = await supabase.auth.getSession();
+      if (error) return false;
       return !!data.session;
     },
     staleTime: 30_000,

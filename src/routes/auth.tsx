@@ -57,8 +57,12 @@ function AuthPage() {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
 
-      const { data } = await supabase.auth.getSession();
+      const { data, error } = await supabase.auth.getSession();
       if (cancelled) return;
+      if (error) {
+        setChecking(false);
+        return;
+      }
       if (data?.session) {
         const { data: userData } = await supabase.auth.getUser();
         if (cancelled) return;

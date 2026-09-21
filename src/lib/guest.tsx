@@ -96,8 +96,11 @@ export function GuestProvider({ children }: { children: ReactNode }) {
     setIsGuest(loadGuestState());
     setGuestId(getGuestId());
 
-    // Check on mount if there's already a session
-    supabase.auth.getSession().then(({ data }) => {
+    // Check on mount if there's already a session. A stale refresh token can
+    // fail with a 400 from Supabase; that should not blank the landing page or
+    // break guest mode detection.
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) return;
       if (data?.session) {
         setIsGuest(false);
         saveGuestState(false);
@@ -162,6 +165,19 @@ export function GuestProvider({ children }: { children: ReactNode }) {
 
 export function useGuest(): GuestContextValue {
   const ctx = useContext(GuestContext);
-  if (!ctx) throw new Error("useGuest must be used within a GuestProvider");
+  if (!ctx) {
+    return {
+      isGuest: false,
+      guestId: null,
+      enableGuest: () => undefined,
+      disableGuest: () => undefined,
+      restrictedAction: null,
+      setRestrictedAction: () => undefined,
+      requireAuth: (_action: RestrictedAction, callback?: () => void) => {
+        callback?.();
+        return false;
+      },
+    };
+  }
   return ctx;
 }
