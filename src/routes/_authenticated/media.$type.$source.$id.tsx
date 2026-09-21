@@ -188,6 +188,7 @@ function MediaDetail() {
     else navigate({ to: "/dashboard" });
   }, [router, navigate]);
   const qc = useQueryClient();
+  const { requireAuth, isGuest } = useGuest();
 
   // ---- Server Function Bindings ----
   const cacheFn = useServerFn(cacheMedia);
@@ -222,7 +223,7 @@ function MediaDetail() {
   const recommendableQ = useQuery({
     queryKey: ["recommendable-users"],
     queryFn: () => recommendableUsersFn(),
-    enabled: showRecommend,
+    enabled: !isGuest && showRecommend,
     staleTime: 60_000,
   });
   const mRecommend = useMutation({
@@ -696,8 +697,6 @@ function MediaDetail() {
     notes?: string | null;
   };
 
-  const { requireAuth } = useGuest();
-
   const mUpsert = useMutation({
     mutationFn: (payload: UpsertPayload) => upsertFn({ data: payload }),
     onMutate: async (payload) => {
@@ -1098,7 +1097,7 @@ function MediaDetail() {
               ) : null}
             </>
           )}
-          {!summary?.is_fallback ? (
+          {!isGuest && !summary?.is_fallback ? (
             <button
               onClick={() => setShowRecommend(true)}
               className="mt-2 w-full min-h-[44px] rounded-lg glass text-sm font-medium hover:bg-muted/40 flex items-center justify-center gap-1.5"
@@ -1296,7 +1295,7 @@ function MediaDetail() {
               <Heart className={cn("inline h-4 w-4 mr-1", entryFavorited && "fill-current")} />{" "}
               {entryFavorited ? "Favorited" : "Favorite"}
             </button>
-            {!summary?.is_fallback ? (
+            {!isGuest && !summary?.is_fallback ? (
               <button
                 onClick={() => setShowRecommend(true)}
                 className="rounded-lg px-4 py-2 text-sm font-medium glass hover:bg-muted/40"
