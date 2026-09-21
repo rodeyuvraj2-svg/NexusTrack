@@ -282,7 +282,7 @@ function Library() {
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search saved titles..."
             aria-label="Search saved titles"
-            className="w-full rounded-xl border border-border/40 bg-card/40 pl-9 pr-8 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
+            className="w-full rounded-xl border border-border/60 bg-card/70 pl-9 pr-8 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
           />
           {searchQuery && (
             <button
@@ -298,7 +298,7 @@ function Library() {
         <div className="flex items-center gap-2">
           {/* View toggle — compact segmented control (icon-only, labelled) */}
           <div
-            className="flex items-center gap-0.5 rounded-xl border border-border/40 bg-card/40 p-0.5 shrink-0"
+            className="flex items-center gap-0.5 rounded-xl border border-border/60 bg-card/70 p-0.5 shrink-0"
             role="group"
             aria-label="View"
           >
@@ -330,7 +330,7 @@ function Library() {
           <button
             onClick={() => setSortDir((prev) => (prev === "asc" ? "desc" : "asc"))}
             aria-label={`Sort ${sortDir === "asc" ? "ascending" : "descending"}`}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg glass cursor-pointer hover:bg-muted/40 transition-colors text-muted-foreground hover:text-foreground"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg glass-strong cursor-pointer hover:bg-muted/40 transition-colors text-muted-foreground hover:text-foreground"
             title={`Sort ${sortDir === "asc" ? "Ascending" : "Descending"}`}
           >
             <ArrowUpDown
@@ -340,7 +340,7 @@ function Library() {
           <Select value={sortBy} onValueChange={(val) => setSortBy(val as SortOption)}>
             <SelectTrigger
               aria-label="Sort by"
-              className="h-9 min-w-0 flex-1 rounded-xl border border-border/40 bg-card/40 px-3 text-sm font-medium text-foreground focus:border-primary/50 focus:outline-none cursor-pointer sm:w-44 sm:flex-none"
+              className="h-9 min-w-0 flex-1 rounded-xl border border-border/60 bg-card/70 px-3 text-sm font-medium text-foreground focus:border-primary/50 focus:outline-none cursor-pointer sm:w-44 sm:flex-none"
             >
               <SelectValue />
             </SelectTrigger>
@@ -433,7 +433,7 @@ function LibraryList({ rows }: { rows: LibraryListRow[] }) {
     <>
       {/* Mobile (< md): compact card rows — a table can't fit at 320–480px,
           so each row becomes a poster + title + grouped metadata card. */}
-      <div className="glass overflow-hidden rounded-xl md:hidden">
+      <div className="glass-strong overflow-hidden rounded-xl md:hidden">
         {rows.map((r) => {
           const m = r.media;
           if (!m?.external_id) return null;
@@ -500,7 +500,7 @@ function LibraryList({ rows }: { rows: LibraryListRow[] }) {
 
       {/* Desktop (md+): dense table — the same rows with the fields the grid
           can't show (status, personal rating, last updated). */}
-      <div className="glass hidden overflow-hidden rounded-xl md:block">
+      <div className="glass-strong hidden overflow-hidden rounded-xl md:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border/40 text-left text-[11px] uppercase tracking-wider text-muted-foreground/60">
