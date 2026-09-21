@@ -223,26 +223,28 @@ export function FloatingNav({
       </div>
 
       {/* ── Mobile top bar ── */}
-      <div
-        className="fixed inset-x-0 top-0 z-50 flex items-center justify-between border-b border-border bg-background/95 px-4 shadow-sm backdrop-blur-lg lg:hidden"
-        style={{ minHeight: "var(--topbar-h)" }}
-      >
-        <Brand to={homeTo} compact />
-        <div className="flex items-center gap-1">
-          {authed ? <NotificationsBell /> : null}
-          <button
-            onClick={() => setDrawer((v) => !v)}
-            aria-label={drawer ? "Close menu" : "Open menu"}
-            aria-expanded={drawer}
-            className="grid h-10 w-10 place-items-center rounded-full text-foreground/80 hover:bg-muted"
-          >
-            {drawer ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
+      {mode === "app" ? (
+        <div
+          className="fixed inset-x-0 top-0 z-50 flex items-center justify-between border-b border-border bg-background/95 px-4 shadow-sm backdrop-blur-lg lg:hidden"
+          style={{ minHeight: "var(--topbar-h)" }}
+        >
+          <Brand to={homeTo} compact />
+          <div className="flex items-center gap-1">
+            {authed ? <NotificationsBell /> : null}
+            <button
+              onClick={() => setDrawer((v) => !v)}
+              aria-label={drawer ? "Close menu" : "Open menu"}
+              aria-expanded={drawer}
+              className="grid h-10 w-10 place-items-center rounded-full text-foreground/80 hover:bg-muted"
+            >
+              {drawer ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {/* ── Mobile drawer ── */}
-      {drawer ? (
+      {mode === "app" && drawer ? (
         <div
           className="fixed inset-x-0 bottom-0 z-40 overflow-y-auto border-b border-border bg-background/97 p-4 backdrop-blur-xl animate-fade-in lg:hidden"
           style={{ top: "var(--topbar-h)" }}
@@ -336,11 +338,22 @@ export function FloatingNav({
 
 function Brand({ to, compact = false }: { to: string; compact?: boolean }) {
   return (
-    <Link to={to} aria-label="Home" className="flex items-center gap-2.5">
+    <Link
+      to={to}
+      aria-label="NexusTrack home"
+      className="flex items-center gap-2.5 text-[var(--hero-fg)]"
+    >
       <div className="grid h-8 w-8 place-items-center rounded-xl bg-gradient-accent shadow-sm">
         <span className="text-sm font-black text-white">N</span>
       </div>
-      {!compact ? <span className="sr-only">Home</span> : null}
+      <span
+        className={cn(
+          "text-sm font-semibold tracking-tight text-foreground",
+          compact ? "block" : "hidden sm:block",
+        )}
+      >
+        NexusTrack
+      </span>
     </Link>
   );
 }

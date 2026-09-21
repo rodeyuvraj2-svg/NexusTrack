@@ -114,12 +114,39 @@ function Landing() {
     <div className="min-h-screen bg-background">
       <FloatingNav mode="landing" />
 
-      <main className="pt-[calc(var(--topbar-h)+1rem)] lg:pt-24">
+      <main className="pt-4 lg:pt-24">
         {/* ── HERO ── */}
         <section className="px-3 sm:px-4">
-          <div className="hero-gradient relative mx-auto flex min-h-[70vh] max-h-[760px] max-w-6xl flex-col items-center justify-center overflow-hidden rounded-3xl border border-[var(--hero-border)] px-4 py-12 text-center sm:px-8 sm:py-16 lg:min-h-[min(78vh,700px)] lg:px-10 lg:py-24">
+          <div className="hero-gradient relative mx-auto flex min-h-[70vh] max-h-[760px] max-w-6xl flex-col items-center justify-center overflow-hidden rounded-3xl border border-[var(--hero-border)] px-4 pb-12 pt-4 text-center sm:px-8 sm:pb-16 sm:pt-6 lg:min-h-[min(78vh,700px)] lg:px-10 lg:py-24">
+            <div
+              className="animate-hero-fade-in flex w-full items-center justify-between rounded-full border border-[var(--hero-border)] bg-black/10 px-3 py-2 backdrop-blur-md lg:hidden"
+              style={{ animationDelay: "0.02s" }}
+            >
+              <Link to="/" aria-label="NexusTrack home" className="flex items-center gap-2">
+                <div className="grid h-8 w-8 place-items-center rounded-xl bg-gradient-accent shadow-sm">
+                  <span className="text-sm font-black text-white">N</span>
+                </div>
+                <span className="text-sm font-semibold text-[var(--hero-fg)]">NexusTrack</span>
+              </Link>
+
+              <div className="flex items-center gap-2">
+                <Link
+                  to="/discover"
+                  className="rounded-full px-2.5 py-1.5 text-xs font-medium text-[var(--hero-muted)] transition-colors hover:text-[var(--hero-fg)]"
+                >
+                  Discover
+                </Link>
+                <Link
+                  to="/auth"
+                  className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-900 shadow-sm transition-colors hover:bg-white/90"
+                >
+                  Sign in
+                </Link>
+              </div>
+            </div>
+
             <span
-              className="animate-hero-fade-in inline-flex max-w-full items-center gap-2 rounded-full border border-[var(--hero-border)] px-3.5 py-1.5 text-center text-[10px] font-semibold uppercase leading-5 tracking-[0.12em] text-[var(--hero-muted)] sm:px-4 sm:text-xs sm:tracking-[0.18em]"
+              className="animate-hero-fade-in mt-6 inline-flex max-w-full items-center gap-2 rounded-full border border-[var(--hero-border)] px-3.5 py-1.5 text-center text-[10px] font-semibold uppercase leading-5 tracking-[0.12em] text-[var(--hero-muted)] sm:px-4 sm:text-xs sm:tracking-[0.18em]"
               style={{ animationDelay: "0s" }}
             >
               <span
