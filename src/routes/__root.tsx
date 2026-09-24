@@ -102,6 +102,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://s4.anilist.co" },
       { rel: "preconnect", href: "https://cdn.myanimelist.net" },
       { rel: "preconnect", href: "https://media.kitsu.app" },
+      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       { rel: "icon", href: "/favicon.svg?v=2", type: "image/svg+xml" },
     ],
   }),
