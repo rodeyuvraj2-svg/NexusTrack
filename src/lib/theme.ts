@@ -13,8 +13,7 @@
 
 import { useEffect, useState } from "react";
 
-export type ThemeId =
-  "nexus-light" | "nexus-dark" | "midnight-rose" | "ocean-night" | "solar-light";
+export type ThemeId = "nexus-dark";
 
 export interface ThemeInfo {
   id: ThemeId;
@@ -28,21 +27,9 @@ export interface ThemeInfo {
 
 export const THEMES: ThemeInfo[] = [
   {
-    id: "nexus-light",
-    name: "Nexus Light",
-    description: "Warm white surfaces with deep indigo and violet — the premium default.",
-    light: true,
-    swatch: {
-      bg: "oklch(0.984 0.004 285)",
-      card: "oklch(1 0 0)",
-      primary: "oklch(0.53 0.215 283)",
-      accent: "oklch(0.56 0.2 300)",
-    },
-  },
-  {
     id: "nexus-dark",
     name: "Nexus Dark",
-    description: "Deep slate with indigo and violet — the classic NexusTrack look.",
+    description: "Default dark theme.",
     swatch: {
       bg: "oklch(0.13 0.015 270)",
       card: "oklch(0.18 0.018 270)",
@@ -50,53 +37,19 @@ export const THEMES: ThemeInfo[] = [
       accent: "oklch(0.6 0.26 290)",
     },
   },
-  {
-    id: "midnight-rose",
-    name: "Midnight Rose",
-    description: "Charcoal dark with purple and soft rose highlights.",
-    swatch: {
-      bg: "oklch(0.13 0.015 350)",
-      card: "oklch(0.18 0.022 350)",
-      primary: "oklch(0.58 0.22 305)",
-      accent: "oklch(0.62 0.19 355)",
-    },
-  },
-  {
-    id: "ocean-night",
-    name: "Ocean Night",
-    description: "Deep navy with blue and teal — calm and cinematic.",
-    swatch: {
-      bg: "oklch(0.13 0.03 245)",
-      card: "oklch(0.18 0.035 245)",
-      primary: "oklch(0.62 0.18 250)",
-      accent: "oklch(0.62 0.12 195)",
-    },
-  },
-  {
-    id: "solar-light",
-    name: "Solar Light",
-    description: "Warm light surfaces with deep indigo and gold.",
-    light: true,
-    swatch: {
-      bg: "oklch(0.975 0.008 85)",
-      card: "oklch(0.995 0.004 85)",
-      primary: "oklch(0.5 0.2 270)",
-      accent: "oklch(0.64 0.17 55)",
-    },
-  },
 ];
 
-export const DEFAULT_THEME: ThemeId = "nexus-light";
+export const DEFAULT_THEME: ThemeId = "nexus-dark";
 export const THEME_STORAGE_KEY = "nexustrack-theme";
 const THEME_EVENT = "nexustrack-theme-change";
 
 export function isThemeId(value: unknown): value is ThemeId {
-  return typeof value === "string" && THEMES.some((t) => t.id === value);
+  return typeof value === "string" && value === "nexus-dark";
 }
 
 /** Whether a theme id uses a light color-scheme (for toast/theme-aware UI). */
 export function isLightTheme(value: unknown): boolean {
-  return THEMES.some((t) => t.id === value && t.light);
+  return false;
 }
 
 /** Apply a theme to <html> and cache it for the next page load. */
@@ -138,4 +91,4 @@ export function useAppliedTheme(): ThemeId {
  * before first paint so a saved non-default theme never flashes. Framework-
  * free and synchronous on purpose; the id list mirrors THEMES.
  */
-export const THEME_BOOT_SCRIPT = `(function(){try{var t=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});if(t==="nexus-light"||t==="midnight-rose"||t==="ocean-night"||t==="solar-light"||t==="nexus-dark"){document.documentElement.setAttribute("data-theme",t)}}catch(e){}})();`;
+export const THEME_BOOT_SCRIPT = `(function(){try{var t=localStorage.getItem("nexustrack-theme");if(t=="nexus-dark"){document.documentElement.setAttribute("data-theme",t)}}catch(e){}})();`;
