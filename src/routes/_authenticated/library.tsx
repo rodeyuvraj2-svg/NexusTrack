@@ -72,6 +72,7 @@ type MediaFilterType = (typeof TYPES)[number];
 type SortOption = "recent" | "added" | "title" | "rating" | "year" | "progress";
 type SortDirection = "asc" | "desc";
 
+
 export const Route = createFileRoute("/_authenticated/library")({
   head: () => ({
     meta: [

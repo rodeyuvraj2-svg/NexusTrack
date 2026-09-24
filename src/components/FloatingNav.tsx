@@ -376,14 +376,14 @@ function RightControls({
   if (authState === "authed") {
     return (
       <div className="flex items-center gap-1.5">
-        {mode === "app" && onOpenSearch ? (
-          <button
-            onClick={onOpenSearch}
+        {mode === "app" ? (
+          <Link
+            to="/search"
             aria-label="Search"
             className="grid h-9 w-9 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <Search className="h-[18px] w-[18px]" />
-          </button>
+          </Link>
         ) : null}
         <NotificationsBell />
         <AccountMenu onSignOut={onSignOut} />

@@ -41,9 +41,8 @@ export function FilterTabs<T extends string = string>({
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full border font-medium transition-all btn-press shrink-0",
               size === "md" ? "px-4 py-2 text-sm" : "px-4 py-1.5 text-sm",
-              isActive
-                ? "border-primary/40 bg-gradient-accent/18 text-foreground shadow-[0_0_0_1px_rgba(129,140,248,0.25)]"
-                : "border-border/60 bg-card/55 text-muted-foreground hover:border-primary/25 hover:bg-muted/35 hover:text-foreground",
+              "border-[rgba(148,163,184,0.18)] bg-[#0b1220] text-foreground",
+              isActive ? "border-[rgba(148,163,184,0.35)]" : "",
             )}
           >
             {Icon ? <Icon className="h-4 w-4 shrink-0" /> : null}
@@ -80,11 +79,8 @@ export function Chip({
       aria-pressed={active}
       className={cn(
         "rounded-full border px-3 py-1 text-[11px] uppercase tracking-wider font-medium transition-colors shrink-0",
-        active
-          ? tone === "primary"
-            ? "border-primary/40 bg-primary/12 text-primary shadow-[0_0_0_1px_rgba(129,140,248,0.18)]"
-            : "border-accent/40 bg-accent/12 text-accent shadow-[0_0_0_1px_rgba(168,85,247,0.18)]"
-          : "border-border/60 bg-card/40 text-muted-foreground hover:border-primary/20 hover:bg-muted/35 hover:text-foreground",
+        "border-[rgba(148,163,184,0.18)] bg-[#0b1220] text-foreground",
+        active ? "border-[rgba(148,163,184,0.35)]" : "",
         className,
       )}
     >

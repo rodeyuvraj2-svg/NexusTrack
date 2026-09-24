@@ -5,7 +5,7 @@
 -- nothing changes visually for current users until they pick a theme.
 
 ALTER TABLE public.profiles
-  ADD COLUMN IF NOT EXISTS theme TEXT NOT NULL DEFAULT 'nexus-dark';
+  ADD COLUMN IF NOT EXISTS theme TEXT NOT NULL DEFAULT 'nexus-light';
 
 -- Validated check constraint — a theme value that isn't one of the four
 -- known themes can never be stored.
@@ -16,6 +16,6 @@ BEGIN
   ) THEN
     ALTER TABLE public.profiles
       ADD CONSTRAINT profiles_theme_check
-      CHECK (theme IN ('nexus-dark', 'midnight-rose', 'ocean-night', 'solar-light'));
+      CHECK (theme IN ('nexus-light'));
   END IF;
 END $$;

@@ -46,8 +46,8 @@ export default defineConfig({
         },
       },
     }),
-    // Generate Vercel Functions for production instead of a Cloudflare Worker.
-    nitro({ preset: "vercel" }),
+    // Disable Nitro for local development
+    // nitro({ preset: "vercel" }),
     tailwindcss(),
     tsConfigPaths({ projects: ["./tsconfig.json"] }),
     react(),

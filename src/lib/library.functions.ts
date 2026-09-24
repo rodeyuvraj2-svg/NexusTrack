@@ -43,7 +43,10 @@ export const listLibrary = createServerFn({ method: "GET" })
         "id, status, rating, favorite, hidden, notes, progress, created_at, updated_at, current_season, current_episode, current_chapter, progress_updated_at, media:media_id!inner(id, media_type, source, external_id, title, poster_url, release_year, vote_average, genres, season_count, chapter_count)",
       )
       .eq("user_id", context.userId)
-      .order("updated_at", { ascending: false });
+      .order("updated_at", { ascending: false })
+      // Supabase defaults to a 1000-row page; large libraries were being
+      // silently truncated before the client could render every saved title.
+      .range(0, 9999);
     if (data.status) q = q.eq("status", data.status);
     if (data.favorite !== undefined) q = q.eq("favorite", data.favorite);
     if (data.type)

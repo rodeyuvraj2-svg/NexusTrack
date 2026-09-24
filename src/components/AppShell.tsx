@@ -180,7 +180,7 @@ export function AppShell() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />
-      <FloatingNav mode="app" onOpenSearch={() => setCmdOpen(true)} />
+      <FloatingNav mode="app" />
 
       <main className="relative min-h-screen overflow-hidden pb-20 pt-[calc(var(--topbar-h)+1rem)] lg:pb-8 lg:pt-28">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(129,140,248,0.18),_transparent_28%),radial-gradient(circle_at_bottom,_rgba(59,130,246,0.12),_transparent_36%)]" />
