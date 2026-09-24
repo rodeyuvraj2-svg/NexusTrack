@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
+import { clearSupabaseSessionStorage, supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getUnreadCount } from "@/lib/notifications.functions";
@@ -74,8 +74,15 @@ function useSessionPresence(enabled: boolean) {
     queryKey: ["session-present"],
     queryFn: async () => {
       const { data, error } = await supabase.auth.getSession();
-      if (error) return false;
-      return !!data.session;
+      if (error || !data.session) {
+        try {
+          clearSupabaseSessionStorage();
+        } catch {
+          // Ignore storage access issues on browsers that block it.
+        }
+        return false;
+      }
+      return true;
     },
     staleTime: 30_000,
     enabled,
@@ -471,7 +478,8 @@ function AccountMenu({ onSignOut }: { onSignOut: () => void }) {
     staleTime: 60_000,
   });
   const profile = profileQ.data as
-    { username: string; display_name: string | null; avatar_url: string | null } | undefined;
+    | { username: string; display_name: string | null; avatar_url: string | null }
+    | undefined;
   const name = profile?.display_name || profile?.username || "Account";
 
   return (

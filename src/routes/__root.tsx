@@ -14,7 +14,7 @@ import { Toaster } from "sonner";
 import appCss from "../styles.css?url";
 import { GuestProvider } from "@/lib/guest";
 import { GuestRestrictionModal } from "@/components/GuestRestrictionModal";
-import { supabase } from "@/integrations/supabase/client";
+import { clearSupabaseSessionStorage, supabase } from "@/integrations/supabase/client";
 import {
   THEME_BOOT_SCRIPT,
   applyTheme,
@@ -138,22 +138,51 @@ function RootShell({ children }: { children: ReactNode }) {
 function ThemeSync() {
   useEffect(() => {
     let cancelled = false;
-    supabase.auth.getUser().then(({ data }) => {
-      const userId = data.user?.id;
-      if (!userId || cancelled) return;
-      supabase
-        .from("profiles")
-        .select("theme")
-        .eq("id", userId)
-        .maybeSingle()
-        .then(({ data: row }) => {
-          if (cancelled) return;
-          const saved = row?.theme;
-          if (isThemeId(saved) && saved !== getAppliedTheme()) applyTheme(saved);
-        });
+
+    const handleStaleSession = () => {
+      try {
+        clearSupabaseSessionStorage();
+      } catch {
+        // Ignore storage access issues on browsers that block it.
+      }
+    };
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (String(event) === "TOKEN_REFRESH_FAILED") {
+        handleStaleSession();
+      }
     });
+
+    supabase.auth
+      .getSession()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error || !data.session) {
+          handleStaleSession();
+          return;
+        }
+
+        const userId = data.session.user.id;
+        supabase
+          .from("profiles")
+          .select("theme")
+          .eq("id", userId)
+          .maybeSingle()
+          .then(({ data: row }) => {
+            if (cancelled) return;
+            const saved = row?.theme;
+            if (isThemeId(saved) && saved !== getAppliedTheme()) applyTheme(saved);
+          });
+      })
+      .catch(() => {
+        if (!cancelled) handleStaleSession();
+      });
+
     return () => {
       cancelled = true;
+      subscription.unsubscribe();
     };
   }, []);
   return null;

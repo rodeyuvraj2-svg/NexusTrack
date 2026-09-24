@@ -60,6 +60,22 @@ function createSupabaseClient() {
   });
 }
 
+export function clearSupabaseSessionStorage(
+  storage: Pick<Storage, "length" | "key" | "removeItem"> | undefined = typeof window !==
+  "undefined"
+    ? window.localStorage
+    : undefined,
+) {
+  if (!storage) return;
+
+  for (let index = storage.length - 1; index >= 0; index -= 1) {
+    const key = storage.key(index);
+    if (key?.startsWith("sb-") && key.includes("-auth-token")) {
+      storage.removeItem(key);
+    }
+  }
+}
+
 let _supabase: ReturnType<typeof createSupabaseClient> | undefined;
 
 // Import the supabase client like this:

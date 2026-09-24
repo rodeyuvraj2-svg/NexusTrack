@@ -281,7 +281,8 @@ function AccountMenu({ onSignOut }: { onSignOut: () => void }) {
     staleTime: 60_000,
   });
   const profile = profileQ.data as
-    { username: string; display_name: string | null; avatar_url: string | null } | undefined;
+    | { username: string; display_name: string | null; avatar_url: string | null }
+    | undefined;
   const name = profile?.display_name || profile?.username || "Account";
 
   return (
