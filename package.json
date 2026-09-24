@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "bun test"
+    "test": "bun test",
+  "start": "node dist/server/server.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

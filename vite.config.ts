@@ -32,8 +32,7 @@ function oauthRedirectPlugin(): Plugin {
   };
 }
 
-export default defineConfig({
-  plugins: [
+export default defineConfig({  plugins: [
     tanstackStart({
       server: {
         entry: "server",
